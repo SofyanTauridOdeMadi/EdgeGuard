@@ -32,11 +32,11 @@ Sistem ini dirancang untuk membantu **orang tua memantau aktivitas online anak**
 ## 🛠️ Teknologi yang Digunakan
 | Komponen | Teknologi |
 |-----------|------------|
-| Backend | Python (Flask) |
-| AI Engine | TensorFlow Lite / Edge AI Model |
+| Backend | Node |
+| AI Engine | Edge AI Model |
 | Frontend | HTML, CSS, JavaScript |
 | Router Control | OpenWRT API, Shell Integration |
-| Database | SQLite / MongoDB |
+| Database | SQLite |
 | Deployment | Edge Device (Router) / Local Server |
 
 ---
@@ -52,14 +52,19 @@ Sistem ini dirancang untuk membantu **orang tua memantau aktivitas online anak**
 ---
 
 ## 🧪 Status Proyek
-🚧 **Dalam Pengembangan Awal (v0.1-alpha)**  
-Target: Integrasi router dan sistem penjadwalan otomatis.
+🚧 **Dalam Pengembangan Awal (v0.8-Alpha)**  
+Target: Penyusunan Skripsi.
 
 ---
 
 ## 🧑‍💻 Kontributor
-- **Sofyan TauriD Ode Madi** – Peneliti sistem Edge-AI  
+"Pengendalian Akses Internet Anak Berbasis Edge-AI di Router dengan Pemblokiran Situs Otomatis dan Penjadwalan Cerdas"
+- **Sofyan Taurid Ode Madi** – Peneliti sistem Edge-AI  
 *(Mahasiswa Teknik Komputer, Universitas Negeri Makassar)*
+- **Dr. Eng. Ir. Abdul Wahid, M.Kom., IPM.** – Pembimbing 1 
+- **Dr. Eng. Ir. Jumadi M. Parenreng, S.ST, M.Kom., IPM.** – Pembimbing 2
+- **Abd. Rahman Patta, S.Kom., M.T., Ph. D** – Penguji 1 
+- **Muh. Syahid Nur Wahid, S. Pd., M. Pd.** – Penguji 2
 
 ---
 
