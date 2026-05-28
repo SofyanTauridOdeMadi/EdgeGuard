@@ -1,0 +1,12 @@
+# Edge Guard — Python Dependencies
+# ─────────────────────────────────────────────────────────
+# VPS / Cloud Dashboard
+flask>=2.3.0
+pymysql>=1.1.0
+bcrypt>=4.0.0              # hashing password (wajib untuk produksi)
+cryptography>=41.0.0       # SSL pymysql (opsional)
+
+# Laptop — Trainer Node (install terpisah, tidak perlu di VPS/router)
+# pip install scikit-learn numpy
+# scikit-learn>=1.3.0
+# numpy>=1.24.0

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edge Guard — Penjadwalan</title>
+<link rel="stylesheet" href="/aset/responsive.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#F9FAFB;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
+.topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
+.back{background:none;border:none;font-size:22px;cursor:pointer;padding:0;line-height:1;color:#111827}
+.topbar h1{font-size:17px;font-weight:600}
+.page{padding:14px 14px 100px}
+.flash{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:10px}
+.flash-success{background:#F0FDF4;color:#15803D}
+/* banner */
+.info-banner{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:14px;padding:13px 15px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start}
+.info-banner p{font-size:13px;color:#374151;line-height:1.55}
+.info-banner u{color:#2563EB;font-weight:600;text-decoration:none}
+.sec-lbl{font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin:4px 2px 8px}
+/* card */
+.card{background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.card-title{font-size:14px;font-weight:600;margin-bottom:14px}
+/* counter */
+.ctr{display:flex;align-items:center;gap:10px}
+.ctr-btn{width:40px;height:40px;border-radius:10px;background:#EFF6FF;border:none;cursor:pointer;font-size:26px;color:#2563EB;display:flex;align-items:center;justify-content:center;line-height:1;font-family:inherit;transition:background .12s}
+.ctr-btn:hover{background:#BFDBFE}
+.ctr-val{font-size:26px;font-weight:700;flex:1;text-align:center}
+.ctr-unit{font-size:13px;color:#9CA3AF}
+/* slider */
+.sl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+.sl-head h4{font-size:14px;font-weight:600}
+.sl-val{font-size:13px;font-weight:600;color:#2563EB}
+input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer}
+.sl-labs{display:flex;justify-content:space-between;font-size:11px;color:#9CA3AF;margin-top:5px}
+/* chart */
+.chart-head{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.cl{display:flex;align-items:center;gap:6px;font-size:12px}
+.cl-dot{width:9px;height:9px;border-radius:50%}
+.bars{height:80px;display:flex;align-items:flex-end;gap:5px}
+.bg{flex:1;display:flex;gap:2px;align-items:flex-end;height:100%}
+.b{flex:1;border-radius:3px 3px 0 0;min-height:3px}
+.bl-row{display:flex;gap:5px;margin-top:5px}
+.bl{flex:1;text-align:center;font-size:10px;color:#9CA3AF}
+/* save */
+.btn-save{width:100%;padding:16px;background:#2563EB;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;transition:opacity .15s}
+.btn-save:hover{opacity:.88}
+/* bnav */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 env(safe-area-inset-bottom,10px);z-index:20}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;color:#9CA3AF;text-decoration:none}
+.ni.active{color:#2563EB}
+.ni-ic{font-size:22px}.ni-lbl{font-size:11px;font-weight:500}
+</style>
+</head>
+<body data-page="jadwal">
+
+<div class="topbar">
+  <a href="/" class="back">←</a>
+  <h1>Penjadwalan Cerdas</h1>
+</div>
+
+<div class="page">
+
+  {% with msgs=get_flashed_messages(with_categories=true) %}
+  {% for cat,msg in msgs %}<div class="flash flash-{{cat}}">{{msg}}</div>{% endfor %}
+  {% endwith %}
+
+  <div class="info-banner">
+    <span style="font-size:16px;flex-shrink:0;margin-top:1px">✨</span>
+    <p>Setiap <u id="lb">{{cfg.durasi_belajar_menit}}</u> menit akses edukasi
+    memberikan bonus <u id="lbo">{{cfg.waktu_bonus_menit}}</u> menit waktu hiburan.</p>
+  </div>
+
+  <form method="POST" action="/jadwal">
+
+    <p class="sec-lbl">Konfigurasi Aturan</p>
+
+    <!-- Durasi Belajar -->
+    <div class="card">
+      <div class="card-title">📖 Durasi Belajar</div>
+      <div class="ctr">
+        <button type="button" class="ctr-btn" onclick="adj('b',-5)">−</button>
+        <span class="ctr-val" id="vb">{{cfg.durasi_belajar_menit}}</span>
+        <span class="ctr-unit">min</span>
+        <button type="button" class="ctr-btn" onclick="adj('b',5)">+</button>
+      </div>
+      <input type="hidden" name="durasi_belajar" id="ib" value="{{cfg.durasi_belajar_menit}}">
+    </div>
+
+    <!-- Waktu Bonus -->
+    <div class="card">
+      <div class="card-title">🎮 Waktu Bonus</div>
+      <div class="ctr">
+        <button type="button" class="ctr-btn" onclick="adj('o',-5)">−</button>
+        <span class="ctr-val" id="vo">{{cfg.waktu_bonus_menit}}</span>
+        <span class="ctr-unit">min</span>
+        <button type="button" class="ctr-btn" onclick="adj('o',5)">+</button>
+      </div>
+      <input type="hidden" name="waktu_bonus" id="io" value="{{cfg.waktu_bonus_menit}}">
+    </div>
+
+    <!-- Slider batas bonus -->
+    <div class="card">
+      <div class="sl-head">
+        <h4>⏱ Batas Bonus Harian</h4>
+        <span class="sl-val" id="sv">{{cfg.batas_bonus_harian_menit}} mnt maks</span>
+      </div>
+      <input type="range" name="batas_bonus" min="10" max="120" step="5"
+             value="{{cfg.batas_bonus_harian_menit}}"
+             oninput="document.getElementById('sv').textContent=this.value+' mnt maks'">
+      <div class="sl-labs">
+        <span>0m</span><span>30m</span><span>1h</span><span>1.5h</span><span>2h</span>
+      </div>
+    </div>
+
+    <!-- Bar chart -->
+    <p class="sec-lbl">Aktivitas Hari Ini</p>
+    <div class="card">
+      <div class="chart-head">
+        <div class="cl"><div class="cl-dot" style="background:#2563EB"></div>Edukasi</div>
+        <div class="cl"><div class="cl-dot" style="background:#F97316"></div>Hiburan</div>
+        <span style="margin-left:auto;font-size:11px;color:#9CA3AF;font-weight:600">HARI INI</span>
+      </div>
+      {% if ada_data %}
+      <div class="bars">
+        {% for b in bar_data %}
+        <div class="bg">
+          <div class="b" style="height:{{ [b.edu,4]|max }}px;background:{{'#E5E7EB' if b.future else '#2563EB'}}"></div>
+          <div class="b" style="height:{{ [b.hib,4]|max }}px;background:{{'#F3F4F6' if b.future else '#F97316'}}"></div>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="bl-row">
+        {% for b in bar_data %}<span class="bl">{{b.label}}</span>{% endfor %}
+      </div>
+      {% else %}
+      <div style="padding:30px 8px;text-align:center;color:#9CA3AF;font-size:13px;line-height:1.6">
+        📭 <strong style="color:#6B7280">Belum ada aktivitas hari ini.</strong><br>
+        Grafik akan muncul setelah anak mulai berselancar.
+      </div>
+      {% endif %}
+    </div>
+
+    <button type="submit" class="btn-save">💾 Simpan Konfigurasi Aturan</button>
+  </form>
+</div>
+
+<nav class="bnav">
+  <a href="/jadwal" class="ni active"><span class="ni-ic">🕐</span><span class="ni-lbl">Penjadwalan</span></a>
+  <a href="/"       class="ni"><span class="ni-ic">🏠</span><span class="ni-lbl">Beranda</span></a>
+  <a href="/aturan" class="ni"><span class="ni-ic">🛡️</span><span class="ni-lbl">Aturan</span></a>
+</nav>
+
+<script>
+var st={b:{{cfg.durasi_belajar_menit}},o:{{cfg.waktu_bonus_menit}}};
+function adj(k,d){
+  var mn=5,mx=k==='b'?120:60;
+  st[k]=Math.max(mn,Math.min(mx,st[k]+d));
+  document.getElementById('v'+k).textContent=st[k];
+  document.getElementById('i'+k).value=st[k];
+  document.getElementById('lb').textContent=st.b;
+  document.getElementById('lbo').textContent=st.o;
+}
+</script>
+</body>
+</html>

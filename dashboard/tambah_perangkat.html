@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edge Guard — {{ 'Edit' if mode=='edit' else 'Tambah' }} Perangkat</title>
+<link rel="stylesheet" href="/aset/responsive.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#F9FAFB;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
+a{text-decoration:none;color:inherit}
+.topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
+.back{background:none;border:none;font-size:22px;cursor:pointer;padding:0;line-height:1;color:#111827}
+.topbar h1{font-size:17px;font-weight:600}
+.page{padding:16px 14px 24px}
+/* flash */
+.flash{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:10px}
+.flash-error{background:#FEF2F2;color:#EF4444}
+.flash-success{background:#F0FDF4;color:#15803D}
+/* ilustrasi header */
+.illus{background:#fff;border-radius:14px;padding:24px 20px 20px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.07);text-align:center}
+.illus-icon{font-size:52px;margin-bottom:10px}
+.illus h2{font-size:16px;font-weight:700;color:#111827;margin-bottom:4px}
+.illus p{font-size:13px;color:#6B7280;line-height:1.5}
+/* section label */
+.sec-lbl{font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin:16px 2px 8px}
+/* form card */
+.form-card{background:#fff;border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+/* field */
+.field{margin-bottom:16px}
+.field:last-child{margin-bottom:0}
+.field label{font-size:13px;font-weight:600;display:block;margin-bottom:7px;color:#111827}
+.field label .req{color:#EF4444}
+.field label .hint{font-size:11px;color:#9CA3AF;font-weight:400;margin-left:6px}
+.inp{width:100%;border:1.5px solid #E5E7EB;border-radius:11px;padding:12px 14px;font-size:15px;font-family:inherit;color:#111827;outline:none;transition:border-color .15s;background:#fff}
+.inp:focus{border-color:#2563EB}
+.inp::placeholder{color:#9CA3AF}
+.inp.mono{font-family:'SF Mono','Courier New',monospace;letter-spacing:.06em;font-size:14px;text-transform:uppercase}
+.inp-wrap{position:relative}
+.inp-wrap .inp{padding-right:44px}
+.inp-wrap .inp-ic{position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:18px;color:#9CA3AF}
+/* MAC format hint */
+.mac-hint{font-size:11px;color:#9CA3AF;margin-top:5px;display:flex;align-items:center;gap:5px}
+.mac-hint.valid{color:#22C55E}
+.mac-hint.invalid{color:#EF4444}
+/* kuota slider */
+.kuota-row{display:flex;align-items:center;gap:12px}
+.kuota-btn{width:38px;height:38px;border-radius:10px;background:#EFF6FF;border:none;cursor:pointer;font-size:22px;color:#2563EB;display:flex;align-items:center;justify-content:center;font-weight:300;font-family:inherit}
+.kuota-val{flex:1;text-align:center;font-size:22px;font-weight:700}
+.kuota-unit{font-size:13px;color:#9CA3AF}
+/* device type chips */
+.type-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:4px}
+.type-chip{padding:8px 14px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s;font-family:inherit;color:#374151}
+.type-chip.active{background:#EFF6FF;border-color:#2563EB;color:#2563EB;font-weight:600}
+/* save button */
+.btn-save{width:100%;padding:16px;background:#2563EB;color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .15s;margin-top:8px}
+.btn-save:hover{opacity:.88}
+.btn-save:disabled{opacity:.5;cursor:not-allowed}
+
+/* Tombol Hapus (zona berbahaya) */
+.btn-hapus-dev{width:100%;padding:13px;background:#fff;color:#EF4444;border:1.5px solid #EF4444;border-radius:12px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:background .15s}
+.btn-hapus-dev:hover{background:#EF4444;color:#fff}
+
+/* Modal hapus */
+.overlay-hapus{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:flex-end;justify-content:center;z-index:200;opacity:0;pointer-events:none;transition:opacity .25s}
+.overlay-hapus.show{opacity:1;pointer-events:auto}
+.sheet-hapus{background:#fff;width:100%;max-width:430px;border-radius:24px 24px 0 0;padding:18px 20px env(safe-area-inset-bottom,28px);transform:translateY(100%);transition:transform .3s ease}
+.overlay-hapus.show .sheet-hapus{transform:translateY(0)}
+.handle{width:42px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 14px}
+.btn-cancel-h{padding:13px;background:#F3F4F6;border:none;border-radius:12px;font-size:14px;font-weight:600;color:#4B5563;cursor:pointer;font-family:inherit}
+.btn-confirm-h{padding:13px;background:#EF4444;border:none;border-radius:12px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit}
+.btn-confirm-h:hover{opacity:.92}
+
+@media (min-width: 1024px){
+  .sheet-hapus{max-width:420px;border-radius:24px;align-self:center;transform:translateY(20px) scale(.96)}
+  .overlay-hapus{align-items:center}
+  .overlay-hapus.show .sheet-hapus{transform:translateY(0) scale(1)}
+}
+
+</style>
+</head>
+<body data-page="tambah">
+
+<div class="topbar">
+  <a href="/perangkat" class="back">←</a>
+  <h1>{{ 'Edit Perangkat' if mode=='edit' else 'Tambah Perangkat' }}</h1>
+</div>
+
+<div class="page">
+
+  {% with msgs=get_flashed_messages(with_categories=true) %}
+  {% for cat,msg in msgs %}<div class="flash flash-{{cat}}">{{msg}}</div>{% endfor %}
+  {% endwith %}
+
+  <!-- Ilustrasi -->
+  <div class="illus">
+    <div class="illus-icon">📱</div>
+    <h2>{{ 'Perbarui Data Perangkat' if mode=='edit' else 'Daftarkan Perangkat Anak' }}</h2>
+    <p>{{ 'Ubah informasi perangkat yang sudah terdaftar.' if mode=='edit' else 'Masukkan MAC Address perangkat anak untuk mulai memantau aktivitas internet mereka secara real-time.' }}</p>
+  </div>
+
+  <form method="POST" id="form-perangkat"
+    action="{{ url_for('edit_perangkat', dev_id=dev.id) if mode=='edit' else url_for('tambah_perangkat') }}">
+
+    <!-- Identitas -->
+    <p class="sec-lbl">Identitas Perangkat</p>
+    <div class="form-card">
+      <!-- Nama anak -->
+      <div class="field">
+        <label>Nama Anak <span class="req">*</span></label>
+        <div class="inp-wrap">
+          <input class="inp" type="text" name="nama" id="nama"
+            placeholder="Contoh: Alex, Budi, Sarah"
+            value="{{ dev.nama if dev else '' }}" required maxlength="30"
+            oninput="updatePreview()">
+          <span class="inp-ic">👦</span>
+        </div>
+      </div>
+      <!-- Model perangkat -->
+      <div class="field">
+        <label>Jenis Perangkat <span class="hint">(opsional)</span></label>
+        <!-- Quick type chips -->
+        <div class="type-chips" id="type-chips">
+          <button type="button" class="type-chip" onclick="setModel(this,'Samsung Galaxy')">📱 Samsung</button>
+          <button type="button" class="type-chip" onclick="setModel(this,'iPhone')">🍎 iPhone</button>
+          <button type="button" class="type-chip" onclick="setModel(this,'Tablet Android')">📟 Tablet</button>
+          <button type="button" class="type-chip" onclick="setModel(this,'Laptop')">💻 Laptop</button>
+          <button type="button" class="type-chip" onclick="setModel(this,'Smart TV')">📺 Smart TV</button>
+        </div>
+        <input class="inp" type="text" name="model" id="model"
+          placeholder="Atau ketik manual: Samsung Galaxy S24..."
+          value="{{ dev.model if dev else '' }}" maxlength="60"
+          style="margin-top:10px">
+      </div>
+    </div>
+
+    <!-- MAC Address -->
+    <p class="sec-lbl">Alamat Jaringan</p>
+    <div class="form-card">
+      <div class="field">
+        <label>MAC Address <span class="req">*</span>
+          <span class="hint">Cara lihat: Pengaturan → Tentang Ponsel → Status</span>
+        </label>
+        <div class="inp-wrap">
+          <input class="inp mono" type="text" name="mac" id="mac"
+            placeholder="AA:BB:CC:DD:EE:FF"
+            value="{{ dev.mac if dev else '' }}"
+            maxlength="17"
+            oninput="formatMAC(this)"
+            {{ 'readonly' if mode=='edit' else '' }}
+            required>
+          <span class="inp-ic">📡</span>
+        </div>
+        <div class="mac-hint" id="mac-hint">
+          <span>⬆️</span>
+          <span id="mac-hint-text">Format: XX:XX:XX:XX:XX:XX (6 pasang huruf/angka)</span>
+        </div>
+        {% if mode == 'edit' %}
+        <div style="font-size:11px;color:#9CA3AF;margin-top:6px">
+          ⚠️ MAC Address tidak dapat diubah setelah perangkat terdaftar.
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Kuota Harian -->
+    <p class="sec-lbl">Pengaturan Kuota</p>
+    <div class="form-card">
+      <div class="field">
+        <label>Kuota Internet Harian</label>
+        <p style="font-size:12px;color:#6B7280;margin-bottom:12px;margin-top:-4px">
+          Batas total waktu akses internet per hari untuk perangkat ini.
+        </p>
+        <div class="kuota-row">
+          <button type="button" class="kuota-btn" onclick="adjKuota(-30)">−</button>
+          <span class="kuota-val" id="v-kuota">{{ dev.kuota_harian if dev else 120 }}</span>
+          <span class="kuota-unit">menit</span>
+          <button type="button" class="kuota-btn" onclick="adjKuota(30)">+</button>
+        </div>
+        <input type="hidden" name="kuota" id="i-kuota" value="{{ dev.kuota_harian if dev else 120 }}">
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          {% for val in [60,90,120,180,240] %}
+          <button type="button"
+            style="padding:5px 12px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;font-size:12px;cursor:pointer;font-family:inherit;color:#374151"
+            onclick="setKuota({{val}})">{{val}}m</button>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Preview -->
+      <div id="preview-card" style="background:#F9FAFB;border-radius:10px;padding:12px 14px;margin-top:14px;border:1px solid #E5E7EB">
+        <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Preview Perangkat</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;background:#DCFCE7;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px">📱</div>
+          <div>
+            <div id="prev-nama" style="font-size:14px;font-weight:600">{{ dev.nama if dev else 'Nama Anak' }}</div>
+            <div style="font-size:12px;color:#9CA3AF;margin-top:2px">
+              Kuota: <span id="prev-kuota">{{ dev.kuota_harian if dev else 120 }}</span>m/hari
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-save" id="btn-save">
+      {{ '✅ Simpan Perubahan' if mode=='edit' else '+ Daftarkan Perangkat' }}
+    </button>
+
+  </form>
+
+  {% if mode == 'edit' %}
+  <!-- ════════ Zona Berbahaya ════════ -->
+  <p class="sec-lbl" style="margin-top:30px;color:#EF4444">⚠️ Zona Berbahaya</p>
+  <div class="form-card" style="border:1.5px solid #FECACA;background:#FFFBFB">
+    <div style="font-size:14px;font-weight:600;color:#111827;margin-bottom:5px">
+      Hapus Perangkat Ini
+    </div>
+    <p style="font-size:12.5px;color:#6B7280;line-height:1.6;margin-bottom:14px">
+      Tindakan ini akan menghapus perangkat <strong>{{dev.nama}}</strong>
+      beserta seluruh riwayat aksesnya secara permanen.
+      Tidak dapat dibatalkan.
+    </p>
+    <button type="button" class="btn-hapus-dev"
+            onclick="bukaModalHapus()">
+      🗑 Hapus Perangkat
+    </button>
+  </div>
+  {% endif %}
+</div>
+
+{% if mode == 'edit' %}
+<!-- ════════ Modal Konfirmasi Hapus ════════ -->
+<div class="overlay-hapus" id="modal-hapus" onclick="if(event.target===this) tutupModalHapus()">
+  <form method="POST" action="/perangkat/hapus/{{dev.id}}" class="sheet-hapus">
+    <div class="handle"></div>
+    <div style="text-align:center;margin-bottom:14px">
+      <div style="width:60px;height:60px;background:#FEF2F2;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:30px;margin-bottom:10px">🗑</div>
+      <h3 style="font-size:17px;font-weight:700;color:#111827">Hapus Perangkat?</h3>
+    </div>
+    <p style="font-size:13px;color:#6B7280;text-align:center;margin-bottom:18px;line-height:1.6">
+      Perangkat <strong style="color:#111827">{{dev.nama}}</strong> akan dihapus
+      bersama seluruh riwayat aksesnya.<br>
+      <span style="color:#EF4444;font-weight:600">Tindakan ini tidak dapat dibatalkan.</span>
+    </p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <button type="button" class="btn-cancel-h" onclick="tutupModalHapus()">Batal</button>
+      <button type="submit" class="btn-confirm-h">🗑 Ya, Hapus</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+
+
+
+<script>
+var kuota = {{ dev.kuota_harian if dev else 120 }};
+
+function adjKuota(d) {
+  kuota = Math.max(30, Math.min(480, kuota + d));
+  document.getElementById('v-kuota').textContent = kuota;
+  document.getElementById('i-kuota').value = kuota;
+  document.getElementById('prev-kuota').textContent = kuota;
+}
+
+function setKuota(val) {
+  kuota = val;
+  document.getElementById('v-kuota').textContent = kuota;
+  document.getElementById('i-kuota').value = kuota;
+  document.getElementById('prev-kuota').textContent = kuota;
+}
+
+function setModel(btn, val) {
+  document.getElementById('model').value = val;
+  document.querySelectorAll('.type-chip').forEach(function(b){ b.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+function updatePreview() {
+  var nama = document.getElementById('nama').value || 'Nama Anak';
+  document.getElementById('prev-nama').textContent = nama;
+}
+
+// Format MAC address otomatis XX:XX:XX:XX:XX:XX
+function formatMAC(inp) {
+  var v = inp.value.replace(/[^A-Fa-f0-9]/g, '').toUpperCase().slice(0, 12);
+  var groups = v.match(/.{1,2}/g) || [];
+  inp.value = groups.join(':');
+  validateMAC(inp.value);
+}
+
+function validateMAC(val) {
+  var hint = document.getElementById('mac-hint');
+  var txt  = document.getElementById('mac-hint-text');
+  var re   = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
+  if (!val) {
+    hint.className = 'mac-hint';
+    txt.textContent = 'Format: XX:XX:XX:XX:XX:XX (6 pasang huruf/angka)';
+  } else if (re.test(val)) {
+    hint.className = 'mac-hint valid';
+    txt.textContent = '✓ Format MAC Address valid';
+  } else {
+    hint.className = 'mac-hint invalid';
+    txt.textContent = '✗ Belum lengkap — ' + val.length + '/17 karakter';
+  }
+}
+
+// Validasi form sebelum submit
+document.getElementById('form-perangkat').addEventListener('submit', function(e) {
+  var mac = document.getElementById('mac').value;
+  var re  = /^([0-9A-F]{2}:){5}[0-9A-F]{2}$/;
+  if (!re.test(mac.toUpperCase()) && '{{ mode }}' !== 'edit') {
+    e.preventDefault();
+    validateMAC(mac);
+    document.getElementById('mac').focus();
+  }
+});
+
+// ── Modal Hapus ──────────────────────────────
+{% if mode == 'edit' %}
+function bukaModalHapus(){
+  document.getElementById('modal-hapus').classList.add('show');
+}
+function tutupModalHapus(){
+  document.getElementById('modal-hapus').classList.remove('show');
+}
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') tutupModalHapus();
+});
+{% endif %}
+
+// Init
+{% if dev %}
+validateMAC('{{ dev.mac }}');
+{% endif %}
+// Highlight model chip jika sesuai
+var modelVal = document.getElementById('model').value;
+document.querySelectorAll('.type-chip').forEach(function(b){
+  if (modelVal && modelVal.toLowerCase().includes(b.textContent.trim().toLowerCase().replace(/^[^\s]+ /,''))) {
+    b.classList.add('active');
+  }
+});
+</script>
+</body>
+</html>

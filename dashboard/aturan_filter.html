@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edge Guard — Aturan Filter</title>
+<link rel="stylesheet" href="/aset/responsive.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#F9FAFB;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
+.topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
+.back{background:none;border:none;font-size:22px;cursor:pointer;padding:0;line-height:1;color:#111827}
+.topbar h1{font-size:17px;font-weight:600}
+.page{padding:14px 14px 100px}
+.flash{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:10px}
+.flash-success{background:#F0FDF4;color:#15803D}
+.flash-info{background:#EFF6FF;color:#1D4ED8}
+/* AI status card */
+.ai-card{background:#fff;border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.ai-label{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.badge-aktif{background:#DCFCE7;color:#16A34A;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;font-family:inherit}
+.badge-aktif .dot{width:7px;height:7px;background:#22C55E;border-radius:50%}
+.badge-off{background:#F3F4F6;color:#6B7280;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;font-family:inherit}
+.badge-off .dot{width:7px;height:7px;background:#9CA3AF;border-radius:50%}
+/* tabs */
+.tabs{background:#fff;display:flex;border-radius:14px 14px 0 0;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07);margin-bottom:12px}
+.tab-btn{flex:1;padding:13px 8px;border:none;background:transparent;cursor:pointer;font-size:14px;font-family:inherit;font-weight:500;color:#9CA3AF;border-bottom:2.5px solid transparent;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .15s}
+.tab-btn.active{color:#2563EB;border-bottom-color:#2563EB;font-weight:600}
+/* search row */
+.search-row{background:#fff;border-radius:14px;display:flex;gap:10px;padding:11px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);align-items:center}
+.search-row input{flex:1;border:none;outline:none;font-size:14px;font-family:inherit;color:#111827}
+.search-row input::placeholder{color:#9CA3AF}
+.btn-tambah{background:#2563EB;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit}
+/* list header */
+.list-hdr{font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px;padding:0 2px}
+/* domain item */
+.domain-item{background:#fff;border-radius:14px;padding:12px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.d-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.d-info h5{font-size:14px;font-weight:600;margin-bottom:2px}
+.d-info p{font-size:12px;color:#9CA3AF}
+.del-form{margin-left:auto;margin:0 0 0 auto}
+.del-btn{background:none;border:none;cursor:pointer;font-size:18px;color:#D1D5DB;padding:4px;transition:color .15s;line-height:1}
+.del-btn:hover{color:#EF4444}
+/* empty state */
+.empty{text-align:center;padding:40px 20px;color:#9CA3AF}
+.empty .ei{font-size:36px;margin-bottom:10px}
+.empty p{font-size:14px}
+/* modal overlay */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:flex-end;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.show{opacity:1;pointer-events:all}
+.sheet{background:#fff;border-radius:20px 20px 0 0;padding:20px 20px 36px;width:100%;max-width:430px;transform:translateY(100%);transition:transform .25s ease}
+.overlay.show .sheet{transform:translateY(0)}
+.handle{width:40px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 18px}
+.sheet h3{font-size:16px;font-weight:700;margin-bottom:14px}
+.modal-input{width:100%;border:1.5px solid #E5E7EB;border-radius:12px;padding:13px 14px;font-size:15px;outline:none;font-family:inherit;transition:border-color .15s}
+.modal-input:focus{border-color:#2563EB}
+.radio-row{display:flex;gap:10px;margin-top:12px}
+.radio-row label{flex:1;display:flex;align-items:center;gap:7px;font-size:13px;cursor:pointer}
+.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.btn-cancel{padding:13px;background:#F3F4F6;border:none;border-radius:12px;font-size:14px;font-weight:600;color:#4B5563;cursor:pointer;font-family:inherit}
+.btn-confirm{padding:13px;background:#2563EB;border:none;border-radius:12px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit}
+/* bnav */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 env(safe-area-inset-bottom,10px);z-index:20}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;color:#9CA3AF;text-decoration:none}
+.ni.active{color:#2563EB}
+.ni-ic{font-size:22px}.ni-lbl{font-size:11px;font-weight:500}
+</style>
+</head>
+<body data-page="aturan">
+
+<div class="topbar">
+  <a href="/" class="back">←</a>
+  <h1>Aturan Pemfilteran</h1>
+</div>
+
+<div class="page">
+
+  {% with msgs=get_flashed_messages(with_categories=true) %}
+  {% for cat,msg in msgs %}<div class="flash flash-{{cat}}">{{msg}}</div>{% endfor %}
+  {% endwith %}
+
+  <!-- AI Status Card → buka halaman Kategori AI -->
+  <a href="/kategori" class="ai-card"
+     style="text-decoration:none;color:inherit;cursor:pointer">
+    <span class="ai-label">✨ Status Klasifikasi AI</span>
+    <span style="display:flex;align-items:center;gap:10px">
+      {% if cfg.ai_aktif %}
+        <span class="badge-aktif" style="cursor:pointer">
+          <span class="dot"></span> AKTIF
+        </span>
+      {% else %}
+        <span class="badge-off" style="cursor:pointer">
+          <span class="dot"></span> NONAKTIF
+        </span>
+      {% endif %}
+      <span style="color:#D1D5DB;font-size:18px;line-height:1">›</span>
+    </span>
+  </a>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab-btn {{'active' if tab=='putih'}}" onclick="switchTab('putih')">
+      ✅ Daftar Putih
+    </button>
+    <button class="tab-btn {{'active' if tab=='hitam'}}" onclick="switchTab('hitam')">
+      ⛔ Daftar Hitam
+    </button>
+  </div>
+
+  <!-- Search + Tambah -->
+  <div class="search-row">
+    <span style="color:#9CA3AF;font-size:16px">🔍</span>
+    <input type="text" id="srch" placeholder="Cari domain..." oninput="filterList()">
+    <button class="btn-tambah" onclick="openModal()">+ Tambah URL</button>
+  </div>
+
+  <!-- LIST PUTIH -->
+  <div id="list-putih" style="{{'display:none' if tab != 'putih'}}">
+    <div class="list-hdr" id="hdr-putih">
+      Daftar Putih Dikelola ({{daftar_putih|length}})
+    </div>
+    {% for item in daftar_putih %}
+    <div class="domain-item" data-domain="{{item.domain}}" data-list="putih">
+      <div class="d-icon" style="background:#EFF6FF">🌐</div>
+      <div class="d-info">
+        <h5>{{item.domain}}</h5>
+        <p>{{ item.alasan or 'Tidak ada alasan' }}</p>
+      </div>
+      <!-- Form per-item: endpoint hapus terpadu by ID -->
+      <form method="POST" action="/aturan/hapus/{{item.id}}"
+            class="del-form" onsubmit="return tampilKonfirmasi(event, this, 'putih', {{item.domain|tojson}})">
+        <button type="submit" class="del-btn" title="Hapus">🗑</button>
+      </form>
+    </div>
+    {% else %}
+    <div class="empty"><div class="ei">📋</div><p>Belum ada domain di daftar putih.</p></div>
+    {% endfor %}
+  </div>
+
+  <!-- LIST HITAM -->
+  <div id="list-hitam" style="{{'display:none' if tab != 'hitam'}}">
+    <div class="list-hdr" id="hdr-hitam">
+      Daftar Hitam Dikelola ({{daftar_hitam|length}})
+    </div>
+    {% for item in daftar_hitam %}
+    <div class="domain-item" data-domain="{{item.domain}}" data-list="hitam">
+      <div class="d-icon" style="background:#FEF2F2">🚫</div>
+      <div class="d-info">
+        <h5>{{item.domain}}</h5>
+        <p>{{ item.alasan or 'Tidak ada alasan' }}</p>
+      </div>
+      <form method="POST" action="/aturan/hapus/{{item.id}}"
+            class="del-form" onsubmit="return tampilKonfirmasi(event, this, 'hitam', {{item.domain|tojson}})">
+        <button type="submit" class="del-btn" title="Hapus">🗑</button>
+      </form>
+    </div>
+    {% else %}
+    <div class="empty"><div class="ei">🚫</div><p>Belum ada domain di daftar hitam.</p></div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<!-- ═══════ Modal Konfirmasi Hapus ═══════ -->
+<!-- Pola: simpan ref ke <form> yang trigger submit, klik "Hapus" → form.submit() -->
+<div class="overlay" id="modal-hapus" onclick="if(event.target===this) tutupHapus()">
+  <div class="sheet">
+    <div class="handle"></div>
+    <h3 id="hapus-title">Hapus Domain?</h3>
+    <p style="font-size:13px;color:#6B7280;text-align:center;margin-bottom:18px;line-height:1.55"
+       id="hapus-desc">…</p>
+    <div class="modal-actions" style="margin-top:0">
+      <button type="button" class="btn-cancel" onclick="tutupHapus()">Batal</button>
+      <button type="button" id="btn-konfirmasi-hapus"
+              style="padding:13px;background:#EF4444;border:none;border-radius:12px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit">
+        🗑 Ya, Hapus
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Tambah -->
+<div class="overlay" id="modal">
+  <div class="sheet">
+    <div class="handle"></div>
+    <h3>Tambah Domain</h3>
+
+    <form method="POST" action="/aturan/tambah" id="modal-form" onsubmit="return validasiSubmit(event)">
+      <!-- Field DOMAIN -->
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin-bottom:6px">
+        Domain / URL
+      </label>
+      <input class="modal-input" type="text" name="domain" id="modal-domain"
+             placeholder="Contoh: youtube.com  ·  brainly.co.id  ·  scholar.google.com"
+             autocomplete="off" required
+             oninput="cekDomain()"
+             pattern="^(?:[a-zA-Z0-9][a-zA-Z0-9\-]{0,61}[a-zA-Z0-9]?\.)+[a-zA-Z]{2,}$">
+      <div id="modal-domain-hint" style="font-size:11px;margin-top:6px;color:#9CA3AF;min-height:16px"></div>
+
+      <!-- Field ALASAN -->
+      <label style="display:block;font-size:12px;font-weight:600;color:#374151;margin:14px 0 6px">
+        Alasan <span style="font-weight:400;color:#9CA3AF">(opsional)</span>
+      </label>
+      <input class="modal-input" type="text" name="alasan" id="modal-alasan"
+             placeholder="Contoh: Situs belajar  ·  Pornografi  ·  Judi online"
+             autocomplete="off" maxlength="255">
+
+      <input type="hidden" name="tipe" id="modal-tipe" value="{{tab}}">
+
+      <div class="radio-row">
+        <label>
+          <input type="radio" name="tipe" value="putih"
+            {{'checked' if tab=='putih'}}
+            onchange="document.getElementById('modal-tipe').value='putih'">
+          ✅ Daftar Putih
+        </label>
+        <label>
+          <input type="radio" name="tipe" value="hitam"
+            {{'checked' if tab=='hitam'}}
+            onchange="document.getElementById('modal-tipe').value='hitam'">
+          ⛔ Daftar Hitam
+        </label>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" onclick="closeModal()">Batal</button>
+        <button type="submit" class="btn-confirm" id="btn-submit">Tambahkan</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<nav class="bnav">
+  <a href="/jadwal" class="ni"><span class="ni-ic">🕐</span><span class="ni-lbl">Penjadwalan</span></a>
+  <a href="/"       class="ni"><span class="ni-ic">🏠</span><span class="ni-lbl">Beranda</span></a>
+  <a href="/aturan" class="ni active"><span class="ni-ic">🛡️</span><span class="ni-lbl">Aturan</span></a>
+</nav>
+
+<script>
+var activeTab = '{{tab}}';
+
+function switchTab(t) {
+  activeTab = t;
+  document.getElementById('list-putih').style.display = t==='putih' ? '' : 'none';
+  document.getElementById('list-hitam').style.display = t==='hitam' ? '' : 'none';
+  document.querySelectorAll('.tab-btn').forEach(function(b,i){
+    b.classList.toggle('active', (i===0&&t==='putih')||(i===1&&t==='hitam'));
+  });
+  document.getElementById('modal-tipe').value = t;
+  document.querySelector('input[name=tipe][value='+t+']').checked = true;
+  document.getElementById('srch').value = '';
+  filterList();
+}
+
+function openModal() {
+  document.getElementById('modal').classList.add('show');
+  setTimeout(function(){ document.getElementById('modal-domain').focus(); }, 300);
+}
+function closeModal() { document.getElementById('modal').classList.remove('show'); }
+document.getElementById('modal').addEventListener('click', function(e){
+  if(e.target===this) closeModal();
+});
+
+/* ── Validasi domain client-side ───────────────────────────
+   Pola domain valid:
+     - tiap label 1–63 char [a-z0-9-]  (tidak boleh awal/akhir dash)
+     - minimal 1 dot, TLD ≥ 2 huruf
+   Otomatis strip skema (http://) & path agar user bebas paste URL. */
+function normalisasiDomain(raw) {
+  var d = (raw || '').trim().toLowerCase();
+  d = d.replace(/^[a-z][a-z0-9+.\-]*:\/\//, '');         // buang skema
+  d = d.split('/')[0].split('?')[0].split('#')[0];        // buang path
+  d = d.split(':')[0];                                    // buang port
+  if (d.indexOf('www.') === 0) d = d.slice(4);            // buang www.
+  return d.replace(/^\.+|\.+$/g, '');                     // buang dot tepi
+}
+var _RE_DOMAIN = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9\-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/;
+function cekDomain() {
+  var inp  = document.getElementById('modal-domain');
+  var hint = document.getElementById('modal-domain-hint');
+  var btn  = document.getElementById('btn-submit');
+  var norm = normalisasiDomain(inp.value);
+  if (!inp.value) {
+    hint.textContent = ''; hint.style.color = '#9CA3AF';
+    btn.disabled = false; return;
+  }
+  if (_RE_DOMAIN.test(norm)) {
+    hint.textContent = '✓ Format valid → akan disimpan sebagai "' + norm + '"';
+    hint.style.color = '#16A34A';
+    btn.disabled = false;
+  } else {
+    hint.textContent = '✗ Bukan format domain valid. Contoh: youtube.com, brainly.co.id';
+    hint.style.color = '#EF4444';
+    btn.disabled = true;
+  }
+}
+function validasiSubmit(ev) {
+  var inp  = document.getElementById('modal-domain');
+  var norm = normalisasiDomain(inp.value);
+  if (!_RE_DOMAIN.test(norm)) {
+    ev.preventDefault();
+    cekDomain();
+    inp.focus();
+    return false;
+  }
+  return true;
+}
+
+function filterList() {
+  var q = document.getElementById('srch').value.toLowerCase();
+  var lid = activeTab==='putih' ? 'list-putih' : 'list-hitam';
+  var items = document.querySelectorAll('#'+lid+' .domain-item');
+  var cnt = 0;
+  items.forEach(function(el){
+    var show = el.dataset.domain.toLowerCase().includes(q);
+    el.style.display = show ? '' : 'none';
+    if(show) cnt++;
+  });
+  var hdr = document.getElementById('hdr-'+activeTab);
+  if(hdr) hdr.textContent = 'Daftar '+(activeTab==='putih'?'Putih':'Hitam')+' Dikelola ('+cnt+')';
+}
+
+/* ── Konfirmasi hapus domain ────────────────────────────
+   tampilKonfirmasi() dipanggil pada form.onsubmit — hentikan submit
+   default, buka modal, simpan ref form. Tombol "Ya, Hapus" akan
+   memanggil form.submit() pada form yang tersimpan. */
+var _formAntri = null;
+
+function tampilKonfirmasi(ev, form, tipe, domain){
+  ev.preventDefault();
+  _formAntri = form;
+  document.getElementById('hapus-title').textContent =
+    tipe === 'putih' ? 'Hapus dari Daftar Putih?' : 'Hapus dari Daftar Hitam?';
+  var pesan = tipe === 'putih'
+    ? 'Domain <strong>' + domain + '</strong> tidak akan otomatis diizinkan lagi. '
+      + 'AI akan memutuskan berdasarkan klasifikasinya.'
+    : 'Domain <strong>' + domain + '</strong> tidak akan otomatis diblokir lagi. '
+      + 'AI akan memutuskan berdasarkan klasifikasinya.';
+  document.getElementById('hapus-desc').innerHTML = pesan;
+  document.getElementById('modal-hapus').classList.add('show');
+  return false;
+}
+function tutupHapus(){
+  document.getElementById('modal-hapus').classList.remove('show');
+  _formAntri = null;
+}
+document.getElementById('btn-konfirmasi-hapus').addEventListener('click', function(){
+  if (_formAntri) {
+    var f = _formAntri;
+    _formAntri = null;
+    f.submit();   // submit DOM-form yang aslinya trigger onsubmit
+  }
+});
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') tutupHapus();
+});
+</script>
+</body>
+</html>

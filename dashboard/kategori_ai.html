@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edge Guard — Knowledge AI</title>
+<link rel="stylesheet" href="/aset/responsive.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#F9FAFB;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
+a{text-decoration:none;color:inherit}
+
+.topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
+.back{background:none;border:none;font-size:22px;cursor:pointer;padding:0;line-height:1;color:#111827}
+.topbar h1{font-size:17px;font-weight:600}
+
+.page{padding:14px 14px 100px}
+.flash{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:10px}
+.flash-success{background:#F0FDF4;color:#15803D}
+.flash-error{background:#FEF2F2;color:#EF4444}
+.flash-info{background:#EFF6FF;color:#1D4ED8}
+
+/* ── AI Toggle Card ── */
+.ai-card{background:#fff;border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.ai-label{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.badge-aktif{background:#DCFCE7;color:#16A34A;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;font-family:inherit}
+.badge-aktif .dot{width:7px;height:7px;background:#22C55E;border-radius:50%}
+.badge-off{background:#F3F4F6;color:#6B7280;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;font-family:inherit}
+.badge-off .dot{width:7px;height:7px;background:#9CA3AF;border-radius:50%}
+
+/* ── Stat 4 kategori ── */
+.stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px}
+.stat-tile{background:#fff;border-radius:12px;padding:10px 6px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.07);border:2px solid transparent;cursor:pointer;text-decoration:none;color:inherit;transition:border-color .15s,transform .1s}
+.stat-tile:hover{border-color:#E5E7EB}
+.stat-tile:active{transform:scale(.98)}
+.stat-tile.active{border-color:#2563EB}
+.stat-emoji{font-size:18px;line-height:1;margin-bottom:4px}
+.stat-num{font-size:18px;font-weight:700;color:#111827;line-height:1}
+.stat-lbl{font-size:10px;color:#6B7280;text-transform:uppercase;letter-spacing:.04em;margin-top:3px}
+.stat-tile.t-edu .stat-num{color:#2563EB}
+.stat-tile.t-hib .stat-num{color:#F97316}
+.stat-tile.t-neg .stat-num{color:#EF4444}
+.stat-tile.t-unk .stat-num{color:#6B7280}
+
+.sec-label{font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin:14px 4px 8px;display:flex;align-items:center;justify-content:space-between}
+
+/* ── Filter & Search bar ── */
+.toolbar{background:#fff;border-radius:14px;padding:8px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.toolbar-row{display:flex;gap:6px;align-items:center}
+.search-wrap{flex:1;display:flex;align-items:center;gap:8px;background:#F9FAFB;border-radius:10px;padding:8px 12px}
+.search-wrap .ic{color:#9CA3AF;font-size:14px}
+.search-wrap input{flex:1;border:none;outline:none;font-size:14px;font-family:inherit;color:#111827;background:transparent;min-width:0}
+.search-wrap input::placeholder{color:#9CA3AF}
+.search-wrap .clear{background:none;border:none;color:#9CA3AF;cursor:pointer;font-size:16px;padding:0 4px;line-height:1;display:none}
+.search-wrap .clear.show{display:block}
+.sort-select{border:none;background:#F9FAFB;color:#111827;font-size:13px;padding:8px 10px;border-radius:10px;font-family:inherit;cursor:pointer;font-weight:600;outline:none}
+
+/* ── Row Cache Domain ── */
+.row-card{background:#fff;border-radius:12px;padding:11px 13px;margin-bottom:7px;box-shadow:0 1px 2px rgba(0,0,0,.05);display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;align-items:center}
+.row-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex-shrink:0}
+.row-ic.k-edu{background:#2563EB}
+.row-ic.k-hib{background:#F97316}
+.row-ic.k-neg{background:#EF4444}
+.row-ic.k-unk{background:#9CA3AF}
+.row-mid{min-width:0}
+.row-domain{font-weight:600;font-size:13.5px;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row-sub{font-size:11px;color:#6B7280;margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.row-sub .kat{font-weight:600;text-transform:capitalize}
+.row-sub .kat.k-edu{color:#2563EB}
+.row-sub .kat.k-hib{color:#F97316}
+.row-sub .kat.k-neg{color:#EF4444}
+.row-sub .kat.k-unk{color:#9CA3AF}
+.row-sub .sep{color:#D1D5DB}
+.row-sub .hit{background:#F3F4F6;color:#4B5563;padding:1px 7px;border-radius:20px;font-size:10px;font-weight:600}
+.row-right{text-align:right;flex-shrink:0}
+.row-conf{font-size:11px;font-weight:700;color:#111827;font-family:'SF Mono','Menlo',monospace}
+.row-tgl{font-size:11px;color:#9CA3AF;margin-top:2px;white-space:nowrap}
+.row-meter{height:3px;background:#F3F4F6;border-radius:2px;margin-top:5px;overflow:hidden;width:50px;float:right}
+.row-meter-fill{height:100%;border-radius:2px;transition:width .3s}
+
+.empty{text-align:center;padding:40px 14px;color:#9CA3AF;font-size:13px;line-height:1.6}
+.empty .ei{font-size:42px;margin-bottom:10px;display:block}
+
+/* ── Bottom Nav ── */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 env(safe-area-inset-bottom,10px);z-index:20}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;color:#9CA3AF;text-decoration:none}
+.ni.active{color:#2563EB}
+.ni-ic{font-size:22px}.ni-lbl{font-size:11px;font-weight:500}
+</style>
+</head>
+<body data-page="kategori">
+
+<div class="topbar">
+  <a href="/aturan" class="back">←</a>
+  <h1>Knowledge AI</h1>
+  <span style="margin-left:auto;font-size:11px;color:#6B7280">
+    {{ stats.total }} domain
+  </span>
+</div>
+
+<div class="page">
+
+  {% with msgs=get_flashed_messages(with_categories=true) %}
+  {% for cat,msg in msgs %}<div class="flash flash-{{cat}}">{{msg}}</div>{% endfor %}
+  {% endwith %}
+
+  <!-- ─── AI Toggle ─── -->
+  <div class="ai-card">
+    <span class="ai-label">✨ Status Klasifikasi AI</span>
+    <form method="POST" action="/kategori/toggle-ai" style="margin:0">
+      {% if ai_aktif %}
+        <button type="submit" class="badge-aktif"><span class="dot"></span> AKTIF</button>
+      {% else %}
+        <button type="submit" class="badge-off"><span class="dot"></span> NONAKTIF</button>
+      {% endif %}
+    </form>
+  </div>
+
+  <!-- ─── 4 Tile Stat (juga jadi filter) ─── -->
+  <div class="stat-row">
+    <a class="stat-tile t-edu {{ 'active' if kat == 'edukasi' }}"
+       href="/kategori?kat=edukasi&urut={{urut}}{% if q %}&q={{q}}{% endif %}">
+      <div class="stat-emoji">📚</div>
+      <div class="stat-num">{{ stats.edukasi }}</div>
+      <div class="stat-lbl">Edukasi</div>
+    </a>
+    <a class="stat-tile t-hib {{ 'active' if kat == 'hiburan' }}"
+       href="/kategori?kat=hiburan&urut={{urut}}{% if q %}&q={{q}}{% endif %}">
+      <div class="stat-emoji">🎬</div>
+      <div class="stat-num">{{ stats.hiburan }}</div>
+      <div class="stat-lbl">Hiburan</div>
+    </a>
+    <a class="stat-tile t-neg {{ 'active' if kat == 'negatif' }}"
+       href="/kategori?kat=negatif&urut={{urut}}{% if q %}&q={{q}}{% endif %}">
+      <div class="stat-emoji">🚫</div>
+      <div class="stat-num">{{ stats.negatif }}</div>
+      <div class="stat-lbl">Negatif</div>
+    </a>
+    <a class="stat-tile t-unk {{ 'active' if kat == 'unknown' }}"
+       href="/kategori?kat=unknown&urut={{urut}}{% if q %}&q={{q}}{% endif %}">
+      <div class="stat-emoji">❓</div>
+      <div class="stat-num">{{ stats.unknown }}</div>
+      <div class="stat-lbl">Unknown</div>
+    </a>
+  </div>
+
+  <!-- ─── Toolbar Search + Sort ─── -->
+  <p class="sec-label">
+    <span>Knowledge Base AI {% if kat != 'all' %}<span style="color:#2563EB">› {{kat}}</span>{% endif %}</span>
+    {% if kat != 'all' or q %}
+      <a href="/kategori" style="font-size:11px;font-weight:600;color:#EF4444;text-transform:none">✕ Reset filter</a>
+    {% else %}
+      <span style="font-size:11px;font-weight:600;color:#2563EB;text-transform:none">{{ cache_list|length }} hasil</span>
+    {% endif %}
+  </p>
+
+  <form method="GET" action="/kategori" class="toolbar" id="search-form">
+    {% if kat != 'all' %}<input type="hidden" name="kat" value="{{kat}}">{% endif %}
+    <input type="hidden" name="urut" id="urut-hidden" value="{{urut}}">
+    <div class="toolbar-row">
+      <div class="search-wrap">
+        <span class="ic">🔍</span>
+        <input type="text" name="q" id="search-inp"
+               placeholder="Cari domain…" value="{{ q }}" autocomplete="off">
+        <button type="button" class="clear {{ 'show' if q }}"
+                id="clear-btn" onclick="clearSearch()">✕</button>
+      </div>
+      <select class="sort-select" id="sort-sel" onchange="onSort(this.value)">
+        <option value="terbaru"    {{ 'selected' if urut=='terbaru' }}>📅 Terbaru</option>
+        <option value="populer"    {{ 'selected' if urut=='populer' }}>🔥 Populer</option>
+        <option value="confidence" {{ 'selected' if urut=='confidence' }}>🎯 Confidence</option>
+      </select>
+    </div>
+  </form>
+
+  <!-- ─── List cache_domain ─── -->
+  <div id="list">
+    {% for r in cache_list %}
+    {% set k = r.kategori %}
+    {% set kshort = 'edu' if k=='edukasi' else 'hib' if k=='hiburan' else 'neg' if k=='negatif' else 'unk' %}
+    <div class="row-card">
+      <div class="row-ic k-{{kshort}}">
+        {{ '📚' if k=='edukasi' else '🎬' if k=='hiburan' else '🚫' if k=='negatif' else '❓' }}
+      </div>
+      <div class="row-mid">
+        <div class="row-domain" title="{{r.domain_url}}">{{r.domain_url}}</div>
+        <div class="row-sub">
+          <span class="kat k-{{kshort}}">{{k}}</span>
+          <span class="sep">•</span>
+          <span class="hit">{{r.jumlah_hit}}× akses</span>
+          <span class="sep">•</span>
+          <span>{{ r.waktu_str }}</span>
+        </div>
+      </div>
+      <div class="row-right">
+        <div class="row-conf">{{ '%.1f'|format(r.confidence_score|float) }}%</div>
+        <div class="row-meter">
+          <div class="row-meter-fill" style="width:{{ r.confidence_score|round|int }}%;background:{{
+            '#2563EB' if k=='edukasi' else
+            '#F97316' if k=='hiburan' else
+            '#EF4444' if k=='negatif' else '#9CA3AF'
+          }}"></div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="empty">
+      <span class="ei">🧠</span>
+      {% if q %}
+        Tidak ada domain yang cocok dengan <strong style="color:#374151">"{{q}}"</strong>{% if kat != 'all' %} di kategori <strong>{{kat}}</strong>{% endif %}.
+      {% elif kat != 'all' %}
+        Belum ada domain di kategori <strong style="color:#374151">{{kat}}</strong>.
+      {% else %}
+        <strong style="color:#6B7280">AI belum mengklasifikasi domain apapun.</strong><br>
+        Setiap kali anak mengakses website baru, hasilnya tercatat di sini secara realtime.
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+
+<nav class="bnav">
+  <a href="/jadwal" class="ni"><span class="ni-ic">🕐</span><span class="ni-lbl">Penjadwalan</span></a>
+  <a href="/"       class="ni"><span class="ni-ic">🏠</span><span class="ni-lbl">Beranda</span></a>
+  <a href="/aturan" class="ni active"><span class="ni-ic">🛡️</span><span class="ni-lbl">Aturan</span></a>
+</nav>
+
+<script>
+/* ─── Search debounced auto-submit ─── */
+(function(){
+  var inp = document.getElementById('search-inp');
+  var clr = document.getElementById('clear-btn');
+  var f   = document.getElementById('search-form');
+  var t   = null;
+  inp.addEventListener('input', function(){
+    clr.classList.toggle('show', !!inp.value);
+    clearTimeout(t);
+    t = setTimeout(function(){ f.submit(); }, 400);
+  });
+})();
+function clearSearch(){
+  document.getElementById('search-inp').value = '';
+  document.getElementById('search-form').submit();
+}
+function onSort(val){
+  document.getElementById('urut-hidden').value = val;
+  document.getElementById('search-form').submit();
+}
+</script>
+</body>
+</html>

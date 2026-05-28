@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edge Guard — Kelola Perangkat</title>
+<link rel="stylesheet" href="/aset/responsive.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#F9FAFB;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
+a{text-decoration:none;color:inherit}
+.topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
+.back{background:none;border:none;font-size:22px;cursor:pointer;padding:0;line-height:1;color:#111827}
+.topbar h1{font-size:17px;font-weight:600}
+.topbar .add-btn{margin-left:auto;background:#2563EB;color:#fff;border:none;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;text-decoration:none;display:inline-flex;align-items:center;gap:5px}
+.page{padding:14px 14px 24px}
+.flash{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:10px}
+.flash-success{background:#F0FDF4;color:#15803D}
+.flash-error{background:#FEF2F2;color:#EF4444}
+/* perangkat card */
+.dev-card{background:#fff;border-radius:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden}
+.dev-main{padding:14px 16px;display:flex;align-items:center;gap:12px}
+.dev-ic{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;transition:background .2s}
+.dev-info{flex:1;min-width:0}
+.dev-info h4{font-size:15px;font-weight:600;margin-bottom:3px}
+.dev-info p{font-size:12px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dev-badges{display:flex;gap:5px;margin-top:5px;flex-wrap:wrap}
+.badge{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;text-transform:uppercase}
+.badge-online{background:#DCFCE7;color:#15803D}
+.badge-offline{background:#F3F4F6;color:#6B7280}
+.badge-jeda{background:#FEF2F2;color:#EF4444}
+.badge-blokir{background:#FEF2F2;color:#EF4444}
+.badge-mac{background:#EFF6FF;color:#2563EB;font-size:10px;letter-spacing:.02em}
+/* stat row */
+.dev-stats{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid #F3F4F6}
+.stat-item{padding:10px;text-align:center;border-right:1px solid #F3F4F6}
+.stat-item:last-child{border-right:none}
+.stat-val{font-size:16px;font-weight:700;color:#111827;display:block}
+.stat-lbl{font-size:10px;color:#9CA3AF;margin-top:2px;display:block}
+/* kuota bar */
+.kuota-bar-wrap{padding:4px 16px 12px}
+.kuota-bar-bg{height:5px;background:#F3F4F6;border-radius:3px;overflow:hidden}
+.kuota-bar-fill{height:100%;background:#2563EB;border-radius:3px;transition:width .4s}
+.kuota-meta{display:flex;justify-content:space-between;font-size:11px;color:#9CA3AF;margin-top:4px}
+/* action row */
+.dev-actions{display:grid;grid-template-columns:1fr 1fr 1fr;border-top:1px solid #F3F4F6}
+.dev-actions.single{grid-template-columns:1fr}
+.da-btn{padding:12px;border:none;background:transparent;cursor:pointer;font-size:13px;font-weight:600;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:6px;transition:background .15s;border-right:1px solid #F3F4F6;text-decoration:none}
+.da-btn:last-child{border-right:none}
+.da-btn:hover{background:#F9FAFB}
+.da-btn.edit{color:#2563EB}
+/* empty */
+.empty{text-align:center;padding:48px 24px;color:#9CA3AF}
+.empty .ei{font-size:48px;margin-bottom:12px}
+.empty h3{font-size:16px;font-weight:600;color:#374151;margin-bottom:6px}
+.empty p{font-size:13px;line-height:1.5}
+.btn-empty{display:inline-flex;align-items:center;gap:6px;background:#2563EB;color:#fff;border:none;border-radius:12px;padding:12px 24px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:16px;text-decoration:none}
+
+/* modal konfirmasi hapus */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.show{opacity:1;pointer-events:all}
+.sheet{background:#fff;border-radius:20px 20px 0 0;padding:20px 20px 36px;width:100%;max-width:430px;transform:translateY(100%);transition:transform .25s ease}
+.overlay.show .sheet{transform:translateY(0)}
+.handle{width:40px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 18px}
+.sheet h3{font-size:16px;font-weight:700;margin-bottom:8px;text-align:center}
+.sheet p{font-size:13px;color:#6B7280;text-align:center;margin-bottom:20px}
+.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-cancel{padding:13px;background:#F3F4F6;border:none;border-radius:12px;font-size:14px;font-weight:600;color:#4B5563;cursor:pointer;font-family:inherit}
+.btn-hapus{padding:13px;background:#EF4444;border:none;border-radius:12px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit}
+</style>
+</head>
+<body data-page="kelola">
+
+<div class="topbar">
+  <a href="/" class="back">←</a>
+  <h1>Kelola Perangkat</h1>
+  <a href="/perangkat/tambah" class="add-btn">+ Tambah</a>
+</div>
+
+<div class="page">
+
+  {% with msgs=get_flashed_messages(with_categories=true) %}
+  {% for cat,msg in msgs %}<div class="flash flash-{{cat}}">{{msg}}</div>{% endfor %}
+  {% endwith %}
+
+  {% if perangkat_list %}
+  {% for dev in perangkat_list %}
+  {% set pct = ([dev.kuota_terpakai, dev.kuota_harian]|min / dev.kuota_harian * 100)|int if dev.kuota_harian else 0 %}
+  <div class="dev-card">
+    <!-- Main info -->
+    <div class="dev-main">
+      <div class="dev-ic" style="background:{{ '#FEF2F2' if dev.jeda else ('#DCFCE7' if dev.status == 'online' else '#F3F4F6') }}">
+        {{ '📵' if dev.jeda else (dev.ikon or '📱') }}
+      </div>
+      <div class="dev-info">
+        <h4>{{dev.label}}</h4>
+        <p>{{dev.model}}</p>
+        <div class="dev-badges">
+          {% if dev.jeda %}
+            <span class="badge badge-jeda">⏸ Dijeda</span>
+          {% elif dev.status == 'online' %}
+            <span class="badge badge-online">● Online</span>
+          {% else %}
+            <span class="badge badge-offline">● Offline</span>
+          {% endif %}
+          <span class="badge badge-mac">{{dev.mac}}</span>
+          {% if dev._blokir_count > 0 %}
+          <span class="badge badge-blokir">🚫 {{dev._blokir_count}} blokir</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Kuota bar -->
+    <div class="kuota-bar-wrap">
+      <div class="kuota-bar-bg">
+        <div class="kuota-bar-fill" style="width:{{pct}}%;background:{{ '#EF4444' if pct > 80 else '#2563EB' }}"></div>
+      </div>
+      <div class="kuota-meta">
+        <span>{{dev.kuota_terpakai}}m terpakai</span>
+        <span>{{pct}}% dari {{dev.kuota_harian}}m</span>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="dev-stats">
+      <div class="stat-item">
+        <span class="stat-val">{{dev._log_count}}</span>
+        <span class="stat-lbl">Total Akses</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-val" style="color:#EF4444">{{dev._blokir_count}}</span>
+        <span class="stat-lbl">Diblokir</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-val">{{dev.kuota_harian}}m</span>
+        <span class="stat-lbl">Kuota/Hari</span>
+      </div>
+    </div>
+
+    <!-- Actions: hanya Edit. Tombol Hapus ada di dalam halaman Edit. -->
+    <div class="dev-actions single">
+      <a href="/perangkat/edit/{{dev.id}}" class="da-btn edit">
+        ✏️ Edit Perangkat
+      </a>
+    </div>
+  </div>
+  {% endfor %}
+
+  {% else %}
+  <!-- Empty state -->
+  <div class="empty">
+    <div class="ei">📱</div>
+    <h3>Belum ada perangkat</h3>
+    <p>Tambahkan perangkat anak Anda untuk mulai<br>memantau aktivitas internet mereka.</p>
+    <a href="/perangkat/tambah" class="btn-empty">+ Tambah Perangkat Pertama</a>
+  </div>
+  {% endif %}
+
+</div>
+
+</body>
+</html>

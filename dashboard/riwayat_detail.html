@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edge Guard — Riwayat Aktivitas</title>
+<link rel="stylesheet" href="/aset/responsive.css">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#F9FAFB;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
+a{text-decoration:none;color:inherit}
+
+/* ── Topbar ── */
+.topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
+.back-btn{background:none;border:none;font-size:22px;cursor:pointer;padding:0;line-height:1;color:#111827}
+.topbar h1{font-size:17px;font-weight:600;flex:1}
+.total-badge{background:#EFF6FF;color:#2563EB;font-size:12px;font-weight:600;padding:4px 10px;border-radius:10px;white-space:nowrap}
+
+/* ── Filter bar ── */
+.filter-bar{background:#fff;border-bottom:1px solid #E5E7EB;padding:12px 14px;position:sticky;top:57px;z-index:9}
+/* Search */
+.search-wrap{display:flex;align-items:center;gap:8px;background:#F3F4F6;border-radius:10px;padding:9px 12px;margin-bottom:10px}
+.search-wrap input{flex:1;border:none;outline:none;background:transparent;font-size:14px;font-family:inherit;color:#111827}
+.search-wrap input::placeholder{color:#9CA3AF}
+.search-wrap .s-ic{color:#9CA3AF;font-size:16px}
+/* Perangkat chips */
+.dev-chips{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.dev-chips::-webkit-scrollbar{display:none}
+.dchip{padding:5px 12px;border-radius:20px;border:1.5px solid #E5E7EB;background:#fff;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .15s;color:#374151;flex-shrink:0}
+.dchip.active{background:#111827;border-color:#111827;color:#fff}
+.dchip.all.active{background:#2563EB;border-color:#2563EB;color:#fff}
+/* Kategori tabs */
+.kat-tabs{display:flex;gap:6px;margin-top:8px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.kat-tabs::-webkit-scrollbar{display:none}
+.ktab{padding:5px 12px;border-radius:20px;border:1.5px solid #E5E7EB;background:#fff;font-size:12px;font-weight:500;cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0;transition:all .15s;color:#374151}
+.ktab.active.k-all{background:#111827;border-color:#111827;color:#fff}
+.ktab.active.k-edu{background:#2563EB;border-color:#2563EB;color:#fff}
+.ktab.active.k-hib{background:#F97316;border-color:#F97316;color:#fff}
+.ktab.active.k-neg{background:#EF4444;border-color:#EF4444;color:#fff}
+
+/* ── Stats summary ── */
+.stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 14px 0}
+.stat-card{background:#fff;border-radius:12px;padding:12px 10px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stat-card .sv{font-size:20px;font-weight:700;display:block;margin-bottom:2px}
+.stat-card .sl{font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.04em}
+
+/* ── List ── */
+.list-wrap{padding:10px 14px 100px}
+.date-separator{font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;padding:10px 2px 6px;display:flex;align-items:center;gap:8px}
+.date-separator::after{content:'';flex:1;height:1px;background:#E5E7EB}
+
+/* Activity item (full) */
+.act-full{background:#fff;border-radius:14px;padding:13px 14px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.06);display:flex;align-items:flex-start;gap:12px;transition:box-shadow .15s}
+.act-full:hover{box-shadow:0 2px 8px rgba(0,0,0,.09)}
+.af-ic{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.af-body{flex:1;min-width:0}
+.af-domain{font-size:14px;font-weight:600;margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.af-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:4px}
+.tag{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;text-transform:uppercase}
+.af-meta{font-size:11px;color:#9CA3AF;display:flex;align-items:center;gap:6px}
+.af-meta .dot{width:3px;height:3px;border-radius:50%;background:#D1D5DB;display:inline-block}
+.af-time{font-size:11px;color:#9CA3AF;flex-shrink:0;margin-top:2px;text-align:right;max-width:90px;line-height:1.3;white-space:nowrap}
+
+/* Empty state */
+.empty{text-align:center;padding:48px 24px}
+.empty-ic{font-size:44px;margin-bottom:12px}
+.empty h3{font-size:16px;font-weight:600;color:#374151;margin-bottom:6px}
+.empty p{font-size:13px;color:#9CA3AF;line-height:1.5}
+
+/* Pagination */
+.pagination{display:flex;align-items:center;justify-content:center;gap:8px;padding:16px 14px}
+.pag-btn{width:36px;height:36px;border-radius:10px;border:1.5px solid #E5E7EB;background:#fff;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:inherit;color:#374151}
+.pag-btn:hover{background:#EFF6FF;border-color:#2563EB;color:#2563EB}
+.pag-btn:disabled{opacity:.4;cursor:not-allowed;background:#F9FAFB}
+.pag-info{font-size:13px;color:#6B7280;font-weight:500}
+.pag-info strong{color:#111827}
+
+/* ── Bottom Nav ── */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 env(safe-area-inset-bottom,10px);z-index:20}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;color:#9CA3AF;text-decoration:none}
+.ni.active{color:#2563EB}
+.ni-ic{font-size:22px}.ni-lbl{font-size:11px;font-weight:500}
+</style>
+</head>
+<body data-page="riwayat">
+
+<!-- Topbar -->
+<div class="topbar">
+  <button class="back-btn" onclick="history.back()">←</button>
+  <h1>Riwayat Aktivitas</h1>
+  <span class="total-badge" id="total-badge">{{total}} entri</span>
+</div>
+
+<!-- Filter bar -->
+<div class="filter-bar">
+  <!-- Search domain -->
+  <div class="search-wrap">
+    <span class="s-ic">🔍</span>
+    <input type="text" id="search-inp" placeholder="Cari domain..."
+           oninput="filterClient()" value="">
+  </div>
+
+  <!-- Filter perangkat -->
+  <div class="dev-chips">
+    <button class="dchip all {{ 'active' if not nama }}"
+            data-nama="" onclick="goFilter(this, 'nama')">
+      📱 Semua
+    </button>
+    {% for dev in perangkat_list %}
+    <button class="dchip {{ 'active' if nama == dev.nama }}"
+            data-nama="{{dev.nama}}" onclick="goFilter(this, 'nama')">
+      {{dev.nama}}
+    </button>
+    {% endfor %}
+  </div>
+
+  <!-- Filter kategori -->
+  <div class="kat-tabs">
+    <button class="ktab k-all {{ 'active' if kat == 'all' }}"
+            data-kat="all" onclick="goFilter(this, 'kat')">Semua</button>
+    <button class="ktab k-edu {{ 'active' if kat == 'edukasi' }}"
+            data-kat="edukasi" onclick="goFilter(this, 'kat')">📚 Edukasi</button>
+    <button class="ktab k-hib {{ 'active' if kat == 'hiburan' }}"
+            data-kat="hiburan" onclick="goFilter(this, 'kat')">🎬 Hiburan</button>
+    <button class="ktab k-neg {{ 'active' if kat == 'negatif' }}"
+            data-kat="negatif" onclick="goFilter(this, 'kat')">🚫 Diblokir</button>
+  </div>
+</div>
+
+<!-- Stats summary -->
+<div class="stats-row">
+  {% set total_edu = riwayat | selectattr('kategori','equalto','edukasi') | list | length %}
+  {% set total_blk = riwayat | selectattr('status','equalto','diblokir') | list | length %}
+  {% set total_hib = riwayat | selectattr('kategori','equalto','hiburan') | list | length %}
+  <div class="stat-card">
+    <span class="sv" style="color:#2563EB">{{total_edu}}</span>
+    <span class="sl">Edukasi</span>
+  </div>
+  <div class="stat-card">
+    <span class="sv" style="color:#F97316">{{total_hib}}</span>
+    <span class="sl">Hiburan</span>
+  </div>
+  <div class="stat-card">
+    <span class="sv" style="color:#EF4444">{{total_blk}}</span>
+    <span class="sl">Diblokir</span>
+  </div>
+</div>
+
+<!-- List -->
+<div class="list-wrap" id="list-wrap">
+  {% if riwayat %}
+    {# Grouping berdasarkan label tanggal ramah (Hari ini / Kemarin / 23 Mei) #}
+    {% set ns = namespace(last_grup='') %}
+    {% for item in riwayat %}
+    {% set blk = item.status == 'diblokir' %}
+    {% set edu = item.kategori == 'edukasi' %}
+    {% set neg = item.kategori == 'negatif' %}
+    {% set wkt = item.waktu_str or item.waktu %}
+    {% set grup = wkt.split(' ')[0] if ' ' in wkt else 'Lainnya' %}
+    {% if grup == 'Hari' %}{% set grup = 'Hari ini' %}{% endif %}
+    {% if grup != ns.last_grup %}
+    {% set ns.last_grup = grup %}
+    <div class="date-separator">{{ grup }}</div>
+    {% endif %}
+
+    <div class="act-full" data-domain="{{item.domain}}" data-kat="{{item.kategori}}" data-status="{{item.status}}">
+      <div class="af-ic"
+        style="background:{{ '#FEF2F2' if blk else ('#EFF6FF' if edu else '#FFF7ED') }}">
+        {{ '🚫' if blk else ('🎓' if edu else '▶️') }}
+      </div>
+      <div class="af-body">
+        <div class="af-domain">{{item.domain}}</div>
+        <div class="af-tags">
+          {% if edu %}
+          <span class="tag" style="background:#EFF6FF;color:#2563EB">EDUKASI</span>
+          {% elif neg %}
+          <span class="tag" style="background:#FEF2F2;color:#EF4444">NEGATIF</span>
+          {% else %}
+          <span class="tag" style="background:#FFF7ED;color:#F97316">HIBURAN</span>
+          {% endif %}
+          {% if blk %}
+          <span class="tag" style="background:#FEF2F2;color:#EF4444">Diblokir</span>
+          {% else %}
+          <span class="tag" style="background:#F0FDF4;color:#16A34A">Diizinkan</span>
+          {% endif %}
+        </div>
+        <div class="af-meta">
+          <span>👤 {{item.perangkat or 'Unknown'}}</span>
+          {% if item.mac %}
+          <span class="dot"></span>
+          <span style="font-family:'SF Mono',monospace;font-size:10px">{{item.mac}}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="af-time" title="{{ wkt }}">{{ wkt }}</div>
+    </div>
+    {% endfor %}
+
+  {% else %}
+  <div class="empty">
+    <div class="empty-ic">📋</div>
+    <h3>Belum ada riwayat</h3>
+    <p>Riwayat aktivitas internet akan muncul<br>setelah sistem mulai memantau trafik.</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<div class="pagination">
+  {% if page > 1 %}
+  <a href="?nama={{nama}}&kat={{kat}}&page={{page-1}}">
+    <button class="pag-btn">‹</button>
+  </a>
+  {% else %}
+  <button class="pag-btn" disabled>‹</button>
+  {% endif %}
+
+  <span class="pag-info">
+    Halaman <strong>{{page}}</strong> dari <strong>{{total_pages}}</strong>
+    <br><span style="font-size:11px">({{total}} entri total)</span>
+  </span>
+
+  {% if page < total_pages %}
+  <a href="?nama={{nama}}&kat={{kat}}&page={{page+1}}">
+    <button class="pag-btn">›</button>
+  </a>
+  {% else %}
+  <button class="pag-btn" disabled>›</button>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Bottom Nav -->
+<nav class="bnav">
+  <a href="/jadwal" class="ni"><span class="ni-ic">🕐</span><span class="ni-lbl">Penjadwalan</span></a>
+  <a href="/"       class="ni active"><span class="ni-ic">🏠</span><span class="ni-lbl">Beranda</span></a>
+  <a href="/aturan" class="ni"><span class="ni-ic">🛡️</span><span class="ni-lbl">Aturan</span></a>
+</nav>
+
+<script>
+var currentNama = '{{nama}}';
+var currentKat  = '{{kat}}';
+var currentPage = {{page}};
+
+/* ── Navigate with filter ─────────────────────────────── */
+function goFilter(btn, type) {
+  var val  = btn.dataset[type === 'nama' ? 'nama' : 'kat'];
+  if (type === 'nama') currentNama = val;
+  else                 currentKat  = val;
+  window.location.href = '/riwayat?nama='+encodeURIComponent(currentNama)+'&kat='+currentKat+'&page=1';
+}
+
+/* ── Client-side search filter ────────────────────────── */
+function filterClient() {
+  var q     = document.getElementById('search-inp').value.toLowerCase();
+  var items = document.querySelectorAll('.act-full');
+  var visible = 0;
+  items.forEach(function(el) {
+    var domain = (el.dataset.domain || '').toLowerCase();
+    var show   = !q || domain.includes(q);
+    el.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  document.getElementById('total-badge').textContent = visible + ' entri';
+  // Hide separators with no visible items
+  document.querySelectorAll('.date-separator').forEach(function(sep) {
+    var next = sep.nextElementSibling;
+    var hasVisible = false;
+    while (next && !next.classList.contains('date-separator')) {
+      if (next.classList.contains('act-full') && next.style.display !== 'none') hasVisible = true;
+      next = next.nextElementSibling;
+    }
+    sep.style.display = hasVisible ? '' : 'none';
+  });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edge Guard — {% if tipe == 'blokir' %}Situs Ini Diblokir{% else %}Waktu Berakhir{% endif %}</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+               'Segoe UI', Roboto, sans-serif;
+  height: 100%;
+  background: #fff;
+  color: #111827;
+}
+
+@media (min-width: 768px) {
+  body {
+    background: {% if tipe == 'blokir' %}#FFF1F2{% else %}#EFF6FF{% endif %};
+    display: flex; align-items: center; justify-content: center;
+    min-height: 100vh; padding: 24px;
+  }
+}
+
+.card {
+  background:#fff; display:flex; flex-direction:column;
+  min-height:100vh; width:100%;
+}
+@media (min-width: 768px) {
+  .card {
+    min-height: 680px; max-width: 390px; width: 390px;
+    border-radius: 36px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.14), 0 2px 8px rgba(0,0,0,.06);
+    overflow: hidden;
+  }
+}
+
+.brand { padding: 20px 22px 0; display:flex; align-items:center; gap:9px; }
+.brand-logo {
+  width:30px; height:30px; background:#2563EB; border-radius:9px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:15px; flex-shrink:0;
+}
+.brand-name { font-size:17px; font-weight:700; color:#2563EB; letter-spacing:-.01em; }
+
+.body {
+  flex:1; display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+  padding: 32px 36px 24px; text-align:center;
+}
+
+.icon-wrap {
+  position:relative; width:110px; height:110px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  margin-bottom:28px; flex-shrink:0;
+}
+.icon-wrap::before {
+  content:''; position:absolute; inset:-14px; border-radius:50%;
+  opacity:.12; z-index:0;
+}
+.icon-emoji {
+  font-size:52px; line-height:1; position:relative; z-index:1;
+  display:flex; align-items:center; justify-content:center;
+  width:100%; height:100%;
+}
+.icon-blokir         { background:#FEF2F2; }
+.icon-blokir::before { background:#EF4444; }
+.icon-habis          { background:#EFF6FF; }
+.icon-habis::before  { background:#2563EB; }
+
+.title {
+  font-size:26px; font-weight:700; color:#111827;
+  margin-bottom:14px; letter-spacing:-.02em; line-height:1.2;
+}
+.desc {
+  font-size:14px; color:#4B5563; line-height:1.75;
+  margin-bottom:36px; max-width:290px;
+}
+.desc .hl { color:#2563EB; font-weight:600; }
+
+.btn-primary {
+  width:100%; max-width:300px; padding:16px 24px;
+  background:#2563EB; color:#fff; border:none; border-radius:15px;
+  font-size:15px; font-weight:600; cursor:pointer; font-family:inherit;
+  display:flex; align-items:center; justify-content:center; gap:9px;
+  margin-bottom:16px; transition:opacity .15s, transform .1s;
+  box-shadow:0 4px 16px rgba(37,99,235,.28); letter-spacing:.01em;
+}
+.btn-primary:hover  { opacity:.90; }
+.btn-primary:active { transform:scale(.98); }
+
+.btn-secondary {
+  background:none; border:none;
+  font-size:14px; font-weight:600; color:#6B7280; cursor:pointer;
+  font-family:inherit; text-decoration:underline; text-underline-offset:3px;
+  transition:color .15s; padding:4px 8px;
+}
+.btn-secondary:hover { color:#374151; }
+.btn-secondary.sent  { color:#22C55E; text-decoration:none; }
+.btn-secondary:disabled { opacity:.6; cursor:not-allowed; }
+
+.footer {
+  border-top:1px solid #F3F4F6;
+  padding:14px 22px env(safe-area-inset-bottom, 14px);
+}
+.footer-row {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:6px;
+}
+.footer-row:last-child { margin-bottom:0; }
+.f-label {
+  font-size:11px; font-weight:600; color:#9CA3AF;
+  text-transform:uppercase; letter-spacing:.07em;
+}
+.f-aktif { font-size:12px; font-weight:700; color:#EF4444; }
+.f-id    {
+  font-size:12px; font-weight:600; color:#4B5563;
+  font-family:'SF Mono','Courier New',monospace; letter-spacing:.03em;
+  max-width:220px; overflow:hidden; text-overflow:ellipsis;
+  white-space:nowrap; text-align:right;
+}
+
+/* ── Modal Pilihan Belajar ── */
+.overlay {
+  position:fixed; inset:0; background:rgba(0,0,0,.5);
+  display:flex; align-items:flex-end; justify-content:center;
+  z-index:200; opacity:0; pointer-events:none; transition:opacity .25s;
+}
+.overlay.show { opacity:1; pointer-events:auto; }
+.sheet {
+  background:#fff; width:100%; max-width:430px;
+  border-radius:24px 24px 0 0;
+  padding:18px 18px env(safe-area-inset-bottom, 28px);
+  transform:translateY(100%); transition:transform .3s ease;
+  max-height:80vh; overflow-y:auto;
+}
+.overlay.show .sheet { transform:translateY(0); }
+.handle {
+  width:42px; height:4px; background:#E5E7EB;
+  border-radius:2px; margin:0 auto 14px;
+}
+.sheet h3 {
+  font-size:17px; font-weight:700; margin-bottom:4px; text-align:center;
+}
+.sheet .sub {
+  font-size:13px; color:#6B7280; text-align:center; margin-bottom:16px;
+}
+.edu-grid {
+  display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;
+}
+.edu-tile {
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+  padding:14px 8px; border:1.5px solid #E5E7EB; border-radius:14px;
+  text-decoration:none; color:#111827; transition:border-color .15s, background .15s;
+}
+.edu-tile:hover { border-color:#2563EB; background:#F8FAFF; }
+.edu-emoji { font-size:30px; margin-bottom:6px; line-height:1; }
+.edu-name  { font-size:13px; font-weight:600; line-height:1.25; }
+.edu-tag   { font-size:11px; color:#6B7280; margin-top:2px; }
+.btn-close-sheet {
+  width:100%; padding:12px; background:#F3F4F6; border:none;
+  border-radius:12px; font-size:14px; font-weight:600; color:#4B5563;
+  cursor:pointer; font-family:inherit; margin-top:6px;
+}
+
+.toast {
+  position:fixed; bottom:24px; left:50%;
+  transform:translateX(-50%) translateY(20px);
+  background:#1F2937; color:#fff;
+  padding:11px 20px; border-radius:22px;
+  font-size:13px; font-weight:500;
+  opacity:0; pointer-events:none; transition:all .25s;
+  white-space:nowrap; z-index:300;
+  box-shadow:0 4px 20px rgba(0,0,0,.18);
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+@keyframes pulse-red  { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.3);} 50%{box-shadow:0 0 0 14px rgba(239,68,68,0);} }
+@keyframes pulse-blue { 0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,.3);} 50%{box-shadow:0 0 0 14px rgba(37,99,235,0);} }
+.icon-blokir { animation: pulse-red  2.4s ease-in-out infinite; }
+.icon-habis  { animation: pulse-blue 2.4s ease-in-out infinite; }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <div class="brand">
+    <div class="brand-logo">🛡️</div>
+    <span class="brand-name">Edge Guard</span>
+  </div>
+
+  <div class="body">
+
+    {% if tipe == 'blokir' %}
+    <div class="icon-wrap icon-blokir"><div class="icon-emoji">🚫</div></div>
+    <h2 class="title">Situs Ini Diblokir</h2>
+    <p class="desc">
+      Maaf, akses ke situs ini telah<br>
+      dibatasi demi keamanan Anda.<br>
+      Konten ini mungkin mengandung<br>
+      materi yang tidak pantas atau telah<br>
+      dibatasi oleh orang tua.
+    </p>
+    {% else %}
+    <div class="icon-wrap icon-habis"><div class="icon-emoji">🎓</div></div>
+    <h2 class="title">Waktu Berakhir</h2>
+    <p class="desc">
+      Kuota waktu bermainmu<br>
+      sudah habis untuk saat ini.<br>
+      Ayo lakukan
+      <span class="hl">{{ sisa_belajar }} Menit belajar</span>
+      untuk<br>membuka lebih banyak keseruan !
+    </p>
+    {% endif %}
+
+    <button class="btn-primary" onclick="bukaPilihanBelajar()">
+      ▶&nbsp; Mulai Belajar
+    </button>
+
+    <button class="btn-secondary" id="izin-btn" onclick="mintaIzin()">
+      Minta Izin Akses
+    </button>
+
+  </div>
+
+  <div class="footer">
+    <div class="footer-row">
+      <span class="f-label">Status Filter</span>
+      <span class="f-aktif">AKTIF</span>
+    </div>
+    <div class="footer-row">
+      <span class="f-label">ID Perangkat</span>
+      <span class="f-id" id="device-id" title="">Mendeteksi…</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ═══════ Modal Pilihan Belajar ═══════ -->
+<div class="overlay" id="modal-belajar" onclick="if(event.target===this) tutupBelajar()">
+  <div class="sheet">
+    <div class="handle"></div>
+    <h3>📚 Pilih Tempat Belajarmu</h3>
+    <p class="sub">Belajar dulu yuk, biar bisa main lagi!</p>
+    <div class="edu-grid">
+      <a class="edu-tile" target="_blank" rel="noopener" href="https://www.duolingo.com/">
+        <span class="edu-emoji">🦉</span>
+        <span class="edu-name">Duolingo</span>
+        <span class="edu-tag">Belajar bahasa</span>
+      </a>
+      <a class="edu-tile" target="_blank" rel="noopener" href="https://www.ruangguru.com/">
+        <span class="edu-emoji">🎓</span>
+        <span class="edu-name">Ruangguru</span>
+        <span class="edu-tag">Mapel sekolah</span>
+      </a>
+      <a class="edu-tile" target="_blank" rel="noopener" href="https://www.khanacademy.org/">
+        <span class="edu-emoji">🧠</span>
+        <span class="edu-name">Khan Academy</span>
+        <span class="edu-tag">Matematika &amp; sains</span>
+      </a>
+      <a class="edu-tile" target="_blank" rel="noopener" href="https://www.zenius.net/">
+        <span class="edu-emoji">⚡</span>
+        <span class="edu-name">Zenius</span>
+        <span class="edu-tag">Video pelajaran</span>
+      </a>
+      <a class="edu-tile" target="_blank" rel="noopener" href="https://www.quipper.com/id/">
+        <span class="edu-emoji">📘</span>
+        <span class="edu-name">Quipper</span>
+        <span class="edu-tag">Latihan soal</span>
+      </a>
+      <a class="edu-tile" target="_blank" rel="noopener" href="https://id.wikipedia.org/">
+        <span class="edu-emoji">📖</span>
+        <span class="edu-name">Wikipedia</span>
+        <span class="edu-tag">Ensiklopedia</span>
+      </a>
+      <a class="edu-tile" target="_blank" rel="noopener" href="https://brainly.co.id/">
+        <span class="edu-emoji">💡</span>
+        <span class="edu-name">Brainly</span>
+        <span class="edu-tag">Tanya jawab PR</span>
+      </a>
+      <a class="edu-tile" target="_blank" rel="noopener" href="https://scholar.google.com/">
+        <span class="edu-emoji">🔬</span>
+        <span class="edu-name">Scholar</span>
+        <span class="edu-tag">Jurnal &amp; riset</span>
+      </a>
+    </div>
+    <button class="btn-close-sheet" onclick="tutupBelajar()">Tutup</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ════════════════════════════════════════════════════════════
+   DATA YANG DIKIRIM ROUTER (?domain=…&device_id=…&perangkat=…)
+   ════════════════════════════════════════════════════════════ */
+var DOMAIN    = "{{ domain if tipe == 'blokir' else '' }}";
+var PERANGKAT = "{{ perangkat }}";          // diisi router (mac→nama)
+var DEVICE_ID = "{{ device_id }}";          // diisi router; jika kosong → deteksi UA
+
+/* ── Toast ── */
+function showToast(msg, dur) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(function(){ t.classList.remove('show'); }, dur || 3000);
+}
+
+/* ════════════════════════════════════════════════════════════
+   DETEKSI DEVICE-ID DINAMIS  (jika router tidak mengirim)
+   Format: "<Perangkat> <Browser>" — contoh "MacBook Safari"
+   ════════════════════════════════════════════════════════════ */
+function deteksiPerangkat(ua) {
+  ua = (ua || '').toLowerCase();
+  if (/ipad/.test(ua))                                 return 'iPad';
+  if (/iphone/.test(ua))                               return 'iPhone';
+  if (/ipod/.test(ua))                                 return 'iPod';
+  if (/android/.test(ua) && /mobile/.test(ua))         return 'Android';
+  if (/android/.test(ua))                              return 'Android Tab';
+  if (/macintosh|mac os x/.test(ua))                   return 'MacBook';
+  if (/windows nt/.test(ua))                           return 'Windows PC';
+  if (/cros/.test(ua))                                 return 'Chromebook';
+  if (/linux/.test(ua))                                return 'Linux PC';
+  return 'Perangkat';
+}
+function deteksiBrowser(ua) {
+  ua = (ua || '').toLowerCase();
+  if (/edg\//.test(ua))                                return 'Edge';
+  if (/opr\/|opera/.test(ua))                          return 'Opera';
+  if (/chrome\//.test(ua) && !/edg\//.test(ua))        return 'Chrome';
+  if (/firefox\//.test(ua))                            return 'Firefox';
+  if (/safari\//.test(ua) && !/chrome\//.test(ua))     return 'Safari';
+  if (/samsungbrowser/.test(ua))                       return 'Samsung Internet';
+  return 'Browser';
+}
+function buatDeviceId() {
+  if (DEVICE_ID && DEVICE_ID.trim()) return DEVICE_ID;
+  var ua = navigator.userAgent || '';
+  var p  = deteksiPerangkat(ua);
+  var b  = deteksiBrowser(ua);
+  return p + ' ' + b;
+}
+(function isiDeviceId(){
+  var el = document.getElementById('device-id');
+  DEVICE_ID = buatDeviceId();
+  el.textContent = DEVICE_ID;
+  el.title       = DEVICE_ID;
+})();
+
+/* ── Mulai Belajar → buka modal pilihan ── */
+function bukaPilihanBelajar() {
+  document.getElementById('modal-belajar').classList.add('show');
+}
+function tutupBelajar() {
+  document.getElementById('modal-belajar').classList.remove('show');
+}
+
+/* ── Minta Izin Akses → kirim langsung ke /minta-izin (Telegram) ── */
+function mintaIzin() {
+  var btn = document.getElementById('izin-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Mengirim…';
+
+  fetch('/minta-izin', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json' },
+    body: JSON.stringify({
+      domain:    DOMAIN,
+      perangkat: PERANGKAT || DEVICE_ID,
+      device_id: DEVICE_ID
+    })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(j){
+    if (j && (j.status === 'ok' || j.status === 'queued')) {
+      btn.textContent = '✅ Permintaan terkirim ke orang tua';
+      btn.className   = 'btn-secondary sent';
+      showToast('📨 Notifikasi dikirim via Telegram', 3500);
+    } else {
+      throw new Error('reject');
+    }
+  })
+  .catch(function(){
+    btn.disabled    = false;
+    btn.textContent = 'Minta Izin Akses';
+    showToast('⚠️ Gagal mengirim. Coba lagi.');
+  });
+}
+
+/* ESC = tutup modal */
+document.addEventListener('keydown', function(e){
+  if (e.key === 'Escape') tutupBelajar();
+});
+</script>
+
+</body>
+</html>
