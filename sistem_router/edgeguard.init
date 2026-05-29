@@ -32,8 +32,6 @@ start_service() {
   procd_set_param command python3 "$BASE/pemantau_trafik.py" --interface "${EG_IFACE:-br-lan}"
   procd_set_param env EG_CLOUD_URL="${EG_CLOUD_URL:-http://127.0.0.1:8080}" \
                       EG_IFACE="${EG_IFACE:-br-lan}" \
-                      TG_BOT_TOKEN="${TG_BOT_TOKEN:-}" \
-                      TG_CHAT_ID="${TG_CHAT_ID:-}" \
                       EG_DEBUG="${EG_DEBUG:-0}"
   procd_set_param stdout 1
   procd_set_param stderr 1

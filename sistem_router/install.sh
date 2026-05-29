@@ -58,10 +58,6 @@ export EG_CLOUD_URL='http://202.10.34.171:8080'
 # Network interface LAN (br-lan untuk default OpenWrt)
 export EG_IFACE='br-lan'
 
-# Telegram Bot (kosongkan jika belum dipakai)
-export TG_BOT_TOKEN=''
-export TG_CHAT_ID=''
-
 # Threshold "perangkat aktif" (Kbps)
 export EG_KBPS_AKTIF='10'
 
@@ -74,7 +70,7 @@ export EG_CONFIG_TTL='30'
 export EG_DEBUG='0'
 EOF
   chmod 600 "$ENV_FILE"
-  log "✅ $ENV_FILE dibuat — EDIT URL/TOKEN sesuai milikmu!"
+  log "✅ $ENV_FILE dibuat — EDIT EG_CLOUD_URL sesuai milikmu!"
 else
   log "✓ $ENV_FILE sudah ada (tidak ditimpa)"
 fi
@@ -99,7 +95,7 @@ log "═════════════════════════
 log "✅ INSTALASI SELESAI"
 log ""
 log "Selanjutnya:"
-log "  1. Edit $ENV_FILE → set EG_CLOUD_URL, TG_BOT_TOKEN, TG_CHAT_ID"
+log "  1. Edit $ENV_FILE → set EG_CLOUD_URL"
 log "  2. Test klasifikasi:  python3 $BASE/klasifikasi_ai.py youtube.com"
 log "  3. Mulai semua daemon: /etc/init.d/edgeguard start"
 log "  4. Lihat status:       /etc/init.d/edgeguard status"

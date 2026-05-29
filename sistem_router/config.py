@@ -8,8 +8,6 @@
 ║    export EG_CLOUD_URL='http://202.10.34.171:8080'                    ║
 ║    export EG_IFACE='br-lan'                                           ║
 ║    export EG_HEARTBEAT=60                                             ║
-║    export TG_BOT_TOKEN='123:abc'                                      ║
-║    export TG_CHAT_ID='456789'                                         ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
 
@@ -29,10 +27,6 @@ KUOTA_INTERVAL= int(os.environ.get('EG_KUOTA_INTERVAL','60'))   # detik antar sa
 
 # ── Threshold "perangkat aktif" untuk perhitungan kuota ───────────────────
 KBPS_AKTIF    = float(os.environ.get('EG_KBPS_AKTIF',  '10'))
-
-# ── Telegram ──────────────────────────────────────────────────────────────
-TG_BOT_TOKEN  = os.environ.get('TG_BOT_TOKEN', '')
-TG_CHAT_ID    = os.environ.get('TG_CHAT_ID',   '')
 
 # ── Debug ────────────────────────────────────────────────────────────────
 DEBUG         = bool(int(os.environ.get('EG_DEBUG',    '0')))

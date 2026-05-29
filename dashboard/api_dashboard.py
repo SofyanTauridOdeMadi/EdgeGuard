@@ -13,7 +13,7 @@
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, jsonify, flash)
 import pymysql, pymysql.cursors
-import os, sys, json, time, math, hashlib, secrets, re, threading
+import os, sys, json, time, math, secrets, re, threading
 from datetime import datetime, date, timedelta
 from functools import wraps
 
@@ -69,9 +69,6 @@ def now_lokal_naive():
     kini juga WITA karena session 'SET time_zone=+08:00'."""
     return datetime.now(TZ_WITA).replace(tzinfo=None)
 
-def jam_lokal(fmt='%H:%M:%S'):
-    return now_lokal().strftime(fmt)
-
 # ══════════════════════════════════════════════════════════════════════════════
 # DB HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -107,35 +104,31 @@ def set_cfg(key, value):
 # PASSWORD HASHING
 # ══════════════════════════════════════════════════════════════════════════════
 def hash_password(plain: str) -> str:
-    if _BCRYPT:
-        return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(12)).decode()
-    salt = secrets.token_hex(16)
-    h    = hashlib.sha256((salt + plain).encode()).hexdigest()
-    return f'sha256${salt}${h}'
+    """Hash password dengan bcrypt (cost 12). Wajib paket 'bcrypt'."""
+    if not _BCRYPT:
+        raise RuntimeError("Paket 'bcrypt' belum terpasang → jalankan: pip install bcrypt")
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(12)).decode()
 
 def verify_password(plain: str, hashed: str) -> bool:
-    if not hashed:
+    if not _BCRYPT or not hashed or not hashed.startswith('$2'):
         return False
-    if hashed.startswith('$2'):
-        if not _BCRYPT: return False
-        try:    return bcrypt.checkpw(plain.encode(), hashed.encode())
-        except: return False
-    if hashed.startswith('sha256$'):
-        try:
-            _, salt, h = hashed.split('$', 2)
-            return hashlib.sha256((salt + plain).encode()).hexdigest() == h
-        except: return False
-    return False
+    try:
+        return bcrypt.checkpw(plain.encode(), hashed.encode())
+    except Exception:
+        return False
 
 # ══════════════════════════════════════════════════════════════════════════════
 # BOOTSTRAP ADMIN PASSWORD
 # ══════════════════════════════════════════════════════════════════════════════
 def ensure_admin_password(default_username: str = 'stom',
-                          default_pw: str = 'maba22ft'):
+                          default_pw: str = ''):
     """Pastikan admin pertama ada dengan username & password valid.
 
     Login UI menerima username (yang dicocokkan dengan prefix email atau email
     full). Jadi 'username' di sini = prefix email.
+
+    Password default dibaca dari env ADMIN_BOOTSTRAP_PW (fallback 'maba22ft'),
+    jadi tidak hardcoded mencolok di repo.
 
     Perilaku:
       • Tidak ada admin → buat baru dengan default.
@@ -143,6 +136,7 @@ def ensure_admin_password(default_username: str = 'stom',
       • Hash valid (admin sudah punya password) → biarkan apa adanya
         (jangan timpa password user yang sudah diganti).
     """
+    default_pw = default_pw or os.environ.get('ADMIN_BOOTSTRAP_PW', 'maba22ft')
     try:
         u = query("SELECT admin_id, email, password_hash FROM admin_orang_tua "
                   "ORDER BY admin_id LIMIT 1", one=True)
@@ -158,7 +152,7 @@ def ensure_admin_password(default_username: str = 'stom',
             return
 
         h = u.get('password_hash') or ''
-        valid = h.startswith('$2') or h.startswith('sha256$')
+        valid = h.startswith('$2')   # hanya bcrypt yang dianggap valid
         if not valid:
             # Hash placeholder/'BOOTSTRAP'/invalid → reset segalanya
             new_h = hash_password(default_pw)
@@ -441,48 +435,7 @@ def primary_admin_id():
     except Exception:
         return 1
 
-# ── Keyboard inline ────────────────────────────────────────────────────────
-def bot_kb_utama():
-    return {'inline_keyboard': [
-        [{'text': '📊 Riwayat Aktivitas',  'callback_data': 'riwayat'}],
-        [{'text': '🎁 Konfigurasi Reward', 'callback_data': 'reward'}],
-        [{'text': '🌙 Jadwal Istirahat',   'callback_data': 'jadwal'}],
-        [{'text': '⏳ Sisa Kuota Anak',     'callback_data': 'kuota'}],
-    ]}
-
-def bot_kb_kembali():
-    return {'inline_keyboard': [[{'text': '⬅️ Menu Utama', 'callback_data': 'menu'}]]}
-
-def bot_teks_menu():
-    return ("🛡️ *EDGE GUARD — Menu Kontrol*\n"
-            "━━━━━━━━━━━━━━━━━━━━\n"
-            "Edge Guard adalah Sistem Smart Parental Control "
-            "Berbasis AI yang ditanamkan didalam Router. Bot ini "
-            "untuk menampilkan informasi dan notifikasi dari sistem.\n\n"
-            "Pilih informasi yang ingin dilihat:")
-
-# ── Formatter konten tiap menu ──────────────────────────────────────────────
-_EMO_KAT = {'edukasi': '📚', 'hiburan': '🎬', 'negatif': '🚫', 'unknown': '❓'}
-
-def bot_riwayat():
-    rows = query(
-        "SELECT l.waktu_akses, l.perangkat_nama, l.domain_url, l.kategori, l.aksi "
-        "FROM log_akses l JOIN pengguna_anak p ON p.user_id = l.user_id "
-        "WHERE p.admin_id=%s "
-        "ORDER BY l.waktu_akses DESC LIMIT 10",
-        (primary_admin_id(),)) or []
-    if not rows:
-        return "📊 *RIWAYAT AKTIVITAS*\n━━━━━━━━━━━━━━━━━━━━\n_Belum ada aktivitas._"
-    lines = ["📊 *RIWAYAT AKTIVITAS TERBARU*", "━━━━━━━━━━━━━━━━━━━━"]
-    for r in rows:
-        jam  = (r['waktu_akses'].strftime('%H:%M')
-                if isinstance(r['waktu_akses'], datetime) else '--:--')
-        emo  = _EMO_KAT.get(r['kategori'], '❓')
-        blok = '🚫' if r['aksi'] == 'blokir' else '✅'
-        dom  = r['domain_url'] or '—'
-        lines.append(f"{blok} `{jam}` {emo} `{dom}`\n        └ {r['perangkat_nama'] or '—'}")
-    return "\n".join(lines)
-
+# ── Formatter konten laporan ────────────────────────────────────────────────
 def bot_reward():
     durasi = int(get_cfg('durasi_belajar_menit', 30))
     bonus  = int(get_cfg('waktu_bonus_menit', 10))
@@ -548,42 +501,32 @@ def bot_kuota():
                      f"        Sisa *{fmt(sisa)}* / {fmt(harian)}")
     return "\n".join(lines)
 
-# ── Router update ────────────────────────────────────────────────────────────
-def _bot_konten(data):
-    """Map callback/command → (teks, keyboard)."""
-    if data == 'menu':    return bot_teks_menu(), bot_kb_utama()
-    if data == 'riwayat': return bot_riwayat(),   bot_kb_kembali()
-    if data == 'reward':  return bot_reward(),    bot_kb_kembali()
-    if data == 'jadwal':  return bot_jadwal(),    bot_kb_kembali()
-    if data == 'kuota':   return bot_kuota(),     bot_kb_kembali()
-    return None, None
+def bot_laporan():
+    """Laporan lengkap dalam SATU pesan (tanpa menu/tombol):
+    konfigurasi reward → jadwal internet anak → sisa kuota."""
+    return (bot_reward() + "\n\n"
+            + bot_jadwal() + "\n\n"
+            + bot_kuota())
 
+# ── Router update ────────────────────────────────────────────────────────────
 def tg_handle_update(upd):
     _, chat_conf = tg_credentials()
     chat_conf = str(chat_conf) if chat_conf else ''
 
-    # 1) Tombol inline ditekan
+    # 1) Tombol inline lama (dari pesan menu versi sebelumnya) → tetap tanggapi
+    #    dengan menampilkan laporan, lalu copot tombolnya.
     cb = upd.get('callback_query')
     if cb:
-        msg  = cb.get('message') or {}
-        cid  = str((msg.get('chat') or {}).get('id', ''))
-        mid  = msg.get('message_id')
-        data = cb.get('data', '')
+        msg = cb.get('message') or {}
+        cid = str((msg.get('chat') or {}).get('id', ''))
+        mid = msg.get('message_id')
         if chat_conf and cid != chat_conf:
             tg_answer_callback(cb.get('id', ''), 'Akses tidak diizinkan.')
             return
-        # Bersihkan loading-spinner tombol secara non-blocking agar tidak menunggu
-        # round-trip answerCallbackQuery dulu.
         threading.Thread(target=tg_answer_callback, args=(cb.get('id', ''),),
                          daemon=True).start()
-        # Anti-spam + feedback: ubah pesan jadi "Memuat…" dan COPOT tombol
-        # (inline_keyboard kosong) SEBELUM query DB, supaya pengguna tak bisa
-        # men-tap menu berkali-kali. Lalu ganti dengan konten final + tombol.
         tg_edit_message(cid, mid, "⏳ _Memuat…_", {'inline_keyboard': []})
-        teks, kb = _bot_konten(data)
-        if teks is None:                       # data tak dikenal → balik ke menu
-            teks, kb = bot_teks_menu(), bot_kb_utama()
-        tg_edit_message(cid, mid, teks, kb)
+        tg_edit_message(cid, mid, bot_laporan(), {'inline_keyboard': []})
         return
 
     # 2) Pesan teks / command
@@ -594,13 +537,11 @@ def tg_handle_update(upd):
     if chat_conf and cid != chat_conf:
         return  # abaikan orang asing
 
-    # Menu HANYA muncul saat pengguna sendiri yang mengetik /start.
-    # Tidak pernah dikirim otomatis oleh server.
+    # /start → langsung tampilkan laporan (reward + jadwal + kuota), tanpa menu.
     if text == '/start':
-        tg_send_message(bot_teks_menu(), reply_markup=bot_kb_utama(), override_chat=cid)
+        tg_send_message(bot_laporan(), override_chat=cid)
     else:
-        # Pesan lain → balas hint singkat saja (tanpa menu yang tidak diminta).
-        tg_send_message("Ketik */start* untuk membuka menu kontrol Edge Guard. 🛡️",
+        tg_send_message("Ketik */start* untuk melihat status kontrol Edge Guard. 🛡️",
                         override_chat=cid)
 
 # ── Long-poll loop (daemon thread) ────────────────────────────────────────────
@@ -1911,17 +1852,15 @@ def api_telegram_test():
         "🛡️ *Edge Guard — Test Koneksi*\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         "✅ Bot Telegram berhasil terhubung!\n"
-        "📱 Notifikasi akan dikirim ke chat ini.\n\n"
-        "Berikut menu kontrolnya 👇"
+        "📱 Notifikasi sistem akan dikirim ke chat ini."
     )
-    # Saat test server, sekalian tampilkan menu (sesuai permintaan).
-    ok, err = tg_send_message(teks, reply_markup=bot_kb_utama())
-    # Pastikan bot dua-arah hidup supaya tombol menu langsung responsif.
+    ok, err = tg_send_message(teks)
+    # Pastikan bot dua-arah tetap hidup (untuk /start).
     try:
         if tg_aktif(): mulai_bot_telegram()
     except Exception: pass
     if ok:
-        return jsonify({"status":"ok","msg":"Pesan test + menu terkirim. "
+        return jsonify({"status":"ok","msg":"Pesan test terkirim. "
                         "Cek aplikasi Telegram Anda."})
     return jsonify({"status":"error","code":"send_fail",
                     "msg":f"Gagal mengirim: {err}"}), 400
@@ -1990,7 +1929,7 @@ if __name__ == '__main__':
         _reset_admin_password(sys.argv[2])
         sys.exit(0)
 
-    try: ensure_admin_password('stom', 'maba22ft')
+    try: ensure_admin_password('stom')
     except Exception as e:
         print(f"[Startup] DB belum siap? {e}")
         print("[Startup] Jalankan dulu: mysql -u <user> -p < dashboard/schema.sql")
@@ -2008,10 +1947,8 @@ if __name__ == '__main__':
     print("=" * 60)
     print("  🛡️  Edge Guard Dashboard")
     print(f"  DB     : {DB['host']}:{DB['port']}/{DB.get('database', DB.get('db','?'))}")
-    print(f"  TZ     : WITA (+08:00, Makassar/Singapura)")
     print(f"  URL    : http://0.0.0.0:8080")
-    print(f"  Login  : stom / maba22ft")
-    print(f"  bcrypt : {'ON' if _BCRYPT else 'OFF (fallback sha256, install bcrypt!)'}")
+    print(f"  bcrypt : {'ON' if _BCRYPT else '❌ OFF — WAJIB: pip install bcrypt'}")
     print(f"  Bot TG : {bot_status}")
     print("=" * 60)
     app.run(debug=False, host='0.0.0.0', port=8080)

@@ -195,6 +195,13 @@ def tangani(domain: str, ip_src: str = '', mac_src: str = ''):
 def capture_tshark(iface: str):
     cmd = [
         'tshark', '-i', iface, '-l',
+        # ── RINGAN: capture-filter BPF (disaring kernel) ──────────────────
+        # Hanya paket TLS *handshake* (record type 0x16) ke port 443 yang
+        # diteruskan ke tshark. Tanpa ini, tshark men-dissect SEMUA trafik
+        # lalu baru menyaring dgn -Y → boros CPU di router (mis. AX3000T).
+        # Dgn -f, kernel membuang paket tak relevan duluan → beban jauh turun.
+        '-f', f'tcp dst port {PORT} and (tcp[((tcp[12:1] & 0xf0) >> 2):1] = 0x16)',
+        # Display-filter: pertajam ke ClientHello yang benar2 punya SNI.
         '-Y', f'tls.handshake.extensions_server_name and tcp.dstport=={PORT}',
         '-T', 'fields',
         '-e', 'ip.src', '-e', 'eth.src',

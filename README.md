@@ -118,7 +118,7 @@ EdgeGuard/
 # 1. Siapkan database (MySQL/MariaDB via XAMPP)
 mysql -u root -p < dashboard/schema.sql
 
-# 2. Konfigurasi token bot Telegram (jangan di-commit!)
+# 2. Konfigurasi token bot Telegram
 cp dashboard/token_bot.contoh.txt dashboard/token_bot.txt
 #   lalu isi token dari @BotFather, atau set environment variable:
 export TG_BOT_TOKEN="token_anda"
@@ -137,7 +137,7 @@ python3 api_dashboard.py
 
 ## 📈 Status Proyek
 
-> **v3.4-Alpha** — Tahap penyusunan proposal & pengembangan prototipe.
+> **v4.1-Beta** — Tahap penyusunan hasil & pengembangan telegram bot.
 
 ---
 

@@ -310,8 +310,11 @@ function showToast(msg, dur) {
 }
 
 /* ════════════════════════════════════════════════════════════
-   DETEKSI DEVICE-ID DINAMIS  (jika router tidak mengirim)
-   Format: "<Perangkat> <Browser>" — contoh "MacBook Safari"
+   DETEKSI PERANGKAT DINAMIS  (jika router tidak mengirim device_id)
+   Format: "<Brand Model> · <Browser>"  — contoh "Poco M2101K6G · Chrome"
+   Catatan: model perangkat hanya bisa dibaca di Android (UA / Client
+   Hints). iPhone/iPad & desktop tidak mengekspos model (privasi),
+   jadi jatuh ke jenis perangkat — mis. "iPhone · Safari".
    ════════════════════════════════════════════════════════════ */
 function deteksiPerangkat(ua) {
   ua = (ua || '').toLowerCase();
@@ -336,19 +339,73 @@ function deteksiBrowser(ua) {
   if (/samsungbrowser/.test(ua))                       return 'Samsung Internet';
   return 'Browser';
 }
-function buatDeviceId() {
-  if (DEVICE_ID && DEVICE_ID.trim()) return DEVICE_ID;
-  var ua = navigator.userAgent || '';
-  var p  = deteksiPerangkat(ua);
-  var b  = deteksiBrowser(ua);
-  return p + ' ' + b;
+/* Tebak brand dari kata kunci di UA / kode model. '' jika tidak yakin. */
+function tebakBrand(s) {
+  s = (s || '').toLowerCase();
+  if (/poco/.test(s))                 return 'Poco';
+  if (/redmi/.test(s))                return 'Redmi';
+  if (/xiaomi|miui|\bmi\b/.test(s))   return 'Xiaomi';
+  if (/samsung|sm-[a-z]/.test(s))     return 'Samsung';
+  if (/pixel/.test(s))                return 'Google';
+  if (/oneplus/.test(s))              return 'OnePlus';
+  if (/oppo|cph\d/.test(s))           return 'Oppo';
+  if (/realme|rmx\d/.test(s))         return 'Realme';
+  if (/vivo|iqoo/.test(s))            return 'Vivo';
+  if (/infinix/.test(s))              return 'Infinix';
+  if (/tecno/.test(s))                return 'Tecno';
+  if (/honor/.test(s))                return 'Honor';
+  if (/huawei/.test(s))               return 'Huawei';
+  if (/asus|rog/.test(s))             return 'Asus';
+  return '';
 }
-(function isiDeviceId(){
+/* Ambil token model dari UA Android: "Android 13; <MODEL> Build/..." */
+function modelDariUA(ua) {
+  var m = (ua || '').match(/android\s+[\d.]+;\s*([^;\)]+?)(?:\s+build\/|\)|;)/i);
+  if (m && m[1]) {
+    var t = m[1].trim();
+    var low = t.toLowerCase();
+    // UA Chrome modern sering disamarkan jadi "K" / "wv" → abaikan.
+    if (t && low !== 'k' && low !== 'wv') return t;
+  }
+  return '';
+}
+/* Susun label akhir: "<Brand Model> · <Browser>" atau fallback jenis. */
+function susunLabel(model, jenis, brand, browser) {
+  var inti = model ? (brand ? brand + ' ' + model : model)
+                   : (brand ? brand + ' ' + jenis  : jenis);
+  return inti + ' · ' + browser;
+}
+function isiDeviceId() {
   var el = document.getElementById('device-id');
-  DEVICE_ID = buatDeviceId();
-  el.textContent = DEVICE_ID;
-  el.title       = DEVICE_ID;
-})();
+  // 1) Kalau router sudah kirim device_id → pakai apa adanya.
+  if (DEVICE_ID && DEVICE_ID.trim()) {
+    el.textContent = DEVICE_ID; el.title = DEVICE_ID; return;
+  }
+  var ua      = navigator.userAgent || '';
+  var jenis   = deteksiPerangkat(ua);
+  var browser = deteksiBrowser(ua);
+  var modelUA = modelDariUA(ua);
+  var brand   = tebakBrand(ua) || tebakBrand(modelUA);
+
+  // 2) Label awal sinkron (dari UA) — selalu ada nilainya.
+  DEVICE_ID = susunLabel(modelUA, jenis, brand, browser);
+  el.textContent = DEVICE_ID; el.title = DEVICE_ID;
+
+  // 3) Sempurnakan via Client Hints (Android Chrome) → model asli, async.
+  try {
+    if (navigator.userAgentData && navigator.userAgentData.getHighEntropyValues) {
+      navigator.userAgentData.getHighEntropyValues(['model']).then(function(d){
+        var model = (d && d.model || '').trim();
+        if (!model) return;
+        var br  = tebakBrand(model) || brand;
+        var lbl = susunLabel(model, jenis, br, browser);
+        DEVICE_ID = lbl;
+        el.textContent = lbl; el.title = lbl;
+      }).catch(function(){});
+    }
+  } catch (e) {}
+}
+isiDeviceId();
 
 /* ── Mulai Belajar → buka modal pilihan ── */
 function bukaPilihanBelajar() {
