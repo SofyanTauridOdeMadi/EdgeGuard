@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edge Guard — Pengaturan Telegram</title>
+<link rel="stylesheet" href="/aset/responsive.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#F9FAFB;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
+a{text-decoration:none;color:inherit}
+
+.topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
+.back{background:none;border:none;font-size:22px;cursor:pointer;padding:0;line-height:1;color:#111827}
+.topbar h1{font-size:17px;font-weight:600}
+
+.page{padding:14px 14px 100px}
+.flash{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:10px;line-height:1.5}
+.flash-success{background:#F0FDF4;color:#15803D}
+.flash-error  {background:#FEF2F2;color:#EF4444}
+.flash-info   {background:#EFF6FF;color:#1D4ED8}
+
+/* Header Telegram dengan logo */
+.tg-hero{background:linear-gradient(135deg,#0088CC 0%,#229ED9 100%);color:#fff;border-radius:18px;padding:22px 20px;margin-bottom:14px;text-align:center}
+.tg-hero .tg-ic{font-size:42px;margin-bottom:8px}
+.tg-hero h2{font-size:18px;font-weight:700;margin-bottom:4px}
+.tg-hero p{font-size:12.5px;opacity:.9;line-height:1.55}
+
+/* Status badge */
+.status-card{background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);display:flex;align-items:center;gap:10px}
+.st-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.st-dot.green{background:#22C55E;box-shadow:0 0 0 4px rgba(34,197,94,.15)}
+.st-dot.gray {background:#9CA3AF}
+.st-dot.red  {background:#EF4444;box-shadow:0 0 0 4px rgba(239,68,68,.15)}
+.st-label{font-size:13px;font-weight:600;flex:1}
+.st-sub{font-size:11px;color:#9CA3AF;margin-top:1px}
+
+/* Form card */
+.sec-lbl{font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin:18px 2px 8px}
+.card{background:#fff;border-radius:14px;padding:16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.fld{margin-bottom:12px}
+.fld:last-child{margin-bottom:0}
+.fld label{display:block;font-size:12.5px;font-weight:600;color:#374151;margin-bottom:6px}
+.fld .hint{font-size:11px;color:#9CA3AF;font-weight:400;margin-top:5px;line-height:1.45}
+.fld .hint a{color:#2563EB;font-weight:600}
+.fld input[type=text],.fld input[type=password]{width:100%;border:1.5px solid #E5E7EB;border-radius:10px;padding:11px 13px;font-size:14px;font-family:inherit;color:#111827;outline:none;transition:border-color .15s;font-family:'SF Mono','Menlo',monospace}
+.fld input:focus{border-color:#2563EB}
+
+/* Toggle */
+.tg-toggle{display:flex;align-items:center;justify-content:space-between;padding:11px 0}
+.tg-toggle label{font-size:14px;font-weight:600;flex:1}
+.tg-toggle .switch{position:relative;width:46px;height:26px;flex-shrink:0}
+.tg-toggle .switch input{opacity:0;width:0;height:0}
+.tg-toggle .slider{position:absolute;inset:0;background:#E5E7EB;border-radius:26px;cursor:pointer;transition:background .2s}
+.tg-toggle .slider::before{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .25s;box-shadow:0 2px 4px rgba(0,0,0,.15)}
+.tg-toggle input:checked + .slider{background:#0088CC}
+.tg-toggle input:checked + .slider::before{transform:translateX(20px)}
+
+/* Buttons */
+.btn-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.btn-r{padding:11px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:opacity .15s}
+.btn-r:hover{opacity:.88}
+.btn-r:disabled{opacity:.5;cursor:not-allowed}
+.btn-r.test{background:#0088CC;color:#fff}
+.btn-r.get {background:#F3F4F6;color:#374151;border:1.5px solid #E5E7EB}
+.btn-save-tg{width:100%;padding:14px;background:#2563EB;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;transition:opacity .15s}
+.btn-save-tg:hover{opacity:.9}
+
+/* Chat list result */
+.chat-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.chat-item{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s}
+.chat-item:hover{border-color:#0088CC;background:#EFF6FF}
+.chat-item .ch-id{font-family:'SF Mono','Menlo',monospace;font-size:12px;color:#0088CC;font-weight:700;flex-shrink:0}
+.chat-item .ch-nama{font-size:12.5px;color:#374151;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chat-item .ch-tipe{font-size:10px;background:#E5E7EB;color:#6B7280;padding:2px 7px;border-radius:8px;text-transform:uppercase;font-weight:600}
+
+.guide{background:#FFFBEB;border:1px solid #FCD34D;border-radius:12px;padding:13px 15px;margin-bottom:12px;font-size:12.5px;color:#92400E;line-height:1.6}
+.guide ol{margin:6px 0 0 18px;padding:0}
+.guide ol li{margin-bottom:4px}
+.guide a{color:#92400E;font-weight:700;text-decoration:underline}
+.guide code{background:#fff;padding:1px 6px;border-radius:4px;font-size:11.5px;color:#7C2D12}
+
+/* Toast */
+.toast{position:fixed;top:20px;left:50%;transform:translate(-50%,-24px);background:#1F2937;color:#fff;padding:12px 22px;border-radius:24px;font-size:13.5px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .22s,transform .25s;white-space:nowrap;z-index:9999;max-width:calc(100vw - 40px);box-shadow:0 8px 28px rgba(0,0,0,.22);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.toast.ok{background:#15803D}
+.toast.err{background:#DC2626}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,0,0,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
+.btn-r.test .spin{border-color:rgba(255,255,255,.35);border-top-color:#fff}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* Bottom nav */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 env(safe-area-inset-bottom,10px);z-index:20}
+.ni{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;color:#9CA3AF;text-decoration:none}
+.ni.active{color:#2563EB}
+.ni-ic{font-size:22px}.ni-lbl{font-size:11px;font-weight:500}
+</style>
+</head>
+<body data-page="telegram">
+
+<div class="topbar">
+  <a href="/aturan" class="back">←</a>
+  <h1>Pengaturan Telegram</h1>
+</div>
+
+<div class="page">
+
+  {% with msgs=get_flashed_messages(with_categories=true) %}
+  {% for cat,msg in msgs %}<div class="flash flash-{{cat}}">{{msg}}</div>{% endfor %}
+  {% endwith %}
+
+  <!-- Hero -->
+  <div class="tg-hero">
+    <div class="tg-ic">📲</div>
+    <h2>Telegram Bot Notifikasi</h2>
+    <p>Terima alert instan di Telegram saat AI<br>memblokir situs atau anak meminta izin akses.</p>
+  </div>
+
+  <!-- Status -->
+  <div class="status-card">
+    {% if aktif and terhubung %}
+      <span class="st-dot green"></span>
+      <div style="flex:1">
+        <div class="st-label">Aktif & Terhubung</div>
+        <div class="st-sub">Terakhir berhasil kirim: {{ last_ok_str }}</div>
+      </div>
+    {% elif terhubung %}
+      <span class="st-dot gray"></span>
+      <div style="flex:1">
+        <div class="st-label">Token & Chat ID tersimpan</div>
+        <div class="st-sub">Notifikasi dimatikan — aktifkan toggle di bawah</div>
+      </div>
+    {% else %}
+      <span class="st-dot red"></span>
+      <div style="flex:1">
+        <div class="st-label">Belum dikonfigurasi</div>
+        <div class="st-sub">Isi BOT_TOKEN dan CHAT_ID untuk mulai</div>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if not terhubung %}
+  <!-- Panduan -->
+  <div class="guide">
+    <strong>📖 Cara setup (3 langkah):</strong>
+    <ol>
+      <li>Buka <a href="https://t.me/BotFather" target="_blank">@BotFather</a>
+          di Telegram → kirim <code>/newbot</code> → ikuti instruksi → salin <strong>BOT_TOKEN</strong>.</li>
+      <li>Chat bot Anda → kirim <code>/start</code>.</li>
+      <li>Tap tombol <strong>"🔍 Cari Chat ID"</strong> di bawah, lalu pilih chat Anda.</li>
+    </ol>
+  </div>
+  {% endif %}
+
+  <!-- Form Pengaturan -->
+  <form method="POST" action="/telegram" id="form-tg">
+
+    <p class="sec-lbl">Kredensial Bot</p>
+    <div class="card">
+      <div class="fld">
+        <label>BOT_TOKEN</label>
+        <input type="text" name="bot_token" id="bot-token"
+               value="{{ bot_token }}" placeholder="123456789:ABCdef..."
+               autocomplete="off">
+        <div class="hint">Salin dari @BotFather setelah <code>/newbot</code>.</div>
+      </div>
+
+      <div class="fld">
+        <label>CHAT_ID</label>
+        <input type="text" name="chat_id" id="chat-id"
+               value="{{ chat_id }}" placeholder="123456789"
+               autocomplete="off">
+        <div class="hint">ID chat tempat notifikasi dikirim
+          (private chat / grup keluarga).</div>
+      </div>
+
+      <div class="btn-row">
+        <button type="button" class="btn-r get" onclick="cariChatId()">
+          🔍 Cari Chat ID
+        </button>
+        <button type="button" class="btn-r test" onclick="testKirim()">
+          📨 Test Kirim
+        </button>
+      </div>
+
+      <!-- Hasil getChatId muncul di sini -->
+      <div id="chat-results"></div>
+    </div>
+
+    <p class="sec-lbl">Aktifkan Notifikasi</p>
+    <div class="card">
+      <div class="tg-toggle">
+        <label for="aktif-sw">
+          {% if aktif %}🔔 Notifikasi aktif{% else %}🔕 Notifikasi nonaktif{% endif %}
+          <div style="font-size:11.5px;color:#9CA3AF;font-weight:400;margin-top:3px">
+            Notif dikirim untuk: situs blacklist diblokir · web baru terdeteksi
+            negatif oleh AI · anak minta izin saat durasi habis
+          </div>
+        </label>
+        <span class="switch">
+          <input type="checkbox" name="aktif" id="aktif-sw" {% if aktif %}checked{% endif %}>
+          <span class="slider"></span>
+        </span>
+      </div>
+    </div>
+
+    <button type="submit" class="btn-save-tg">💾 Simpan Pengaturan</button>
+  </form>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<nav class="bnav">
+  <a href="/jadwal" class="ni"><span class="ni-ic">🕐</span><span class="ni-lbl">Penjadwalan</span></a>
+  <a href="/"       class="ni"><span class="ni-ic">🏠</span><span class="ni-lbl">Beranda</span></a>
+  <a href="/aturan" class="ni active"><span class="ni-ic">🛡️</span><span class="ni-lbl">Aturan</span></a>
+</nav>
+
+<script>
+/* ── Toast helper ─────────────────────────────────── */
+function toast(msg, dur) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('ok','err');
+  if (/^[✅📨]/.test(msg)) t.classList.add('ok');
+  else if (/^[⚠️❌]/.test(msg)) t.classList.add('err');
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(function(){ t.classList.remove('show'); }, dur || 3500);
+}
+
+/* ── Test kirim pesan ─────────────────────────────── */
+function testKirim() {
+  var btns = document.querySelectorAll('.btn-r');
+  var t = event.target;
+  var orig = t.innerHTML;
+  t.disabled = true; t.innerHTML = '<span class="spin"></span> Mengirim...';
+
+  // Save dulu kalau ada perubahan token/chat_id di input (tanpa submit form)
+  var bot  = document.getElementById('bot-token').value.trim();
+  var chat = document.getElementById('chat-id').value.trim();
+
+  // Save async lalu test
+  fetch('/telegram', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      bot_token: bot, chat_id: chat,
+      aktif: document.getElementById('aktif-sw').checked ? 'on' : ''
+    })
+  })
+  .then(function(){
+    return fetch('/api/telegram/test', { method:'POST',
+      headers:{'Content-Type':'application/json'}});
+  })
+  .then(function(r){ return r.json().then(function(j){ j._http=r.status; return j; }); })
+  .then(function(res){
+    t.disabled = false; t.innerHTML = orig;
+    if (res.status === 'ok')
+      toast('✅ ' + (res.msg || 'Pesan test terkirim. Cek Telegram!'), 4000);
+    else
+      toast('⚠️ ' + (res.msg || 'Gagal mengirim'), 5500);
+  })
+  .catch(function(){
+    t.disabled = false; t.innerHTML = orig;
+    toast('⚠️ Tidak dapat menghubungi server.');
+  });
+}
+
+/* ── Cari Chat ID ─────────────────────────────────── */
+function cariChatId() {
+  var t = event.target;
+  var orig = t.innerHTML;
+  t.disabled = true; t.innerHTML = '<span class="spin"></span> Mencari...';
+
+  // Save token dulu tanpa submit (biar getChatId pakai token terbaru)
+  var bot = document.getElementById('bot-token').value.trim();
+  fetch('/telegram', {
+    method:'POST',
+    headers:{'Content-Type':'application/x-www-form-urlencoded'},
+    body: new URLSearchParams({
+      bot_token: bot,
+      chat_id:   document.getElementById('chat-id').value.trim(),
+      aktif: document.getElementById('aktif-sw').checked ? 'on' : ''
+    })
+  })
+  .then(function(){
+    return fetch('/api/telegram/getchatid', { method:'POST' });
+  })
+  .then(function(r){ return r.json().then(function(j){ j._http=r.status; return j; }); })
+  .then(function(res){
+    t.disabled = false; t.innerHTML = orig;
+    var box = document.getElementById('chat-results');
+    box.innerHTML = '';
+    if (res.status === 'error') {
+      toast('⚠️ ' + res.msg, 5000);
+      return;
+    }
+    if (res.status === 'info') {
+      toast('ℹ️ ' + res.msg, 5000);
+      return;
+    }
+    if (res.status === 'ok' && res.chats) {
+      var html = '<div class="chat-list">';
+      res.chats.forEach(function(c){
+        var nm = c.nama || (c.username ? '@' + c.username : 'Chat ' + c.id);
+        html += '<div class="chat-item" onclick="pilihChat(\'' + c.id + '\')">'
+              + '<span class="ch-id">' + c.id + '</span>'
+              + '<span class="ch-nama">' + nm + '</span>'
+              + '<span class="ch-tipe">' + (c.tipe || 'chat') + '</span>'
+              + '</div>';
+      });
+      html += '</div>';
+      box.innerHTML = '<div style="font-size:11px;color:#6B7280;margin:10px 0 4px">'
+                    + '👇 Tap untuk pilih:</div>' + html;
+    }
+  })
+  .catch(function(){
+    t.disabled = false; t.innerHTML = orig;
+    toast('⚠️ Tidak dapat menghubungi server.');
+  });
+}
+
+function pilihChat(id) {
+  document.getElementById('chat-id').value = id;
+  document.getElementById('chat-results').innerHTML = '';
+  toast('✅ Chat ID terisi. Klik "Simpan" lalu test kirim.', 3000);
+}
+</script>
+</body>
+</html>

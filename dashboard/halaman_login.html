@@ -16,7 +16,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;ba
 h2{font-size:20px;font-weight:700;text-align:center;margin-bottom:4px;color:#111827}
 .sub{font-size:13px;color:#9CA3AF;text-align:center;margin-bottom:24px}
 .err{background:#FEF2F2;color:#EF4444;font-size:13px;padding:10px 14px;border-radius:10px;margin-bottom:14px;line-height:1.5}
-.warn{background:#FFFBEB;color:#B45309;font-size:13px;padding:10px 14px;border-radius:10px;margin-bottom:14px;line-height:1.5}
 .lock{background:#FEF2F2;color:#B91C1C;font-size:13px;padding:12px 14px;border-radius:10px;margin-bottom:14px;line-height:1.5;display:flex;align-items:center;gap:10px}
 .lock .lock-ic{font-size:18px}
 .lock .lock-time{font-weight:700;font-family:'SF Mono','Courier New',monospace}
@@ -32,7 +31,6 @@ label{font-size:13px;font-weight:600;display:block;margin-bottom:8px;color:#1118
 .btn-login:hover{opacity:.88}
 .btn-login:disabled{opacity:.5;cursor:not-allowed}
 footer{font-size:12px;color:#9CA3AF;margin-top:20px;text-align:center;line-height:1.5}
-.foot-hint{font-size:12px;color:#9CA3AF;text-align:center;margin-top:14px}
 </style>
 </head>
 <body>
@@ -58,20 +56,17 @@ footer{font-size:12px;color:#9CA3AF;margin-top:20px;text-align:center;line-heigh
       </div>
     </div>
   {% elif err %}
+    {# Satu pesan saja — sisa percobaan sudah ikut digabung di teks err dari backend #}
     <div class="err">{{ err }}</div>
   {% endif %}
 
-  {% if sisa_percobaan is not none and sisa_percobaan > 0 and not lock_detik %}
-    <div class="warn">⚠️ Sisa percobaan: <strong>{{ sisa_percobaan }}</strong> kali sebelum akun terkunci.</div>
-  {% endif %}
-
-  <form method="POST" action="/login" id="form-login">
+  <form method="POST" action="/login" id="form-login" autocomplete="off">
     <div class="field">
       <label>Username</label>
       <div class="inp-wrap {% if lock_detik %}disabled{% endif %}">
         <span class="ic">👤</span>
         <input type="text" name="username" id="username"
-               placeholder="admin" value="admin" autocomplete="username"
+               placeholder="Masukkan username" value="" autocomplete="off"
                {% if lock_detik %}disabled{% endif %} required>
       </div>
     </div>
@@ -81,7 +76,7 @@ footer{font-size:12px;color:#9CA3AF;margin-top:20px;text-align:center;line-heigh
       <div class="inp-wrap {% if lock_detik %}disabled{% endif %}">
         <span class="ic">🔒</span>
         <input type="password" name="password" id="pw"
-               placeholder="••••••••" autocomplete="current-password"
+               placeholder="••••••••" autocomplete="new-password"
                {% if lock_detik %}disabled{% endif %} required>
         <button type="button" class="eye" id="eyebtn"
           onclick="var i=document.getElementById('pw');
@@ -95,8 +90,6 @@ footer{font-size:12px;color:#9CA3AF;margin-top:20px;text-align:center;line-heigh
       Masuk ke Dashboard &nbsp;→
     </button>
   </form>
-
-  <p class="foot-hint">Default: <code>admin</code> / <code>admin123</code> — ganti setelah login pertama.</p>
 </div>
 <footer>© 2026 Edge Guard Systems. All rights reserved.</footer>
 

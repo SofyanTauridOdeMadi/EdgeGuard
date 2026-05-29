@@ -20,26 +20,6 @@ CREATE DATABASE IF NOT EXISTS edgeguard
 
 USE edgeguard;
 
--- Drop semua tabel lama & baru (jaga urutan FK)
-DROP TABLE IF EXISTS dompet_kuota;
-DROP TABLE IF EXISTS jadwal_blokir;
-DROP TABLE IF EXISTS log_akses;
-DROP TABLE IF EXISTS log_trafik;       -- legacy
-DROP TABLE IF EXISTS cache_domain;
-DROP TABLE IF EXISTS daftar_filter;
-DROP TABLE IF EXISTS whitelist;        -- legacy (split lama)
-DROP TABLE IF EXISTS blacklist;        -- legacy (split lama)
-DROP TABLE IF EXISTS kebijakan_router;
-DROP TABLE IF EXISTS pengguna_anak;
-DROP TABLE IF EXISTS perangkat;        -- legacy
-DROP TABLE IF EXISTS admin_orang_tua;
-DROP TABLE IF EXISTS users;            -- legacy
-DROP TABLE IF EXISTS kategori_ai;      -- legacy (digabung jadi ENUM)
-DROP TABLE IF EXISTS sesi_login;       -- legacy
-DROP TABLE IF EXISTS login_attempts;   -- legacy
-DROP TABLE IF EXISTS konfigurasi;
-DROP VIEW  IF EXISTS v_statistik;
-
 -- ════════════════════════════════════════════════════════════════════════
 -- 1. ADMIN_ORANG_TUA — pemilik dashboard (login)
 -- ════════════════════════════════════════════════════════════════════════
@@ -229,12 +209,8 @@ FROM pengguna_anak p
 LEFT JOIN log_akses l ON l.user_id = p.user_id
 GROUP BY p.user_id, p.nama;
 
--- ════════════════════════════════════════════════════════════════════════
--- SEED — admin default + kebijakan router awal + konfigurasi
--- Password admin: BOOTSTRAP — api_dashboard.py akan auto-hash 'admin123'
--- ════════════════════════════════════════════════════════════════════════
 INSERT INTO admin_orang_tua (nama, email, password_hash) VALUES
-  ('Admin Orang Tua', 'admin@edgeguard.local', 'BOOTSTRAP');
+  ('Stom', 'stom@edgeguard.id', 'BOOTSTRAP');
 
 INSERT INTO kebijakan_router (admin_id, versi_kebijakan, status_sinkron, catatan) VALUES
   (1, '1.0', 'menunggu', 'Kebijakan awal — belum disinkron');
@@ -248,5 +224,8 @@ INSERT INTO konfigurasi (k, v) VALUES
   ('login_max_gagal',        '3'),
   ('login_lockout_detik',    '300'),
   ('heartbeat_offline_detik','120'),
-  ('telegram_bot_token',     ''),
-  ('telegram_chat_id',       '');
+  ('telegram_bot_token',     '8609267262:AAGY66donQMGAhGUO_kSdjjFF5gmGyi1HIs'),
+  ('telegram_chat_id',       '7108892785'),
+  ('telegram_aktif',         '1'),
+  ('telegram_last_ok',       '0'),
+  ('telegram_update_offset', '0');

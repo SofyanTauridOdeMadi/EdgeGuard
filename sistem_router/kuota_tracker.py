@@ -166,17 +166,14 @@ def siklus(interval: int, kbps_th: float):
             print(f"[{ts}] {nama:14s} +{tambah_menit:.2f}m | "
                   f"{kU}/{kH}m | {kbps:.1f} Kbps")
 
-        # Kuota habis → blokir
+        # Kuota habis → blokir (TANPA notif otomatis).
+        # Notif Telegram untuk kasus ini hanya dikirim VPS saat anak benar-benar
+        # menekan "Minta Izin" di captive portal (/minta-izin), bukan otomatis
+        # ketika kuota menyentuh nol — sesuai 3 kejadian notifikasi yang diminta.
         if kU >= kH and mac not in _state['habis_set']:
             _state['habis_set'].add(mac)
             fw_jeda(mac)
             log(f"⏹  KUOTA HABIS — {nama} dijeda")
-            try:
-                from notifikasi_telegram import notif_blokir
-                notif_blokir(domain=f'[Kuota Habis] {nama}',
-                             alasan='kuota_habis', kategori='unknown',
-                             perangkat=nama, confidence=100)
-            except Exception: pass
         elif kU < kH and mac in _state['habis_set']:
             # Orang tua sudah tambahkan waktu → buka
             _state['habis_set'].discard(mac)

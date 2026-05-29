@@ -296,7 +296,7 @@ body {
 /* ════════════════════════════════════════════════════════════
    DATA YANG DIKIRIM ROUTER (?domain=…&device_id=…&perangkat=…)
    ════════════════════════════════════════════════════════════ */
-var DOMAIN    = "{{ domain if tipe == 'blokir' else '' }}";
+var DOMAIN    = "{{ domain }}";             // blokir: situs diblokir · habis: link terakhir
 var PERANGKAT = "{{ perangkat }}";          // diisi router (mac→nama)
 var DEVICE_ID = "{{ device_id }}";          // diisi router; jika kosong → deteksi UA
 

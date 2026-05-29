@@ -13,7 +13,7 @@
 from flask import (Flask, render_template, request, redirect, url_for,
                    session, jsonify, flash)
 import pymysql, pymysql.cursors
-import os, sys, json, time, math, hashlib, secrets, re
+import os, sys, json, time, math, hashlib, secrets, re, threading
 from datetime import datetime, date, timedelta
 from functools import wraps
 
@@ -45,9 +45,32 @@ DB = {
     'charset':     'utf8mb4',
     'cursorclass': pymysql.cursors.DictCursor,
     'autocommit':  True,
+    # Paksa zona waktu sesi ke WITA (+08:00 = Makassar/Singapura) supaya NOW()
+    # & TIMESTAMP konsisten walau server VPS-nya berjalan di UTC.
+    'init_command': "SET time_zone = '+08:00'",
 }
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# ══════════════════════════════════════════════════════════════════════════════
+# ZONA WAKTU — WITA (Makassar/Singapura, UTC+8)
+# Dipakai untuk semua timestamp yang dibuat di sisi Python (notif Telegram, bot).
+# ══════════════════════════════════════════════════════════════════════════════
+from datetime import timezone as _tz
+TZ_WITA = _tz(timedelta(hours=8))
+
+def now_lokal():
+    """datetime sekarang dalam zona WITA (UTC+8), apapun TZ host-nya."""
+    return datetime.now(TZ_WITA)
+
+def now_lokal_naive():
+    """WITA sekarang sebagai datetime NAIVE (tanpa tzinfo).
+    Cocok untuk dibandingkan dengan datetime dari DB (pymysql → naive) yang
+    kini juga WITA karena session 'SET time_zone=+08:00'."""
+    return datetime.now(TZ_WITA).replace(tzinfo=None)
+
+def jam_lokal(fmt='%H:%M:%S'):
+    return now_lokal().strftime(fmt)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # DB HELPERS
@@ -103,23 +126,45 @@ def verify_password(plain: str, hashed: str) -> bool:
 # ══════════════════════════════════════════════════════════════════════════════
 # BOOTSTRAP ADMIN PASSWORD
 # ══════════════════════════════════════════════════════════════════════════════
-def ensure_admin_password(default_pw: str = 'admin123'):
-    """Pastikan admin pertama punya hash valid."""
+def ensure_admin_password(default_username: str = 'stom',
+                          default_pw: str = 'maba22ft'):
+    """Pastikan admin pertama ada dengan username & password valid.
+
+    Login UI menerima username (yang dicocokkan dengan prefix email atau email
+    full). Jadi 'username' di sini = prefix email.
+
+    Perilaku:
+      • Tidak ada admin → buat baru dengan default.
+      • Hash kosong/placeholder/invalid → reset + paksa pakai username default.
+      • Hash valid (admin sudah punya password) → biarkan apa adanya
+        (jangan timpa password user yang sudah diganti).
+    """
     try:
-        u = query("SELECT admin_id, password_hash FROM admin_orang_tua "
+        u = query("SELECT admin_id, email, password_hash FROM admin_orang_tua "
                   "ORDER BY admin_id LIMIT 1", one=True)
+        new_email = f'{default_username}@edgeguard.local'
+        nama_disp = default_username.capitalize()
+
         if not u:
             h = hash_password(default_pw)
             query("INSERT INTO admin_orang_tua (nama, email, password_hash) "
-                  "VALUES ('Admin Orang Tua', 'admin@edgeguard.local', %s)", (h,))
-            print(f"[Bootstrap] Admin dibuat. Password awal: {default_pw}")
+                  "VALUES (%s, %s, %s)", (nama_disp, new_email, h))
+            print(f"[Bootstrap] Admin '{default_username}' dibuat. "
+                  f"Password awal: {default_pw}")
             return
+
         h = u.get('password_hash') or ''
-        if not (h.startswith('$2') or h.startswith('sha256$')):
+        valid = h.startswith('$2') or h.startswith('sha256$')
+        if not valid:
+            # Hash placeholder/'BOOTSTRAP'/invalid → reset segalanya
             new_h = hash_password(default_pw)
-            query("UPDATE admin_orang_tua SET password_hash=%s, gagal_login=0, "
-                  "locked_until=NULL WHERE admin_id=%s", (new_h, u['admin_id']))
-            print(f"[Bootstrap] Password admin di-reset ke '{default_pw}'.")
+            query("UPDATE admin_orang_tua SET "
+                  "  password_hash=%s, gagal_login=0, locked_until=NULL, "
+                  "  email=%s, nama=%s "
+                  "WHERE admin_id=%s",
+                  (new_h, new_email, nama_disp, u['admin_id']))
+            print(f"[Bootstrap] Akun di-reset ke '{default_username}' / "
+                  f"'{default_pw}'.")
     except Exception as e:
         print(f"[Bootstrap] Gagal cek admin: {e}")
 
@@ -127,7 +172,7 @@ def ensure_admin_password(default_pw: str = 'admin123'):
 # RESET KUOTA HARIAN + STATUS ONLINE
 # ══════════════════════════════════════════════════════════════════════════════
 def reset_kuota_jika_hari_baru():
-    today = date.today().isoformat()
+    today = now_lokal().date().isoformat()
     query("UPDATE pengguna_anak SET kuota_terpakai=0, last_reset=%s "
           "WHERE last_reset IS NULL OR last_reset <> %s", (today, today))
 
@@ -168,7 +213,7 @@ def hitung_bar_data_hari_ini():
     for r in rows:
         by_hour.setdefault(int(r['h']), {})[r['kategori']] = int(r['c'])
 
-    now_h    = datetime.now().hour
+    now_h    = now_lokal().hour
     buckets  = [8, 10, 12, 14, 16, 18, 20]
     edu_max  = max((sum(by_hour.get(h2, {}).get('edukasi', 0)
                        for h2 in range(b, b+2)) for b in buckets), default=0) or 1
@@ -188,6 +233,372 @@ def hitung_bar_data_hari_ini():
 
 BULAN_ID = ['', 'Jan','Feb','Mar','Apr','Mei','Jun',
             'Jul','Agu','Sep','Okt','Nov','Des']
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TELEGRAM HELPER — dari konfigurasi DB (fallback ke env)
+# ══════════════════════════════════════════════════════════════════════════════
+import urllib.request, urllib.error
+from urllib.parse import urlencode
+
+def tg_credentials():
+    """Return (bot_token, chat_id). Prioritas: DB konfigurasi → env var."""
+    bot   = (get_cfg('telegram_bot_token', '') or
+             os.environ.get('TG_BOT_TOKEN', ''))
+    chat  = (get_cfg('telegram_chat_id', '') or
+             os.environ.get('TG_CHAT_ID',  ''))
+    return bot.strip(), chat.strip()
+
+def tg_aktif():
+    """Telegram dianggap aktif jika ada token+chat_id dan flag ON."""
+    bot, chat = tg_credentials()
+    return bool(bot and chat and int(get_cfg('telegram_aktif', '1')))
+
+def tg_send_message(text: str, parse_mode: str = 'Markdown',
+                    reply_markup: dict = None, override_chat=None) -> tuple:
+    """Kirim pesan Telegram. Return (ok: bool, msg: str).
+       msg adalah deskripsi error atau 'sent' saat sukses."""
+    bot, chat = tg_credentials()
+    chat = override_chat or chat
+    if not bot:    return (False, "BOT_TOKEN belum diatur")
+    if not chat:   return (False, "CHAT_ID belum diatur")
+
+    payload = {'chat_id': chat, 'text': text, 'parse_mode': parse_mode}
+    if reply_markup is not None:
+        payload['reply_markup'] = json.dumps(reply_markup)
+
+    url  = f'https://api.telegram.org/bot{bot}/sendMessage'
+    data = json.dumps(payload).encode('utf-8')
+    req  = urllib.request.Request(url, data=data,
+        headers={'Content-Type': 'application/json'}, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=8) as r:
+            resp = json.loads(r.read().decode())
+            if resp.get('ok'):
+                # Catat last_test_at — jangan sampai error DB menutupi
+                # fakta bahwa pesan SUDAH terkirim.
+                try: set_cfg('telegram_last_ok', str(int(time.time())))
+                except Exception: pass
+                return (True, 'sent')
+            return (False, resp.get('description', 'API menolak'))
+    except urllib.error.HTTPError as e:
+        try:
+            body = json.loads(e.read().decode())
+            return (False, body.get('description', f'HTTP {e.code}'))
+        except Exception:
+            return (False, f'HTTP {e.code}: {e.reason}')
+    except urllib.error.URLError as e:
+        return (False, f'Tidak dapat menghubungi Telegram API: {e.reason}')
+    except Exception as e:
+        return (False, f'Gagal: {e}')
+
+def tg_get_updates() -> list:
+    """Panggil getUpdates untuk bantu user temukan CHAT_ID."""
+    bot, _ = tg_credentials()
+    if not bot: return []
+    url = f'https://api.telegram.org/bot{bot}/getUpdates'
+    try:
+        with urllib.request.urlopen(url, timeout=8) as r:
+            data = json.loads(r.read().decode())
+        if not data.get('ok'): return []
+        chats = {}
+        for upd in data.get('result', []):
+            msg = upd.get('message') or upd.get('edited_message', {})
+            chat = (msg or {}).get('chat') or {}
+            cid  = chat.get('id')
+            if cid and cid not in chats:
+                chats[cid] = {
+                    'id':       cid,
+                    'nama':     (chat.get('first_name','') + ' ' +
+                                 chat.get('last_name','')).strip() or chat.get('title',''),
+                    'username': chat.get('username',''),
+                    'tipe':     chat.get('type','private'),
+                }
+        return list(chats.values())
+    except Exception:
+        return []
+
+# Wrapper friendly notif (panggil dari event handler dashboard)
+def notif_telegram(kind: str, **kwargs):
+    """Kirim notif Telegram sesuai jenis event. Silent-fail.
+    Hanya 3 kejadian yang dinotifikasi:
+      • 'blokir'     — anak membuka situs blacklist ATAU web baru yang
+                       diklasifikasi AI router sebagai negatif.
+      • 'minta_izin' — durasi/kuota anak habis dan anak meminta izin akses.
+    """
+    if not tg_aktif(): return False
+    now = jam_lokal('%H:%M:%S')
+    if kind == 'blokir':
+        text = (
+            f"🚫 *SITUS DIBLOKIR*\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"🌐 Domain     : `{kwargs.get('domain','')}`\n"
+            f"📱 Perangkat  : {kwargs.get('perangkat','Tidak diketahui')}\n"
+            f"📂 Kategori   : {kwargs.get('kategori','negatif').capitalize()}\n"
+            f"🎯 Confidence : {float(kwargs.get('confidence',0)):.0f}%\n"
+            f"⚙️ Alasan     : {kwargs.get('alasan','').replace('_',' ').title()}\n"
+            f"🕐 Waktu      : {now}"
+        )
+    elif kind == 'minta_izin':
+        text = (
+            f"🙋 *PERMINTAAN IZIN AKSES*\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"🌐 Domain     : `{kwargs.get('domain','?')}`\n"
+            f"📱 Perangkat  : {kwargs.get('perangkat','?')}\n"
+            f"🕐 Waktu      : {now}\n"
+            f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"_Buka dashboard untuk memberikan izin._"
+        )
+    else:
+        return False
+    ok, _ = tg_send_message(text)
+    return ok
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TELEGRAM BOT DUA ARAH — menu interaktif (long-polling getUpdates)
+#   Menu: Riwayat Aktivitas · Konfigurasi Reward · Jadwal Istirahat · Sisa Kuota
+#   Hanya merespon chat_id yang terdaftar (telegram_chat_id).
+# ══════════════════════════════════════════════════════════════════════════════
+def tg_api(method: str, payload: dict, timeout: int = 30):
+    """POST generik ke Bot API. Return dict respons / None."""
+    bot, _ = tg_credentials()
+    if not bot: return None
+    url = f'https://api.telegram.org/bot{bot}/{method}'
+    data = json.dumps(payload).encode('utf-8')
+    req  = urllib.request.Request(url, data=data,
+        headers={'Content-Type': 'application/json'}, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read().decode())
+    except Exception:
+        return None
+
+def tg_edit_message(chat_id, message_id, text, reply_markup=None):
+    payload = {'chat_id': chat_id, 'message_id': message_id,
+               'text': text, 'parse_mode': 'Markdown'}
+    if reply_markup is not None:
+        payload['reply_markup'] = reply_markup
+    return tg_api('editMessageText', payload)
+
+def tg_answer_callback(cb_id, text=''):
+    return tg_api('answerCallbackQuery', {'callback_query_id': cb_id, 'text': text})
+
+def tg_set_commands():
+    return tg_api('setMyCommands', {'commands': [
+        {'command': 'menu',    'description': 'Buka menu kontrol Edge Guard'},
+        {'command': 'riwayat', 'description': 'Riwayat aktivitas terbaru'},
+        {'command': 'reward',  'description': 'Konfigurasi reward'},
+        {'command': 'jadwal',  'description': 'Jadwal istirahat internet'},
+        {'command': 'kuota',   'description': 'Sisa kuota anak'},
+    ]})
+
+def primary_admin_id():
+    """admin_id orang tua utama (single-parent) — dipakai bot tanpa sesi web."""
+    try:
+        row = query("SELECT admin_id FROM admin_orang_tua "
+                    "ORDER BY admin_id LIMIT 1", one=True)
+        return row['admin_id'] if row else 1
+    except Exception:
+        return 1
+
+# ── Keyboard inline ────────────────────────────────────────────────────────
+def bot_kb_utama():
+    return {'inline_keyboard': [
+        [{'text': '📊 Riwayat Aktivitas',  'callback_data': 'riwayat'}],
+        [{'text': '🎁 Konfigurasi Reward', 'callback_data': 'reward'}],
+        [{'text': '🌙 Jadwal Istirahat',   'callback_data': 'jadwal'}],
+        [{'text': '⏳ Sisa Kuota Anak',     'callback_data': 'kuota'}],
+    ]}
+
+def bot_kb_kembali():
+    return {'inline_keyboard': [[{'text': '⬅️ Menu Utama', 'callback_data': 'menu'}]]}
+
+def bot_teks_menu():
+    return ("🛡️ *EDGE GUARD — Menu Kontrol*\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"🕐 {jam_lokal('%H:%M')} WITA\n\n"
+            "Pilih informasi yang ingin dilihat:")
+
+# ── Formatter konten tiap menu ──────────────────────────────────────────────
+_EMO_KAT = {'edukasi': '📚', 'hiburan': '🎬', 'negatif': '🚫', 'unknown': '❓'}
+
+def bot_riwayat():
+    rows = query(
+        "SELECT l.waktu_akses, l.perangkat_nama, l.domain_url, l.kategori, l.aksi "
+        "FROM log_akses l JOIN pengguna_anak p ON p.user_id = l.user_id "
+        "WHERE p.admin_id=%s "
+        "ORDER BY l.waktu_akses DESC LIMIT 10",
+        (primary_admin_id(),)) or []
+    if not rows:
+        return "📊 *RIWAYAT AKTIVITAS*\n━━━━━━━━━━━━━━━━━━━━\n_Belum ada aktivitas._"
+    lines = ["📊 *RIWAYAT AKTIVITAS TERBARU*", "━━━━━━━━━━━━━━━━━━━━"]
+    for r in rows:
+        jam  = (r['waktu_akses'].strftime('%H:%M')
+                if isinstance(r['waktu_akses'], datetime) else '--:--')
+        emo  = _EMO_KAT.get(r['kategori'], '❓')
+        blok = '🚫' if r['aksi'] == 'blokir' else '✅'
+        dom  = r['domain_url'] or '—'
+        lines.append(f"{blok} `{jam}` {emo} `{dom}`\n        └ {r['perangkat_nama'] or '—'}")
+    return "\n".join(lines)
+
+def bot_reward():
+    durasi = int(get_cfg('durasi_belajar_menit', 30))
+    bonus  = int(get_cfg('waktu_bonus_menit', 10))
+    batas  = int(get_cfg('batas_bonus_menit', 60))
+    return ("🎁 *KONFIGURASI REWARD*\n"
+            "━━━━━━━━━━━━━━━━━━━━\n"
+            f"📚 Durasi belajar   : *{durasi} menit*\n"
+            "      _Lama akses edukasi untuk dapat bonus._\n\n"
+            f"➕ Bonus per sesi    : *{bonus} menit*\n"
+            "      _Waktu hiburan ekstra tiap selesai belajar._\n\n"
+            f"🔒 Batas bonus/hari : *{batas} menit*\n"
+            "      _Maksimum total bonus harian per anak._")
+
+def bot_jadwal():
+    rows = query(
+        "SELECT j.hari, TIME_FORMAT(j.jam_mulai,'%%H:%%i') AS jm, "
+        "       TIME_FORMAT(j.jam_selesai,'%%H:%%i') AS js, j.mode, "
+        "       p.nama, p.device_name "
+        "FROM jadwal_blokir j JOIN pengguna_anak p ON p.user_id = j.user_id "
+        "WHERE p.admin_id=%s "
+        "ORDER BY p.nama, j.jam_mulai, "
+        "         FIELD(j.hari,'senin','selasa','rabu','kamis','jumat','sabtu','minggu')",
+        (primary_admin_id(),)) or []
+    if not rows:
+        return ("🌙 *JADWAL ISTIRAHAT INTERNET*\n━━━━━━━━━━━━━━━━━━━━\n"
+                "_Belum ada jadwal._")
+    HARI = {'senin':'Sen','selasa':'Sel','rabu':'Rab','kamis':'Kam',
+            'jumat':'Jum','sabtu':'Sab','minggu':'Min'}
+    groups = {}
+    for r in rows:
+        key = (r['nama'], r['device_name'], r['jm'], r['js'], r['mode'])
+        groups.setdefault(key, []).append(HARI.get(r['hari'], r['hari']))
+    lines = ["🌙 *JADWAL ISTIRAHAT INTERNET*", "━━━━━━━━━━━━━━━━━━━━"]
+    for (nama, devname, jm, js, mode), hari in groups.items():
+        ikon = device_icon(devname)
+        tag  = '⛔ Blokir' if mode == 'blokir' else '✅ Izinkan'
+        lines.append(f"{ikon} *{nama}* — {tag}\n"
+                     f"        🕐 `{jm}–{js}` · {', '.join(hari)}")
+    return "\n".join(lines)
+
+def bot_kuota():
+    try: reset_kuota_jika_hari_baru()
+    except Exception: pass
+    rows = query(
+        "SELECT nama, device_name, kuota_harian, kuota_terpakai, jeda "
+        "FROM pengguna_anak WHERE admin_id=%s ORDER BY nama",
+        (primary_admin_id(),)) or []
+    if not rows:
+        return ("⏳ *SISA KUOTA ANAK*\n━━━━━━━━━━━━━━━━━━━━\n"
+                "_Belum ada perangkat._")
+    lines = ["⏳ *SISA KUOTA ANAK — HARI INI*", "━━━━━━━━━━━━━━━━━━━━"]
+    for r in rows:
+        harian = int(r['kuota_harian'] or 0)
+        pakai  = int(r['kuota_terpakai'] or 0)
+        sisa   = max(0, harian - pakai)
+        pct    = round(pakai / harian * 100) if harian else 0
+        filled = min(10, round(pct / 10))
+        bar    = '▰' * filled + '▱' * (10 - filled)
+        ikon   = device_icon(r['device_name'])
+        status = ' ⏸_dijeda_' if r['jeda'] else ''
+        lines.append(f"{ikon} *{r['nama']}*{status}\n"
+                     f"        {bar} {pct}%\n"
+                     f"        Sisa *{fmt(sisa)}* / {fmt(harian)}")
+    return "\n".join(lines)
+
+# ── Router update ────────────────────────────────────────────────────────────
+def _bot_konten(data):
+    """Map callback/command → (teks, keyboard)."""
+    if data == 'menu':    return bot_teks_menu(), bot_kb_utama()
+    if data == 'riwayat': return bot_riwayat(),   bot_kb_kembali()
+    if data == 'reward':  return bot_reward(),    bot_kb_kembali()
+    if data == 'jadwal':  return bot_jadwal(),    bot_kb_kembali()
+    if data == 'kuota':   return bot_kuota(),     bot_kb_kembali()
+    return None, None
+
+def tg_handle_update(upd):
+    _, chat_conf = tg_credentials()
+    chat_conf = str(chat_conf) if chat_conf else ''
+
+    # 1) Tombol inline ditekan
+    cb = upd.get('callback_query')
+    if cb:
+        msg  = cb.get('message') or {}
+        cid  = str((msg.get('chat') or {}).get('id', ''))
+        mid  = msg.get('message_id')
+        data = cb.get('data', '')
+        if chat_conf and cid != chat_conf:
+            tg_answer_callback(cb.get('id', ''), 'Akses tidak diizinkan.')
+            return
+        tg_answer_callback(cb.get('id', ''))
+        teks, kb = _bot_konten(data)
+        if teks is not None:
+            tg_edit_message(cid, mid, teks, kb)
+        return
+
+    # 2) Pesan teks / command
+    msg = upd.get('message') or upd.get('edited_message')
+    if not msg: return
+    cid  = str((msg.get('chat') or {}).get('id', ''))
+    text = (msg.get('text') or '').strip().lower()
+    if chat_conf and cid != chat_conf:
+        return  # abaikan orang asing
+
+    if text in ('/start', '/menu', 'menu', '/help', 'help', 'mulai', 'hai', 'halo'):
+        tg_send_message(bot_teks_menu(), reply_markup=bot_kb_utama(), override_chat=cid)
+    elif 'riwayat' in text or 'aktivitas' in text:
+        tg_send_message(bot_riwayat(), reply_markup=bot_kb_kembali(), override_chat=cid)
+    elif 'reward' in text:
+        tg_send_message(bot_reward(), reply_markup=bot_kb_kembali(), override_chat=cid)
+    elif 'jadwal' in text or 'istirahat' in text:
+        tg_send_message(bot_jadwal(), reply_markup=bot_kb_kembali(), override_chat=cid)
+    elif 'kuota' in text or 'sisa' in text:
+        tg_send_message(bot_kuota(), reply_markup=bot_kb_kembali(), override_chat=cid)
+    else:
+        tg_send_message("Ketik */menu* untuk membuka kontrol Edge Guard. 🛡️",
+                        reply_markup=bot_kb_utama(), override_chat=cid)
+
+# ── Long-poll loop (daemon thread) ────────────────────────────────────────────
+def tg_long_poll(offset):
+    bot, _ = tg_credentials()
+    if not bot: return []
+    resp = tg_api('getUpdates',
+                  {'offset': offset, 'timeout': 25,
+                   'allowed_updates': ['message', 'callback_query']},
+                  timeout=35)
+    if not resp or not resp.get('ok'): return []
+    return resp.get('result', [])
+
+_tg_poll_started = False
+
+def tg_poll_loop():
+    try:    offset = int(get_cfg('telegram_update_offset', '0') or 0)
+    except Exception: offset = 0
+    print("[Bot Telegram] long-polling dimulai…")
+    try: tg_set_commands()
+    except Exception: pass
+    _cmd_set = True
+    while True:
+        try:
+            if not tg_aktif():
+                time.sleep(5); continue
+            updates = tg_long_poll(offset)
+            for upd in updates:
+                offset = max(offset, int(upd.get('update_id', 0)) + 1)
+                try: tg_handle_update(upd)
+                except Exception as e:
+                    print(f"[Bot Telegram] handle error: {e}")
+            if updates:
+                set_cfg('telegram_update_offset', str(offset))
+        except Exception as e:
+            print(f"[Bot Telegram] loop error: {e}")
+            time.sleep(3)
+
+def mulai_bot_telegram():
+    """Start thread polling sekali saja."""
+    global _tg_poll_started
+    if _tg_poll_started: return
+    _tg_poll_started = True
+    threading.Thread(target=tg_poll_loop, name='tg-poll', daemon=True).start()
 
 # ══════════════════════════════════════════════════════════════════════════════
 # DEVICE ICON — pilih emoji berdasarkan device_name
@@ -227,7 +638,7 @@ def format_waktu_ramah(dt):
     """Format datetime jadi: '14:20' (hari ini), 'Kemarin 19:30', '23 Mei 14:20'."""
     if not isinstance(dt, datetime):
         return ''
-    today     = date.today()
+    today     = now_lokal().date()
     yesterday = today - timedelta(days=1)
     hm = dt.strftime('%H:%M')
     if dt.date() == today:      return f'Hari ini {hm}'
@@ -264,7 +675,7 @@ def login_required(f):
         if (not row
                 or row.get('session_token') != tok
                 or (row.get('session_expired_at')
-                    and row['session_expired_at'] < datetime.now())):
+                    and row['session_expired_at'] < now_lokal_naive())):
             session.clear()
             return redirect(url_for('login'))
         return f(*a, **k)
@@ -289,7 +700,11 @@ def login():
     lock_dur  = int(get_cfg('login_lockout_detik', '300'))
 
     if request.method == 'POST':
-        username = (request.form.get('username') or 'admin').strip().lower()
+        username = (request.form.get('username') or '').strip().lower()
+        if not username:
+            return render_template('halaman_login.html',
+                err='Username dan password wajib diisi.',
+                sisa_percobaan=None, lock_detik=0)
         pw       = request.form.get('password', '')
         ip       = client_ip()
         ua       = (request.headers.get('User-Agent','') or '')[:255]
@@ -304,8 +719,8 @@ def login():
         ok = False
 
         if user:
-            if user.get('locked_until') and user['locked_until'] > datetime.now():
-                lock_detik = int((user['locked_until'] - datetime.now()).total_seconds())
+            if user.get('locked_until') and user['locked_until'] > now_lokal_naive():
+                lock_detik = int((user['locked_until'] - now_lokal_naive()).total_seconds())
                 err = f'Akun terkunci. Coba lagi dalam {lock_detik} detik.'
             else:
                 if user.get('locked_until'):
@@ -333,7 +748,7 @@ def login():
         if user and err is None:
             gagal = (user.get('gagal_login') or 0) + 1
             if gagal >= max_gagal:
-                lock_until = datetime.now() + timedelta(seconds=lock_dur)
+                lock_until = now_lokal_naive() + timedelta(seconds=lock_dur)
                 query("UPDATE admin_orang_tua SET gagal_login=%s, locked_until=%s, "
                       "last_gagal_at=NOW(), last_gagal_ip=%s WHERE admin_id=%s",
                       (gagal, lock_until, ip, user['admin_id']))
@@ -439,13 +854,6 @@ def jeda_toggle():
     data   = request.get_json(silent=True) or {}
     dev_id = data.get('dev_id')
 
-    def _notif(nama, jeda):
-        try:
-            sys.path.insert(0, os.path.join(ROOT, 'sistem_router'))
-            from notifikasi_telegram import notif_jeda
-            notif_jeda(nama, 'jeda' if jeda else 'lanjutkan')
-        except Exception: pass
-
     if not dev_id:
         devs = query("SELECT user_id AS id, nama, jeda FROM pengguna_anak "
                      "WHERE admin_id=%s", (current_admin_id(),)) or []
@@ -458,7 +866,6 @@ def jeda_toggle():
               (int(any_active), current_admin_id()))
         devs_after = query("SELECT user_id AS id, nama, jeda FROM pengguna_anak "
                            "WHERE admin_id=%s", (current_admin_id(),)) or []
-        for d in devs_after: _notif(d['nama'], bool(d['jeda']))
         return jsonify({
             "status":"ok", "code":"ok",
             "msg":("Semua perangkat dijeda." if any_active
@@ -477,7 +884,6 @@ def jeda_toggle():
     new_jeda = not bool(dev['jeda'])
     query("UPDATE pengguna_anak SET jeda=%s WHERE user_id=%s",
           (int(new_jeda), dev_id))
-    _notif(dev['nama'], new_jeda)
     return jsonify({
         "status":"ok", "code":"ok",
         "msg":(f"{dev['nama']} dijeda." if new_jeda
@@ -600,6 +1006,7 @@ def api_atur_waktu():
 
     aksi_lbl  = 'Menambahkan' if mode == 'tambah' else 'Mengurangi'
     who_lbl   = 'semua perangkat' if len(updated) > 1 else (updated[0] if updated else '?')
+
     return jsonify({
         "status":"ok", "code":"ok",
         "msg":f"{aksi_lbl} {menit} menit untuk {who_lbl}.",
@@ -694,8 +1101,14 @@ def riwayat_detail():
         perangkat_list=list(devs))
 
 # ══════════════════════════════════════════════════════════════════════════════
-# JADWAL
+# JADWAL — konfigurasi reward + JADWAL_BLOKIR (per anak, per hari, jam)
 # ══════════════════════════════════════════════════════════════════════════════
+HARI_LIST    = ['senin','selasa','rabu','kamis','jumat','sabtu','minggu']
+HARI_LABEL   = {'senin':'Sen','selasa':'Sel','rabu':'Rab','kamis':'Kam',
+                'jumat':'Jum','sabtu':'Sab','minggu':'Min'}
+HARI_LABEL_FULL = {'senin':'Senin','selasa':'Selasa','rabu':'Rabu',
+                   'kamis':'Kamis','jumat':"Jum'at",'sabtu':'Sabtu','minggu':'Minggu'}
+
 @app.route('/jadwal', methods=['GET','POST'])
 @login_required
 def jadwal():
@@ -711,10 +1124,174 @@ def jadwal():
         'waktu_bonus_menit':        int(get_cfg('waktu_bonus_menit', 10)),
         'batas_bonus_harian_menit': int(get_cfg('batas_bonus_menit', 60)),
     }
-    bar_data = hitung_bar_data_hari_ini()
-    ada_data = any(b['edu'] or b['hib'] for b in bar_data)
+
+    # ── Ambil daftar perangkat & jadwal_blokir ──────────────────────────
+    perangkat = query(
+        "SELECT user_id AS id, nama, device_name "
+        "FROM pengguna_anak WHERE admin_id=%s ORDER BY nama",
+        (current_admin_id(),)) or []
+
+    jadwal_rows = query(
+        "SELECT j.jadwal_id AS id, j.user_id, j.hari, "
+        "       TIME_FORMAT(j.jam_mulai,   '%%H:%%i') AS jam_mulai, "
+        "       TIME_FORMAT(j.jam_selesai, '%%H:%%i') AS jam_selesai, "
+        "       j.mode, p.nama AS perangkat_nama, p.device_name "
+        "FROM jadwal_blokir j "
+        "JOIN pengguna_anak p ON p.user_id = j.user_id "
+        "WHERE p.admin_id=%s "
+        "ORDER BY p.nama, j.jam_mulai, "
+        "         FIELD(j.hari,'senin','selasa','rabu','kamis',"
+        "                      'jumat','sabtu','minggu')",
+        (current_admin_id(),)) or []
+
+    # Group by (user_id, jam_mulai, jam_selesai, mode) → 1 baris per group,
+    # kumpulkan hari sebagai list & ids untuk delete bulk.
+    groups = {}
+    for r in jadwal_rows:
+        key = (r['user_id'], r['jam_mulai'], r['jam_selesai'], r['mode'])
+        g   = groups.setdefault(key, {
+            'user_id':    r['user_id'],
+            'nama':       r['perangkat_nama'],
+            'device_name': r['device_name'],
+            'ikon':       device_icon(r.get('device_name')),
+            'jam_mulai':  r['jam_mulai'],
+            'jam_selesai':r['jam_selesai'],
+            'mode':       r['mode'],
+            'hari':       [],
+            'hari_label': [],
+            'ids':        [],
+        })
+        g['hari'].append(r['hari'])
+        g['hari_label'].append(HARI_LABEL.get(r['hari'], r['hari']))
+        g['ids'].append(str(r['id']))
+
+    jadwal_grup = list(groups.values())
+
     return render_template('jadwal_akses.html',
-        cfg=cfg, bar_data=bar_data, ada_data=ada_data)
+        cfg=cfg,
+        perangkat_list=list(perangkat),
+        jadwal_grup=jadwal_grup,
+        total_jadwal=len(jadwal_rows),
+        hari_list=HARI_LIST,
+        hari_label=HARI_LABEL,
+        hari_label_full=HARI_LABEL_FULL)
+
+# ── Tambah jadwal_blokir (boleh multi-hari sekaligus) ──────────────────
+@app.route('/jadwal/blokir/tambah', methods=['POST'])
+@login_required
+def jadwal_blokir_tambah():
+    try:
+        user_id = int(request.form.get('user_id', 0))
+    except (TypeError, ValueError):
+        flash('Pilih perangkat terlebih dulu.', 'error')
+        return redirect(url_for('jadwal'))
+
+    # Cek perangkat milik admin
+    dev = query("SELECT user_id, nama FROM pengguna_anak "
+                "WHERE user_id=%s AND admin_id=%s",
+                (user_id, current_admin_id()), one=True)
+    if not dev:
+        flash('Perangkat tidak valid atau bukan milik Anda.', 'error')
+        return redirect(url_for('jadwal'))
+
+    hari_arr   = request.form.getlist('hari')          # list dari checkboxes
+    jam_mulai  = (request.form.get('jam_mulai')   or '').strip()
+    jam_selesai= (request.form.get('jam_selesai') or '').strip()
+    mode       = request.form.get('mode', 'blokir')
+
+    # Validasi
+    if not hari_arr:
+        flash('Pilih minimal 1 hari.', 'error')
+        return redirect(url_for('jadwal'))
+    if mode not in ('blokir', 'izinkan'):
+        mode = 'blokir'
+    if not re.match(r'^\d{2}:\d{2}$', jam_mulai) or \
+       not re.match(r'^\d{2}:\d{2}$', jam_selesai):
+        flash('Format jam tidak valid (HH:MM).', 'error')
+        return redirect(url_for('jadwal'))
+    if jam_mulai == jam_selesai:
+        flash('Jam mulai dan selesai tidak boleh sama.', 'error')
+        return redirect(url_for('jadwal'))
+
+    inserted = 0
+    skipped  = []
+    for h in hari_arr:
+        if h not in HARI_LIST:
+            continue
+        # Cek bentrok jam yang sama di hari yang sama (anti duplikat persis)
+        dup = query("SELECT jadwal_id FROM jadwal_blokir "
+                    "WHERE user_id=%s AND hari=%s "
+                    "  AND jam_mulai=%s AND jam_selesai=%s AND mode=%s",
+                    (user_id, h, jam_mulai, jam_selesai, mode), one=True)
+        if dup:
+            skipped.append(HARI_LABEL_FULL[h])
+            continue
+        query("INSERT INTO jadwal_blokir "
+              "(user_id, hari, jam_mulai, jam_selesai, mode) "
+              "VALUES (%s,%s,%s,%s,%s)",
+              (user_id, h, jam_mulai, jam_selesai, mode))
+        inserted += 1
+
+    if inserted:
+        flash(f'{inserted} jadwal {mode} ditambahkan untuk {dev["nama"]}.',
+              'success')
+    if skipped:
+        flash(f'Jadwal sama sudah ada di hari: {", ".join(skipped)}.', 'info')
+    if not inserted and not skipped:
+        flash('Tidak ada jadwal yang ditambahkan.', 'error')
+    return redirect(url_for('jadwal'))
+
+@app.route('/jadwal/blokir/hapus/<int:jid>', methods=['POST'])
+@login_required
+def jadwal_blokir_hapus(jid):
+    row = query(
+        "SELECT j.jadwal_id, j.hari, p.nama "
+        "FROM jadwal_blokir j "
+        "JOIN pengguna_anak p ON p.user_id = j.user_id "
+        "WHERE j.jadwal_id=%s AND p.admin_id=%s",
+        (jid, current_admin_id()), one=True)
+    if not row:
+        flash('Jadwal tidak ditemukan.', 'error')
+        return redirect(url_for('jadwal'))
+    query("DELETE FROM jadwal_blokir WHERE jadwal_id=%s", (jid,))
+    flash(f'Jadwal hari {HARI_LABEL_FULL.get(row["hari"], row["hari"])} '
+          f'untuk {row["nama"]} dihapus.', 'success')
+    return redirect(url_for('jadwal'))
+
+@app.route('/jadwal/blokir/hapus-grup', methods=['POST'])
+@login_required
+def jadwal_blokir_hapus_grup():
+    """Hapus sekelompok jadwal (semua hari pada (anak, jam, mode) yang sama)."""
+    raw_ids = request.form.get('ids', '')
+    try:
+        ids = [int(x) for x in raw_ids.split(',') if x.strip().isdigit()]
+    except Exception:
+        ids = []
+    if not ids:
+        flash('Tidak ada jadwal untuk dihapus.', 'error')
+        return redirect(url_for('jadwal'))
+    # Ambil info untuk pesan & cek kepemilikan
+    placeholders = ','.join(['%s'] * len(ids))
+    rows = query(
+        f"SELECT j.jadwal_id, j.hari, p.nama, "
+        f"       TIME_FORMAT(j.jam_mulai,'%%H:%%i')   AS jm, "
+        f"       TIME_FORMAT(j.jam_selesai,'%%H:%%i') AS js "
+        f"FROM jadwal_blokir j "
+        f"JOIN pengguna_anak p ON p.user_id = j.user_id "
+        f"WHERE j.jadwal_id IN ({placeholders}) AND p.admin_id=%s",
+        ids + [current_admin_id()]) or []
+    if not rows:
+        flash('Jadwal tidak ditemukan.', 'error')
+        return redirect(url_for('jadwal'))
+    valid_ids = [r['jadwal_id'] for r in rows]
+    placeholders2 = ','.join(['%s'] * len(valid_ids))
+    n = query(f"DELETE FROM jadwal_blokir WHERE jadwal_id IN ({placeholders2})",
+              valid_ids)
+    nama = rows[0]['nama']
+    jm   = rows[0]['jm']
+    js   = rows[0]['js']
+    flash(f'Jadwal {jm}–{js} untuk {nama} dihapus ({n} hari).', 'success')
+    return redirect(url_for('jadwal'))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ATURAN FILTER  (whitelist + blacklist digabung di tabel daftar_filter)
@@ -986,6 +1563,33 @@ def detail_perangkat_legacy(dev_id):
 # ══════════════════════════════════════════════════════════════════════════════
 # CAPTIVE PORTAL
 # ══════════════════════════════════════════════════════════════════════════════
+def domain_terakhir(perangkat: str = '', device_id: str = '') -> str:
+    """Domain terakhir yang diakses perangkat SEBELUM dialihkan ke captive portal
+    (mis. saat kuota habis). Dipakai untuk mengisi notif 'minta izin'."""
+    try:
+        if perangkat:
+            row = query(
+                "SELECT domain_url FROM log_akses "
+                "WHERE perangkat_nama=%s AND domain_url IS NOT NULL "
+                "  AND domain_url<>'' "
+                "ORDER BY waktu_akses DESC LIMIT 1",
+                (perangkat,), one=True)
+            if row and row.get('domain_url'):
+                return row['domain_url']
+        if device_id:
+            row = query(
+                "SELECT l.domain_url FROM log_akses l "
+                "JOIN pengguna_anak p ON p.user_id = l.user_id "
+                "WHERE UPPER(p.mac_address)=%s AND l.domain_url IS NOT NULL "
+                "  AND l.domain_url<>'' "
+                "ORDER BY l.waktu_akses DESC LIMIT 1",
+                (device_id.upper(),), one=True)
+            if row and row.get('domain_url'):
+                return row['domain_url']
+    except Exception:
+        pass
+    return ''
+
 @app.route('/blokir')
 def blokir():
     return render_template('halaman_blokir.html',
@@ -996,24 +1600,31 @@ def blokir():
 
 @app.route('/habis')
 def habis():
-    sisa = int(get_cfg('durasi_belajar_menit', 30))
+    sisa      = int(get_cfg('durasi_belajar_menit', 30))
+    perangkat = request.args.get('perangkat', '')
+    device_id = request.args.get('device_id', '')
+    # Link terakhir yang dicoba diakses anak sebelum dialihkan ke sini.
+    last_dom  = (request.args.get('domain', '')
+                 or domain_terakhir(perangkat, device_id))
     return render_template('halaman_blokir.html',
         tipe='habis', sisa_belajar=sisa,
-        device_id=request.args.get('device_id', ''),
-        perangkat=request.args.get('perangkat', ''))
+        domain=last_dom,
+        device_id=device_id,
+        perangkat=perangkat)
 
 @app.route('/minta-izin', methods=['POST'])
 def minta_izin():
     data      = request.get_json(silent=True) or request.form
-    domain    = data.get('domain', '')
+    domain    = (data.get('domain', '') or '').strip()
     perangkat = data.get('perangkat', '')
     device_id = data.get('device_id', '')
-    ok = False
-    try:
-        sys.path.insert(0, os.path.join(ROOT, 'sistem_router'))
-        from notifikasi_telegram import notif_minta_izin
-        ok = notif_minta_izin(domain, perangkat or device_id)
-    except Exception: pass
+    # Kalau captive portal tidak membawa domain (kasus kuota habis),
+    # ambil domain terakhir yang diakses perangkat dari log.
+    if not domain or domain in ('situs ini', '-', '—'):
+        domain = domain_terakhir(perangkat, device_id) or domain
+    ok = notif_telegram('minta_izin',
+                        domain=domain or '(tidak diketahui)',
+                        perangkat=perangkat or device_id)
     return jsonify({"status": "ok" if ok else "queued"})
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1113,12 +1724,10 @@ def api_log():
 
     # Notif Telegram jika diblokir karena negatif
     if aksi == 'blokir' and kat == 'negatif':
-        try:
-            sys.path.insert(0, os.path.join(ROOT, 'sistem_router'))
-            from notifikasi_telegram import notif_blokir
-            notif_blokir(domain=domain, alasan=data.get('alasan',''),
-                         kategori=kat, perangkat=perangkat, confidence=confidence)
-        except Exception: pass
+        notif_telegram('blokir',
+                       domain=domain, alasan=data.get('alasan',''),
+                       kategori=kat, perangkat=perangkat,
+                       confidence=confidence)
     return jsonify({"status":"ok"})
 
 @app.route('/api/kuota-update', methods=['POST'])
@@ -1147,6 +1756,83 @@ def api_kuota_update():
         "pct":round(kuota_terpakai/kh*100) if kh else 0,
         "habis":kuota_terpakai >= kh,
     })
+
+# ══════════════════════════════════════════════════════════════════════════════
+# TELEGRAM — halaman pengaturan + endpoint test
+# ══════════════════════════════════════════════════════════════════════════════
+@app.route('/telegram', methods=['GET', 'POST'])
+@login_required
+def telegram_settings():
+    if request.method == 'POST':
+        bot   = (request.form.get('bot_token') or '').strip()
+        chat  = (request.form.get('chat_id')   or '').strip()
+        aktif = '1' if request.form.get('aktif') == 'on' else '0'
+        set_cfg('telegram_bot_token', bot)
+        set_cfg('telegram_chat_id',   chat)
+        set_cfg('telegram_aktif',     aktif)
+        # Nyalakan bot dua-arah begitu kredensial valid (kalau belum jalan).
+        if tg_aktif():
+            mulai_bot_telegram()
+        flash('✅ Pengaturan Telegram disimpan.', 'success')
+        return redirect(url_for('telegram_settings'))
+
+    bot, chat = tg_credentials()
+    last_ok   = get_cfg('telegram_last_ok', '0')
+    try:
+        last_ok_dt = (datetime.fromtimestamp(int(last_ok), TZ_WITA)
+                      if int(last_ok) else None)
+    except: last_ok_dt = None
+    return render_template('pengaturan_telegram.html',
+        bot_token = bot,
+        chat_id   = chat,
+        aktif     = bool(int(get_cfg('telegram_aktif', '1'))),
+        terhubung = bool(bot and chat),
+        last_ok   = last_ok_dt,
+        last_ok_str = (format_waktu_ramah(last_ok_dt) if last_ok_dt else '—'))
+
+@app.route('/api/telegram/test', methods=['POST'])
+@login_required
+def api_telegram_test():
+    """Kirim pesan test ke chat yang sudah dikonfigurasi."""
+    bot, chat = tg_credentials()
+    if not bot:
+        return jsonify({"status":"error","code":"no_token",
+                        "msg":"BOT_TOKEN belum diatur. Buat bot di @BotFather "
+                              "lalu salin token-nya."}), 400
+    if not chat:
+        return jsonify({"status":"error","code":"no_chat",
+                        "msg":"CHAT_ID belum diatur. Tap tombol 'Cari Chat ID' "
+                              "setelah Anda chat /start ke bot."}), 400
+    teks = (
+        "🛡️ *Edge Guard — Test Koneksi*\n"
+        "━━━━━━━━━━━━━━━━━━━━\n"
+        "✅ Bot Telegram berhasil terhubung!\n"
+        "📱 Notifikasi akan dikirim ke chat ini.\n"
+        "💬 Ketik */menu* untuk membuka kontrol.\n"
+        f"🕐 {jam_lokal('%d/%m/%Y %H:%M:%S')} WITA"
+    )
+    ok, err = tg_send_message(teks)
+    if ok:
+        return jsonify({"status":"ok","msg":"Pesan test terkirim. "
+                        "Cek aplikasi Telegram Anda."})
+    return jsonify({"status":"error","code":"send_fail",
+                    "msg":f"Gagal mengirim: {err}"}), 400
+
+@app.route('/api/telegram/getchatid', methods=['POST'])
+@login_required
+def api_telegram_getchatid():
+    """Bantu user temukan CHAT_ID dari getUpdates."""
+    bot, _ = tg_credentials()
+    if not bot:
+        return jsonify({"status":"error","code":"no_token",
+                        "msg":"Simpan BOT_TOKEN dulu, lalu kirim /start ke bot, "
+                              "kemudian klik tombol ini."}), 400
+    chats = tg_get_updates()
+    if not chats:
+        return jsonify({"status":"info","code":"no_chat",
+                        "msg":"Belum ada chat yang terdeteksi. Kirim /start ke "
+                              "bot Anda dari Telegram, lalu klik tombol ini lagi."}), 200
+    return jsonify({"status":"ok","chats":chats})
 
 @app.route('/api/status')
 def api_status():
@@ -1196,16 +1882,28 @@ if __name__ == '__main__':
         _reset_admin_password(sys.argv[2])
         sys.exit(0)
 
-    try: ensure_admin_password('admin123')
+    try: ensure_admin_password('stom', 'maba22ft')
     except Exception as e:
         print(f"[Startup] DB belum siap? {e}")
         print("[Startup] Jalankan dulu: mysql -u <user> -p < dashboard/schema.sql")
 
+    # Mulai bot Telegram dua arah (long-polling) di thread terpisah.
+    try:
+        if tg_aktif():
+            mulai_bot_telegram()
+            bot_status = 'ON (long-polling)'
+        else:
+            bot_status = 'OFF (atur token+chat_id di /telegram)'
+    except Exception as e:
+        bot_status = f'gagal start: {e}'
+
     print("=" * 60)
     print("  🛡️  Edge Guard Dashboard")
     print(f"  DB     : {DB['host']}:{DB['port']}/{DB.get('database', DB.get('db','?'))}")
+    print(f"  TZ     : WITA (+08:00, Makassar/Singapura)")
     print(f"  URL    : http://0.0.0.0:8080")
-    print(f"  Login  : admin / admin123  (segera ganti!)")
+    print(f"  Login  : stom / maba22ft")
     print(f"  bcrypt : {'ON' if _BCRYPT else 'OFF (fallback sha256, install bcrypt!)'}")
+    print(f"  Bot TG : {bot_status}")
     print("=" * 60)
     app.run(debug=False, host='0.0.0.0', port=8080)
