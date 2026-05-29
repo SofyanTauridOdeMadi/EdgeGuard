@@ -98,6 +98,10 @@ def get_cfg(key, default=None):
 def set_cfg(key, value):
     query("INSERT INTO konfigurasi (k,v) VALUES(%s,%s) "
           "ON DUPLICATE KEY UPDATE v=%s", (key, str(value), str(value)))
+    # Kalau kredensial Telegram berubah → batalkan cache agar langsung efektif.
+    if str(key) in ('telegram_chat_id', 'telegram_aktif'):
+        try: _tg_cred_cache['ts'] = 0.0
+        except NameError: pass
 
 # ══════════════════════════════════════════════════════════════════════════════
 # PASSWORD HASHING
@@ -235,23 +239,67 @@ BULAN_ID = ['', 'Jan','Feb','Mar','Apr','Mei','Jun',
             'Jul','Agu','Sep','Okt','Nov','Des']
 
 # ══════════════════════════════════════════════════════════════════════════════
-# TELEGRAM HELPER — dari konfigurasi DB (fallback ke env)
+# TELEGRAM HELPER
 # ══════════════════════════════════════════════════════════════════════════════
 import urllib.request, urllib.error
 from urllib.parse import urlencode
 
+# Token bot Telegram — TIDAK boleh di-hardcode (repo ini di-push ke GitHub).
+# Sumber token, berurutan:
+#   1) env var  TG_BOT_TOKEN
+#   2) file lokal  dashboard/token_bot.txt  (di-.gitignore, tidak ikut commit)
+# Kalau keduanya kosong → bot mati (notif & menu nonaktif) sampai diisi.
+# Bot tetap "fixed" dari sisi pengguna: tak ada field token di dashboard.
+def _muat_token_bot() -> str:
+    tok = os.environ.get('TG_BOT_TOKEN', '').strip()
+    if tok:
+        return tok
+    p = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'token_bot.txt')
+    try:
+        with open(p, encoding='utf-8') as f:
+            for baris in f:
+                baris = baris.strip()
+                if baris and not baris.startswith('#'):
+                    return baris
+    except Exception:
+        pass
+    return ''
+
+TG_BOT_TOKEN_TETAP = _muat_token_bot()
+
+# ── Cache kredensial di memori ──────────────────────────────────────────────
+# Tiap query() membuka koneksi MySQL baru + menjalankan SET time_zone. Poll-loop
+# bot memanggil tg_aktif()/tg_credentials() berkali-kali tiap 25-35 detik; tanpa
+# cache itu jadi ±7 koneksi DB per siklus walau tidak ada pesan masuk → bot
+# terasa berat/lag. Cache TTL pendek (30 dtk) memangkasnya jadi nyaris nol.
+# Disegarkan paksa begitu pengaturan Telegram disimpan (lihat set_cfg).
+_tg_cred_cache = {'ts': 0.0, 'bot': '', 'chat': '', 'aktif': False}
+_TG_CRED_TTL = 30  # detik
+
+def _tg_cred_load():
+    # Token TETAP (hardcode) — tidak dibaca dari DB. Env hanya untuk override.
+    bot  = (os.environ.get('TG_BOT_TOKEN', '') or TG_BOT_TOKEN_TETAP).strip()
+    chat = (get_cfg('telegram_chat_id', '') or
+            os.environ.get('TG_CHAT_ID',  '')).strip()
+    try:    flag = int(get_cfg('telegram_aktif', '1'))
+    except Exception: flag = 1
+    _tg_cred_cache.update(ts=time.time(), bot=bot, chat=chat,
+                          aktif=bool(bot and chat and flag))
+    return _tg_cred_cache
+
+def _tg_cred():
+    if time.time() - _tg_cred_cache['ts'] > _TG_CRED_TTL:
+        _tg_cred_load()
+    return _tg_cred_cache
+
 def tg_credentials():
-    """Return (bot_token, chat_id). Prioritas: DB konfigurasi → env var."""
-    bot   = (get_cfg('telegram_bot_token', '') or
-             os.environ.get('TG_BOT_TOKEN', ''))
-    chat  = (get_cfg('telegram_chat_id', '') or
-             os.environ.get('TG_CHAT_ID',  ''))
-    return bot.strip(), chat.strip()
+    """Return (bot_token, chat_id). DB konfigurasi → env var (di-cache 30 dtk)."""
+    c = _tg_cred()
+    return c['bot'], c['chat']
 
 def tg_aktif():
-    """Telegram dianggap aktif jika ada token+chat_id dan flag ON."""
-    bot, chat = tg_credentials()
-    return bool(bot and chat and int(get_cfg('telegram_aktif', '1')))
+    """Telegram aktif jika token+chat_id ada dan flag ON (dibaca dari cache)."""
+    return _tg_cred()['aktif']
 
 def tg_send_message(text: str, parse_mode: str = 'Markdown',
                     reply_markup: dict = None, override_chat=None) -> tuple:
@@ -326,7 +374,6 @@ def notif_telegram(kind: str, **kwargs):
       • 'minta_izin' — durasi/kuota anak habis dan anak meminta izin akses.
     """
     if not tg_aktif(): return False
-    now = jam_lokal('%H:%M:%S')
     if kind == 'blokir':
         text = (
             f"🚫 *SITUS DIBLOKIR*\n"
@@ -335,8 +382,7 @@ def notif_telegram(kind: str, **kwargs):
             f"📱 Perangkat  : {kwargs.get('perangkat','Tidak diketahui')}\n"
             f"📂 Kategori   : {kwargs.get('kategori','negatif').capitalize()}\n"
             f"🎯 Confidence : {float(kwargs.get('confidence',0)):.0f}%\n"
-            f"⚙️ Alasan     : {kwargs.get('alasan','').replace('_',' ').title()}\n"
-            f"🕐 Waktu      : {now}"
+            f"⚙️ Alasan     : {kwargs.get('alasan','').replace('_',' ').title()}"
         )
     elif kind == 'minta_izin':
         text = (
@@ -344,7 +390,6 @@ def notif_telegram(kind: str, **kwargs):
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"🌐 Domain     : `{kwargs.get('domain','?')}`\n"
             f"📱 Perangkat  : {kwargs.get('perangkat','?')}\n"
-            f"🕐 Waktu      : {now}\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"_Buka dashboard untuk memberikan izin._"
         )
@@ -384,11 +429,7 @@ def tg_answer_callback(cb_id, text=''):
 
 def tg_set_commands():
     return tg_api('setMyCommands', {'commands': [
-        {'command': 'menu',    'description': 'Buka menu kontrol Edge Guard'},
-        {'command': 'riwayat', 'description': 'Riwayat aktivitas terbaru'},
-        {'command': 'reward',  'description': 'Konfigurasi reward'},
-        {'command': 'jadwal',  'description': 'Jadwal istirahat internet'},
-        {'command': 'kuota',   'description': 'Sisa kuota anak'},
+        {'command': 'start', 'description': 'Buka menu kontrol Edge Guard'},
     ]})
 
 def primary_admin_id():
@@ -415,7 +456,9 @@ def bot_kb_kembali():
 def bot_teks_menu():
     return ("🛡️ *EDGE GUARD — Menu Kontrol*\n"
             "━━━━━━━━━━━━━━━━━━━━\n"
-            f"🕐 {jam_lokal('%H:%M')} WITA\n\n"
+            "Edge Guard adalah Sistem Smart Parental Control "
+            "Berbasis AI yang ditanamkan didalam Router. Bot ini "
+            "untuk menampilkan informasi dan notifikasi dari sistem.\n\n"
             "Pilih informasi yang ingin dilihat:")
 
 # ── Formatter konten tiap menu ──────────────────────────────────────────────
@@ -529,10 +572,18 @@ def tg_handle_update(upd):
         if chat_conf and cid != chat_conf:
             tg_answer_callback(cb.get('id', ''), 'Akses tidak diizinkan.')
             return
-        tg_answer_callback(cb.get('id', ''))
+        # Bersihkan loading-spinner tombol secara non-blocking agar tidak menunggu
+        # round-trip answerCallbackQuery dulu.
+        threading.Thread(target=tg_answer_callback, args=(cb.get('id', ''),),
+                         daemon=True).start()
+        # Anti-spam + feedback: ubah pesan jadi "Memuat…" dan COPOT tombol
+        # (inline_keyboard kosong) SEBELUM query DB, supaya pengguna tak bisa
+        # men-tap menu berkali-kali. Lalu ganti dengan konten final + tombol.
+        tg_edit_message(cid, mid, "⏳ _Memuat…_", {'inline_keyboard': []})
         teks, kb = _bot_konten(data)
-        if teks is not None:
-            tg_edit_message(cid, mid, teks, kb)
+        if teks is None:                       # data tak dikenal → balik ke menu
+            teks, kb = bot_teks_menu(), bot_kb_utama()
+        tg_edit_message(cid, mid, teks, kb)
         return
 
     # 2) Pesan teks / command
@@ -543,40 +594,88 @@ def tg_handle_update(upd):
     if chat_conf and cid != chat_conf:
         return  # abaikan orang asing
 
-    if text in ('/start', '/menu', 'menu', '/help', 'help', 'mulai', 'hai', 'halo'):
+    # Menu HANYA muncul saat pengguna sendiri yang mengetik /start.
+    # Tidak pernah dikirim otomatis oleh server.
+    if text == '/start':
         tg_send_message(bot_teks_menu(), reply_markup=bot_kb_utama(), override_chat=cid)
-    elif 'riwayat' in text or 'aktivitas' in text:
-        tg_send_message(bot_riwayat(), reply_markup=bot_kb_kembali(), override_chat=cid)
-    elif 'reward' in text:
-        tg_send_message(bot_reward(), reply_markup=bot_kb_kembali(), override_chat=cid)
-    elif 'jadwal' in text or 'istirahat' in text:
-        tg_send_message(bot_jadwal(), reply_markup=bot_kb_kembali(), override_chat=cid)
-    elif 'kuota' in text or 'sisa' in text:
-        tg_send_message(bot_kuota(), reply_markup=bot_kb_kembali(), override_chat=cid)
     else:
-        tg_send_message("Ketik */menu* untuk membuka kontrol Edge Guard. 🛡️",
-                        reply_markup=bot_kb_utama(), override_chat=cid)
+        # Pesan lain → balas hint singkat saja (tanpa menu yang tidak diminta).
+        tg_send_message("Ketik */start* untuk membuka menu kontrol Edge Guard. 🛡️",
+                        override_chat=cid)
 
 # ── Long-poll loop (daemon thread) ────────────────────────────────────────────
+# Lama long-poll di sisi Telegram (detik). Server menahan koneksi hingga ada
+# update → balas seketika. Nilai besar = lebih sedikit "celah" antar-request,
+# jadi /start nyaris tak pernah ketinggalan. urlopen diberi margin +10 dtk.
+_TG_POLL_TIMEOUT = 50
+
 def tg_long_poll(offset):
+    """Ambil update via getUpdates. Pakai urlopen langsung (bukan tg_api) supaya
+    bisa MELIHAT error — terutama 409 Conflict yang artinya ada poller/instance
+    lain memakai token yang sama (penyebab paling umum bot terasa lag puluhan
+    detik). Kembalikan list update; sleep singkat saat error agar tak hammer."""
     bot, _ = tg_credentials()
     if not bot: return []
-    resp = tg_api('getUpdates',
-                  {'offset': offset, 'timeout': 25,
-                   'allowed_updates': ['message', 'callback_query']},
-                  timeout=35)
-    if not resp or not resp.get('ok'): return []
-    return resp.get('result', [])
+    url     = f'https://api.telegram.org/bot{bot}/getUpdates'
+    payload = {'offset': offset, 'timeout': _TG_POLL_TIMEOUT,
+               'allowed_updates': ['message', 'callback_query']}
+    data    = json.dumps(payload).encode('utf-8')
+    req     = urllib.request.Request(url, data=data,
+        headers={'Content-Type': 'application/json'}, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=_TG_POLL_TIMEOUT + 10) as r:
+            resp = json.loads(r.read().decode())
+        return resp.get('result', []) if resp.get('ok') else []
+    except urllib.error.HTTPError as e:
+        if e.code == 409:
+            print("[Bot Telegram] ⚠️  409 CONFLICT — ada poller/instance LAIN "
+                  "memakai bot token yang sama (proses lama belum mati, atau "
+                  "webhook aktif). Update terlambat sampai poller lain berhenti. "
+                  "Pastikan HANYA SATU yang berjalan.")
+            time.sleep(3)
+        else:
+            print(f"[Bot Telegram] getUpdates HTTP {e.code}: {e.reason}")
+            time.sleep(2)
+        return []
+    except Exception as e:
+        print(f"[Bot Telegram] getUpdates err: {e}")
+        time.sleep(2)
+        return []
 
 _tg_poll_started = False
+_tg_lock_fh      = None   # pegang file-lock single-instance seumur proses
+
+def _tg_acquire_lock():
+    """Advisory file-lock agar HANYA satu proses (di host ini) yang polling.
+    Mencegah dua instance dashboard saling mencuri update (409). Proses yang
+    crash otomatis melepas lock (flock terikat ke proses). Platform tanpa
+    fcntl (mis. Windows) → lewati guard (anggap single-instance)."""
+    global _tg_lock_fh
+    try:
+        import fcntl
+    except Exception:
+        return True
+    try:
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                            '.tg_poller.lock')
+        _tg_lock_fh = open(path, 'w')
+        fcntl.flock(_tg_lock_fh, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return True
+    except (OSError, IOError):
+        try: _tg_lock_fh.close()
+        except Exception: pass
+        _tg_lock_fh = None
+        return False
 
 def tg_poll_loop():
     try:    offset = int(get_cfg('telegram_update_offset', '0') or 0)
     except Exception: offset = 0
-    print("[Bot Telegram] long-polling dimulai…")
+    # Hapus webhook kalau ada — webhook & getUpdates tak bisa bersamaan (409).
+    try: tg_api('deleteWebhook', {'drop_pending_updates': False})
+    except Exception: pass
     try: tg_set_commands()
     except Exception: pass
-    _cmd_set = True
+    print(f"[Bot Telegram] long-polling dimulai (timeout {_TG_POLL_TIMEOUT}s)…")
     while True:
         try:
             if not tg_aktif():
@@ -588,15 +687,21 @@ def tg_poll_loop():
                 except Exception as e:
                     print(f"[Bot Telegram] handle error: {e}")
             if updates:
-                set_cfg('telegram_update_offset', str(offset))
+                try: set_cfg('telegram_update_offset', str(offset))
+                except Exception: pass
         except Exception as e:
             print(f"[Bot Telegram] loop error: {e}")
             time.sleep(3)
 
 def mulai_bot_telegram():
-    """Start thread polling sekali saja."""
+    """Start thread polling sekali saja — dijaga file-lock single-instance."""
     global _tg_poll_started
     if _tg_poll_started: return
+    if not _tg_acquire_lock():
+        print("[Bot Telegram] ⏭  Poller lain sudah aktif di host ini (lock) — "
+              "tidak start poller kedua untuk hindari 409 Conflict.")
+        _tg_poll_started = True   # jangan coba-coba lagi di proses ini
+        return
     _tg_poll_started = True
     threading.Thread(target=tg_poll_loop, name='tg-poll', daemon=True).start()
 
@@ -1764,12 +1869,11 @@ def api_kuota_update():
 @login_required
 def telegram_settings():
     if request.method == 'POST':
-        bot   = (request.form.get('bot_token') or '').strip()
-        chat  = (request.form.get('chat_id')   or '').strip()
+        # Token bot TETAP (hardcode) → tidak disimpan/diubah dari form.
+        chat  = (request.form.get('chat_id') or '').strip()
         aktif = '1' if request.form.get('aktif') == 'on' else '0'
-        set_cfg('telegram_bot_token', bot)
-        set_cfg('telegram_chat_id',   chat)
-        set_cfg('telegram_aktif',     aktif)
+        set_cfg('telegram_chat_id', chat)
+        set_cfg('telegram_aktif',   aktif)
         # Nyalakan bot dua-arah begitu kredensial valid (kalau belum jalan).
         if tg_aktif():
             mulai_bot_telegram()
@@ -1807,13 +1911,17 @@ def api_telegram_test():
         "🛡️ *Edge Guard — Test Koneksi*\n"
         "━━━━━━━━━━━━━━━━━━━━\n"
         "✅ Bot Telegram berhasil terhubung!\n"
-        "📱 Notifikasi akan dikirim ke chat ini.\n"
-        "💬 Ketik */menu* untuk membuka kontrol.\n"
-        f"🕐 {jam_lokal('%d/%m/%Y %H:%M:%S')} WITA"
+        "📱 Notifikasi akan dikirim ke chat ini.\n\n"
+        "Berikut menu kontrolnya 👇"
     )
-    ok, err = tg_send_message(teks)
+    # Saat test server, sekalian tampilkan menu (sesuai permintaan).
+    ok, err = tg_send_message(teks, reply_markup=bot_kb_utama())
+    # Pastikan bot dua-arah hidup supaya tombol menu langsung responsif.
+    try:
+        if tg_aktif(): mulai_bot_telegram()
+    except Exception: pass
     if ok:
-        return jsonify({"status":"ok","msg":"Pesan test terkirim. "
+        return jsonify({"status":"ok","msg":"Pesan test + menu terkirim. "
                         "Cek aplikasi Telegram Anda."})
     return jsonify({"status":"error","code":"send_fail",
                     "msg":f"Gagal mengirim: {err}"}), 400

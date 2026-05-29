@@ -127,14 +127,14 @@ a{text-decoration:none;color:inherit}
     {% elif terhubung %}
       <span class="st-dot gray"></span>
       <div style="flex:1">
-        <div class="st-label">Token & Chat ID tersimpan</div>
+        <div class="st-label">Chat ID tersimpan</div>
         <div class="st-sub">Notifikasi dimatikan — aktifkan toggle di bawah</div>
       </div>
     {% else %}
       <span class="st-dot red"></span>
       <div style="flex:1">
         <div class="st-label">Belum dikonfigurasi</div>
-        <div class="st-sub">Isi BOT_TOKEN dan CHAT_ID untuk mulai</div>
+        <div class="st-sub">Isi CHAT_ID untuk mulai menerima notifikasi</div>
       </div>
     {% endif %}
   </div>
@@ -142,36 +142,29 @@ a{text-decoration:none;color:inherit}
   {% if not terhubung %}
   <!-- Panduan -->
   <div class="guide">
-    <strong>📖 Cara setup (3 langkah):</strong>
+    <strong>📖 Cara setup (2 langkah):</strong>
     <ol>
-      <li>Buka <a href="https://t.me/BotFather" target="_blank">@BotFather</a>
-          di Telegram → kirim <code>/newbot</code> → ikuti instruksi → salin <strong>BOT_TOKEN</strong>.</li>
-      <li>Chat bot Anda → kirim <code>/start</code>.</li>
-      <li>Tap tombol <strong>"🔍 Cari Chat ID"</strong> di bawah, lalu pilih chat Anda.</li>
+      <li>Buka bot Edge Guard di Telegram → kirim <code>/start</code>.</li>
+      <li>Tap tombol <strong>"🔍 Cari Chat ID"</strong> di bawah, lalu pilih chat Anda → <strong>Simpan</strong>.</li>
     </ol>
+    <div style="font-size:11.5px;color:#6B7280;margin-top:8px">
+      ℹ️ Bot sudah terpasang oleh sistem — Anda cukup menghubungkan Chat ID.
+    </div>
   </div>
   {% endif %}
 
   <!-- Form Pengaturan -->
   <form method="POST" action="/telegram" id="form-tg">
 
-    <p class="sec-lbl">Kredensial Bot</p>
+    <p class="sec-lbl">Sambungkan Chat</p>
     <div class="card">
-      <div class="fld">
-        <label>BOT_TOKEN</label>
-        <input type="text" name="bot_token" id="bot-token"
-               value="{{ bot_token }}" placeholder="123456789:ABCdef..."
-               autocomplete="off">
-        <div class="hint">Salin dari @BotFather setelah <code>/newbot</code>.</div>
-      </div>
-
       <div class="fld">
         <label>CHAT_ID</label>
         <input type="text" name="chat_id" id="chat-id"
                value="{{ chat_id }}" placeholder="123456789"
                autocomplete="off">
-        <div class="hint">ID chat tempat notifikasi dikirim
-          (private chat / grup keluarga).</div>
+        <div class="hint">ID chat tujuan notifikasi (private chat / grup keluarga).
+          Bot sudah terpasang oleh sistem — cukup isi Chat ID.</div>
       </div>
 
       <div class="btn-row">
@@ -237,8 +230,7 @@ function testKirim() {
   var orig = t.innerHTML;
   t.disabled = true; t.innerHTML = '<span class="spin"></span> Mengirim...';
 
-  // Save dulu kalau ada perubahan token/chat_id di input (tanpa submit form)
-  var bot  = document.getElementById('bot-token').value.trim();
+  // Save dulu kalau ada perubahan chat_id di input (tanpa submit form)
   var chat = document.getElementById('chat-id').value.trim();
 
   // Save async lalu test
@@ -246,7 +238,7 @@ function testKirim() {
     method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
     body: new URLSearchParams({
-      bot_token: bot, chat_id: chat,
+      chat_id: chat,
       aktif: document.getElementById('aktif-sw').checked ? 'on' : ''
     })
   })
@@ -274,14 +266,12 @@ function cariChatId() {
   var orig = t.innerHTML;
   t.disabled = true; t.innerHTML = '<span class="spin"></span> Mencari...';
 
-  // Save token dulu tanpa submit (biar getChatId pakai token terbaru)
-  var bot = document.getElementById('bot-token').value.trim();
+  // Simpan chat_id terkini dulu tanpa submit (token bot sudah tetap di server)
   fetch('/telegram', {
     method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
     body: new URLSearchParams({
-      bot_token: bot,
-      chat_id:   document.getElementById('chat-id').value.trim(),
+      chat_id: document.getElementById('chat-id').value.trim(),
       aktif: document.getElementById('aktif-sw').checked ? 'on' : ''
     })
   })

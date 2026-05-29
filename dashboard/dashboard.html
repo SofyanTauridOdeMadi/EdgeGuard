@@ -12,7 +12,8 @@ a{text-decoration:none;color:inherit}
 
 /* ── Topbar ── */
 .topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
-.logo{width:36px;height:36px;background:#2563EB;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.logo{width:36px;height:36px;background:#EFF6FF;border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+.logo img{width:100%;height:100%;object-fit:contain}
 .bt h2{font-size:16px;font-weight:700;color:#2563EB;line-height:1.1}
 .bt p{font-size:10px;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
 .logout{margin-left:auto;font-size:13px;color:#9CA3AF}
@@ -234,7 +235,7 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
 <body data-page="beranda">
 
 <div class="topbar">
-  <div class="logo">🛡️</div>
+  <div class="logo"><img src="/aset/logo.png" alt="Edge Guard"></div>
   <div class="bt"><h2>Edge Guard</h2><p>Parental Dashboard</p></div>
   <a href="/logout" class="logout">Keluar</a>
 </div>

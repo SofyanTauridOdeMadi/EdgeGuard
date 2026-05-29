@@ -224,8 +224,9 @@ INSERT INTO konfigurasi (k, v) VALUES
   ('login_max_gagal',        '3'),
   ('login_lockout_detik',    '300'),
   ('heartbeat_offline_detik','120'),
-  ('telegram_bot_token',     '8609267262:AAGY66donQMGAhGUO_kSdjjFF5gmGyi1HIs'),
-  ('telegram_chat_id',       '7108892785'),
+  -- Token bot TIDAK disimpan di sini (rahasia). Diisi via env TG_BOT_TOKEN
+  -- atau file lokal dashboard/token_bot.txt yang di-.gitignore.
+  ('telegram_chat_id',       ''),
   ('telegram_aktif',         '1'),
   ('telegram_last_ok',       '0'),
   ('telegram_update_offset', '0');
