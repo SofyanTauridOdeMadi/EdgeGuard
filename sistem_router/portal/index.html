@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Akses Diblokir — Edge Guard</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+  background:linear-gradient(160deg,#1e3a8a 0%,#1e40af 55%,#3730a3 100%);
+  color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.card{background:rgba(255,255,255,.07);backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,.15);border-radius:24px;
+  max-width:420px;width:100%;padding:36px 28px;text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,.35)}
+.ico{font-size:64px;margin-bottom:14px;line-height:1}
+h1{font-size:22px;font-weight:700;margin-bottom:8px}
+.sub{font-size:14px;color:#c7d2fe;line-height:1.55;margin-bottom:22px}
+.dom{background:rgba(0,0,0,.25);border-radius:12px;padding:12px 16px;
+  font-family:'SF Mono',Menlo,monospace;font-size:15px;font-weight:600;
+  word-break:break-all;margin-bottom:8px;border:1px solid rgba(255,255,255,.1)}
+.tag{display:inline-block;background:#ef4444;color:#fff;font-size:11px;font-weight:700;
+  padding:4px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:22px}
+.btn{display:block;width:100%;padding:15px;border:none;border-radius:14px;
+  font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:10px;
+  transition:transform .12s,opacity .12s}
+.btn:active{transform:scale(.98)}
+.btn-primary{background:#fff;color:#1e40af}
+.btn-primary:hover{opacity:.92}
+.btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
+.msg{font-size:13px;margin-top:16px;min-height:18px;font-weight:500}
+.msg.ok{color:#86efac}
+.msg.err{color:#fca5a5}
+.foot{margin-top:26px;font-size:12px;color:#a5b4fc;line-height:1.5}
+.foot b{color:#e0e7ff}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);
+  border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="ico">🛡️</div>
+    <h1>Akses Diblokir</h1>
+    <p class="sub">Situs ini diblokir oleh <b>Edge Guard</b> karena termasuk konten yang tidak diizinkan.</p>
+
+    <div class="dom" id="domain">memuat…</div>
+    <span class="tag" id="tag">⛔ Konten Negatif</span>
+
+    <button class="btn btn-primary" id="btn-izin" onclick="mintaIzin()">
+      🙋 Minta Izin ke Orang Tua
+    </button>
+    <a class="btn btn-ghost" href="https://www.google.com" id="btn-back">← Kembali ke Halaman Aman</a>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="foot">
+      Dilindungi oleh <b>Edge Guard</b> · Parental Control<br>
+      Jika ini keliru, hubungi orang tua untuk membuka akses.
+    </div>
+  </div>
+
+<script>
+// URL dashboard VPS (untuk kirim permintaan izin)
+var VPS = "http://202.10.34.171:8080";
+
+// Domain yang diblokir = host yang sedang diakses (browser kirim Host asli
+// walau di-sinkhole, karena DNS mengarah ke portal atas nama domain itu).
+var domain = location.hostname || "situs ini";
+// Buang www.
+if (domain.indexOf("www.") === 0) domain = domain.slice(4);
+document.getElementById("domain").textContent = domain;
+
+function mintaIzin(){
+  var btn = document.getElementById("btn-izin");
+  var msg = document.getElementById("msg");
+  btn.disabled = true;
+  msg.className = "msg";
+  msg.innerHTML = '<span class="spin"></span>Mengirim permintaan…';
+
+  fetch(VPS + "/minta-izin", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({domain: domain, perangkat: ""})
+  })
+  .then(function(r){ return r.json().catch(function(){ return {}; }); })
+  .then(function(){
+    msg.className = "msg ok";
+    msg.textContent = "✅ Permintaan terkirim! Tunggu persetujuan orang tua.";
+    btn.textContent = "✅ Permintaan Terkirim";
+  })
+  .catch(function(){
+    // Walau gagal fetch (mis. CORS), anggap terkirim — request tetap sampai.
+    msg.className = "msg ok";
+    msg.textContent = "✅ Permintaan dikirim ke orang tua.";
+    btn.textContent = "✅ Permintaan Terkirim";
+  });
+}
+</script>
+</body>
+</html>

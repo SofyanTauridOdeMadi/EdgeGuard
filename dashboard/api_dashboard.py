@@ -359,6 +359,40 @@ def tg_get_updates() -> list:
     except Exception:
         return []
 
+def _alasan_ramah(alasan: str, kategori: str = '', confidence=0) -> str:
+    """Ubah kode alasan teknis dari router → kalimat ramah untuk orang tua."""
+    a = (alasan or '').lower()
+    try:
+        conf = float(confidence)
+    except (TypeError, ValueError):
+        conf = 0
+    if a == 'blacklist':
+        return 'Masuk daftar blokir manual Anda'
+    if a == 'perangkat_dijeda':
+        return 'Akses perangkat sedang dijeda'
+    if a in ('klasifikasi_ai', 'klasifikasi ai', 'ai'):
+        kat = (kategori or 'negatif').capitalize()
+        return f'Terdeteksi AI sebagai konten {kat} ({conf:.0f}%)'
+    return (alasan or 'Tidak diketahui').replace('_', ' ').capitalize()
+
+# Anti-spam notif blokir: ingat (domain, perangkat) → timestamp terakhir kirim.
+_notif_terakhir = {}
+NOTIF_COOLDOWN  = int(os.environ.get('EG_NOTIF_COOLDOWN', '600'))   # 10 menit
+
+def _notif_baru_saja(domain: str, perangkat: str) -> bool:
+    """True bila notif (domain, perangkat) baru dikirim < NOTIF_COOLDOWN detik
+    lalu → skip agar tidak banjir pesan."""
+    key = ((domain or '').lower(), (perangkat or '').lower())
+    now = time.time()
+    if now - _notif_terakhir.get(key, 0) < NOTIF_COOLDOWN:
+        return True
+    _notif_terakhir[key] = now
+    if len(_notif_terakhir) > 500:
+        for k, ts in list(_notif_terakhir.items()):
+            if now - ts > NOTIF_COOLDOWN:
+                _notif_terakhir.pop(k, None)
+    return False
+
 # Wrapper friendly notif (panggil dari event handler dashboard)
 def notif_telegram(kind: str, **kwargs):
     """Kirim notif Telegram sesuai jenis event. Silent-fail.
@@ -369,14 +403,18 @@ def notif_telegram(kind: str, **kwargs):
     """
     if not tg_aktif(): return False
     if kind == 'blokir':
+        # Anti-spam: lewati notif domain+perangkat yang sama bila baru saja
+        # dikirim (<NOTIF_COOLDOWN detik) — cegah banjir pesan.
+        if _notif_baru_saja(kwargs.get('domain',''), kwargs.get('perangkat','')):
+            return False
         text = (
             f"🚫 *SITUS DIBLOKIR*\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"🌐 Domain     : `{kwargs.get('domain','')}`\n"
-            f"📱 Perangkat  : {kwargs.get('perangkat','Tidak diketahui')}\n"
+            f"📱 Perangkat  : {kwargs.get('perangkat') or 'Tidak diketahui'}\n"
             f"📂 Kategori   : {kwargs.get('kategori','negatif').capitalize()}\n"
-            f"🎯 Confidence : {float(kwargs.get('confidence',0)):.0f}%\n"
-            f"⚙️ Alasan     : {kwargs.get('alasan','').replace('_',' ').title()}"
+            f"🎯 Keyakinan  : {float(kwargs.get('confidence',0)):.0f}%\n"
+            f"⚙️ Alasan     : {_alasan_ramah(kwargs.get('alasan',''), kwargs.get('kategori',''), kwargs.get('confidence',0))}"
         )
     elif kind == 'minta_izin':
         text = (

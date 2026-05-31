@@ -137,7 +137,7 @@ python3 api_dashboard.py
 
 ## 📈 Status Proyek
 
-> **v4.1-Beta** — Tahap penyusunan hasil & pengembangan telegram bot.
+> **v4.5-Beta** — Tahap penyusunan hasil & integrasi router.
 
 ---
 

@@ -14,7 +14,7 @@
 import os
 
 # ── Endpoint VPS Cloud Dashboard ──────────────────────────────────────────
-CLOUD_URL    = os.environ.get('EG_CLOUD_URL', 'http://127.0.0.1:8080').rstrip('/')
+CLOUD_URL    = os.environ.get('EG_CLOUD_URL', 'http://202.10.34.171:8080').rstrip('/')
 
 # ── Network interface yang akan disniff ───────────────────────────────────
 IFACE        = os.environ.get('EG_IFACE',     'br-lan')

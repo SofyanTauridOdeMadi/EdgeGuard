@@ -14,7 +14,7 @@
 ║    python3 pemantau_trafik.py --interface br-lan --debug              ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
-import os, sys, re, time, json, subprocess, threading, argparse
+import os, sys, re, time, json, subprocess, threading, argparse, shutil
 import urllib.request, urllib.error
 from datetime import datetime
 from collections import OrderedDict
@@ -91,12 +91,62 @@ def refresh_perangkat():
     except Exception:
         pass
 
+# ── Fallback: hostname dari DHCP lease OpenWrt (mis. "iPhone", "Mac") ──────
+_dhcp_mac   = {}      # {mac_upper: hostname}
+_dhcp_ip    = {}      # {ip: hostname}
+_dhcp_ts    = 0
+
+def _muat_dhcp():
+    """Cache 60 detik. Parse /tmp/dhcp.leases sekali → map by MAC & by IP.
+    Format lease: <expiry> <mac> <ip> <hostname> <clientid>."""
+    global _dhcp_mac, _dhcp_ip, _dhcp_ts
+    if time.time() - _dhcp_ts < 60 and (_dhcp_mac or _dhcp_ip):
+        return
+    mac_map, ip_map = {}, {}
+    try:
+        with open('/tmp/dhcp.leases') as f:
+            for line in f:
+                p = line.split()
+                if len(p) >= 4 and p[3] != '*':
+                    mac_map[p[1].upper()] = p[3]
+                    ip_map[p[2]]          = p[3]
+    except Exception:
+        pass
+    _dhcp_mac, _dhcp_ip, _dhcp_ts = mac_map, ip_map, time.time()
+
+def baca_dhcp_hostname(mac: str) -> str:
+    _muat_dhcp()
+    return _dhcp_mac.get((mac or '').upper(), '')
+
+def hostname_dari_ip(ip: str) -> str:
+    _muat_dhcp()
+    return _dhcp_ip.get(ip or '', '')
+
 def nama_perangkat(mac: str) -> str:
+    """Prioritas nama: (1) terdaftar di VPS → nama anak,
+    (2) hostname DHCP router (iPhone/Mac/dll), (3) MAC mentah."""
     mac_u = (mac or '').upper()
+    if not mac_u:
+        return 'unknown'
     if time.time() - _perangkat_cache_ts > 60 or not _perangkat_cache:
         refresh_perangkat()
     e = _perangkat_cache.get(mac_u)
-    return e['nama'] if e else mac_u
+    if e:
+        return e['nama']
+    # Fallback hostname DHCP (mis. "iPhone", "Mac")
+    host = baca_dhcp_hostname(mac_u)
+    return host if host else mac_u
+
+def perangkat_terdaftar(mac: str) -> bool:
+    """True bila MAC terdaftar sebagai perangkat anak di VPS.
+    Dipakai untuk filter 'hanya awasi perangkat yang tersimpan di database'.
+    Perangkat asing (mis. HP tamu, laptop ortu) → diabaikan total."""
+    mac_u = (mac or '').upper()
+    if not mac_u:
+        return False
+    if time.time() - _perangkat_cache_ts > 60 or not _perangkat_cache:
+        refresh_perangkat()
+    return mac_u in _perangkat_cache
 
 # ═══════════════════════════════════════════════════════════════════════════
 # CACHE DOMAIN (skip duplikat dalam 5 menit per (domain, mac))
@@ -167,13 +217,22 @@ def tangani(domain: str, ip_src: str = '', mac_src: str = ''):
     if not mac_src and ip_src:
         mac_src = baca_arp_table().get(ip_src, '')
 
+    # ── HANYA AWASI PERANGKAT TERDAFTAR ────────────────────────────────────
+    # Perangkat yang tidak tersimpan di database VPS (mis. HP tamu, laptop
+    # ortu) diabaikan total: tidak diklasifikasi, tidak diblokir, tidak
+    # di-log, tidak notifikasi.
+    if not perangkat_terdaftar(mac_src):
+        if DEBUG:
+            print(f"  [skip] {domain} ← perangkat tak terdaftar ({mac_src or ip_src or '?'})")
+        return
+
     key = (domain, mac_src)
     cached = cache.get(key)
     if cached:
         if DEBUG: print(f"  [cache] {domain} → {cached}")
         return
 
-    nama = nama_perangkat(mac_src) if mac_src else (ip_src or 'unknown')
+    nama = nama_perangkat(mac_src)
     keputusan = putuskan(domain, mac_src)
     cache.set(key, keputusan['aksi'])
 
@@ -209,10 +268,11 @@ def capture_tshark(iface: str):
     ]
     if DEBUG: print(f"[tshark] {' '.join(cmd)}")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                            stderr=subprocess.DEVNULL, text=True, bufsize=1)
+                            stderr=subprocess.DEVNULL, text=True,
+                            errors='replace', bufsize=1)
     print(f"[EdgeGuard] Memantau SNI via tshark ({iface})...")
     try:
-        for line in proc.stdout:
+        for line in iter(proc.stdout.readline, ''):
             parts = line.strip().split('\t')
             if len(parts) >= 3 and parts[2].strip():
                 ip_src  = parts[0].strip()
@@ -239,11 +299,12 @@ def capture_tcpdump(iface: str):
     ]
     if DEBUG: print(f"[tcpdump] {' '.join(cmd)}")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                            stderr=subprocess.DEVNULL, text=True, bufsize=1)
+                            stderr=subprocess.DEVNULL, text=True,
+                            errors='replace', bufsize=1)
     print(f"[EdgeGuard] Memantau via tcpdump fallback ({iface})...")
     ip_curr = ''
     try:
-        for line in proc.stdout:
+        for line in iter(proc.stdout.readline, ''):
             m_ip = _RE_IP.search(line)
             if m_ip: ip_curr = m_ip.group(1)
             for d in _RE_SNI.findall(line.lower()):
@@ -264,9 +325,10 @@ def capture_dns(iface: str):
     ]
     if DEBUG: print(f"[tshark-dns] {' '.join(cmd)}")
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
-                            stderr=subprocess.DEVNULL, text=True, bufsize=1)
+                            stderr=subprocess.DEVNULL, text=True,
+                            errors='replace', bufsize=1)
     try:
-        for line in proc.stdout:
+        for line in iter(proc.stdout.readline, ''):
             parts = line.strip().split('\t')
             if len(parts) >= 3 and parts[2].strip():
                 ip_src  = parts[0].strip()
@@ -287,11 +349,12 @@ def stats_loop():
               f"{datetime.now().strftime('%H:%M')}\n")
 
 def tool_ada(nama):
-    try:
-        subprocess.run(['which', nama], check=True,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        return True
-    except Exception: return False
+    """Cek ketersediaan binary via PATH (pure-Python).
+    CATATAN: jangan pakai `which` — di OpenWrt/BusyBox tertentu `which`
+    mengembalikan exit≠0 walau binary ADA (mis. tcpdump di /usr/bin),
+    sehingga engine capture salah pilih. shutil.which() andal & tak
+    bergantung pada applet `which`."""
+    return shutil.which(nama) is not None
 
 # ═══════════════════════════════════════════════════════════════════════════
 # MAIN

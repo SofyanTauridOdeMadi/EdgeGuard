@@ -26,6 +26,47 @@ from config import CLOUD_URL, CONFIG_TTL, HTTP_TIMEOUT, DEBUG
 BASE        = os.path.dirname(os.path.abspath(__file__))
 MODEL_JSON  = os.path.join(BASE, 'model_export.json')
 
+# ─── ANTI OVER-BLOCK ───────────────────────────────────────────────────────
+# Model hanya punya 3 kelas (negatif/edukasi/hiburan) tanpa kelas
+# "infrastruktur", sehingga subdomain teknis (CDN, sertifikat, telemetri)
+# yang tak ada di data latih sering salah ditandai 'negatif'. Dua pengaman:
+#   1) _INFRA_WHITELIST → domain & subdomain ini TIDAK PERNAH diblokir.
+#   2) BLOCK_THRESHOLD  → 'negatif' hanya diblokir bila confidence >= ambang.
+BLOCK_THRESHOLD = float(os.environ.get('EG_BLOCK_THRESHOLD', '80'))
+
+_INFRA_WHITELIST = {
+    # Apple
+    'icloud.com','apple.com','mzstatic.com','cdn-apple.com','aaplimg.com',
+    'apple-cloudkit.com','push.apple.com',
+    # Google (infra/CDN/ads/analytics)
+    'googleapis.com','gstatic.com','google.com','googleusercontent.com','ggpht.com',
+    'doubleclick.net','googlesyndication.com','google-analytics.com','googletagmanager.com',
+    'gvt1.com','gvt2.com','app-measurement.com','crashlytics.com','firebaseio.com',
+    # Microsoft / Bing
+    'microsoft.com','bing.com','live.com','office.com','windows.com','msftncsi.com',
+    'msedge.net','windowsupdate.com','azureedge.net',
+    # CDN umum
+    'cloudflare.com','cloudfront.net','akamai.net','akamaihd.net','akamaized.net',
+    'fastly.net','jsdelivr.net','fontawesome.com','fbcdn.net','cdninstagram.com',
+    'gcore.com','unpkg.com','cloudflareinsights.com',
+    # Sertifikat / OCSP / trust
+    'globalsign.com','digicert.com','letsencrypt.org','sectigo.com','usertrust.com',
+    'entrust.net','amazontrust.com','godaddy.com',
+    # Telemetri / dev / analytics (tidak berbahaya untuk anak)
+    'github.com','githubusercontent.com','githubassets.com','datadoghq.com','sentry.io',
+    'hubspot.com','hs-banner.com','hs-analytics.net','appsflyersdk.com','appsflyer.com',
+    'exp-tas.com','snssdk.com','doubao.com','byteoversea.com','ibyteimg.com',
+    'sgpstatic.com',
+}
+
+def _is_infra(domain: str) -> bool:
+    """True bila domain sama dengan, atau subdomain dari, entri whitelist infra."""
+    d = (domain or '').lower()
+    for suf in _INFRA_WHITELIST:
+        if d == suf or d.endswith('.' + suf):
+            return True
+    return False
+
 # ─── Cache model & config ─────────────────────────────────────────────────
 _MODEL           = None
 _config_cache    = {}
@@ -234,15 +275,28 @@ def putuskan(domain: str, mac_src: str = '') -> dict:
         return {'domain': d, 'aksi':'blokir', 'alasan':'blacklist',
                 'kategori':'negatif', 'confidence':100}
 
+    # 3b) Domain infrastruktur/CDN/sertifikat → selalu izinkan (anti over-block)
+    if _is_infra(d):
+        return {'domain': d, 'aksi':'izinkan', 'alasan':'infrastruktur',
+                'kategori':'unknown', 'confidence':0}
+
     # 4) Klasifikasi AI
     if cfg.get('ai_aktif', True):
         try:
             h    = klasifikasi(d)
             kat  = h['kategori']
+            conf = h['confidence']
             aksi = aksi_kategori(kat)
             if aksi == 'netral': aksi = 'izinkan'
+
+            # Anti over-block: 'negatif' hanya diblokir bila yakin (>= ambang).
+            # Confidence rendah → AI ragu → jangan blokir.
+            if aksi == 'blokir' and conf < BLOCK_THRESHOLD:
+                return {'domain': d, 'aksi':'izinkan', 'alasan':'confidence_rendah',
+                        'kategori':kat, 'confidence':conf}
+
             return {'domain': d, 'aksi':aksi, 'alasan':'klasifikasi_ai',
-                    'kategori':kat, 'confidence':h['confidence']}
+                    'kategori':kat, 'confidence':conf}
         except Exception as e:
             if DEBUG: print(f"[AI] error {d}: {e}")
 
