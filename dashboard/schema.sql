@@ -98,8 +98,9 @@ CREATE TABLE daftar_filter (
 -- ════════════════════════════════════════════════════════════════════════
 CREATE TABLE cache_domain (
   domain_url        VARCHAR(255) PRIMARY KEY,
-  kategori          ENUM('edukasi','hiburan','negatif','unknown')
-                       NOT NULL DEFAULT 'unknown',
+  -- 'netral' = domain infrastruktur/CDN/sertifikat (menggantikan 'unknown')
+  kategori          ENUM('edukasi','hiburan','negatif','netral','unknown')
+                       NOT NULL DEFAULT 'netral',
   confidence_score  FLOAT        NOT NULL DEFAULT 0,
   terakhir_diakses  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
                        ON UPDATE CURRENT_TIMESTAMP,
@@ -115,8 +116,8 @@ CREATE TABLE log_akses (
   log_id        BIGINT       AUTO_INCREMENT PRIMARY KEY,
   user_id       INT          DEFAULT NULL,
   domain_url    VARCHAR(255) DEFAULT NULL,
-  kategori      ENUM('edukasi','hiburan','negatif','unknown')
-                  NOT NULL DEFAULT 'unknown',
+  kategori      ENUM('edukasi','hiburan','negatif','netral','unknown')
+                  NOT NULL DEFAULT 'netral',
   aksi          ENUM('izinkan','blokir') NOT NULL DEFAULT 'izinkan',
   alasan        VARCHAR(64)  DEFAULT '',          -- 'whitelist','blacklist','klasifikasi_ai',...
   confidence    DECIMAL(5,2) DEFAULT 0.00,

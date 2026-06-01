@@ -1,19 +1,25 @@
 #!/bin/sh
 # ╔══════════════════════════════════════════════════════════════════════╗
-# ║  EDGE GUARD — CAPTIVE PORTAL (DNS sinkhole → halaman blokir)         ║
+# ║  EDGE GUARD — CAPTIVE PORTAL + ENFORCEMENT KATEGORI-AWARE            ║
 # ║                                                                       ║
-# ║  Mekanisme (TIDAK mengganggu LuCI/uhttpd utama):                     ║
-# ║   1. IP alias 192.168.1.2 di br-lan  → IP khusus portal.             ║
-# ║   2. dnsmasq sinkhole: domain blacklist → 192.168.1.2.              ║
-# ║   3. uhttpd instance "egportal" (TLS bawaan) di 192.168.1.1:8880/8843║
-# ║      docroot /root/edgeguard/sistem_router/portal (catch-all blokir).║
-# ║   4. nft DNAT: 192.168.1.2:80→:8880, :443→:8843.                    ║
+# ║  Prinsip "edge-AI cerdas":                                           ║
+# ║   • EDUKASI & INFRA  → SELALU boleh (tak pernah diblokir).           ║
+# ║   • NEGATIF          → SELALU blok: DNS sinkhole domain → portal.    ║
+# ║   • HIBURAN          → dikontrol per-MAC. MAC masuk 'blok_mac' bila  ║
+# ║        dijeda / jam jadwal-blokir / kuota hiburan habis. Efek:       ║
+# ║          - HTTP (80) ke situs hiburan → captive portal.             ║
+# ║          - HTTPS (443) & lainnya → DROP senyap (tanpa warning cert). ║
+# ║        Saat MAC tidak diblok → hiburan jalan normal.                 ║
 # ║                                                                       ║
-# ║  Pakai:                                                               ║
-# ║    sh captive_portal.sh init                 # pasang portal         ║
-# ║    sh captive_portal.sh sinkhole <d1> <d2>…  # set domain blacklist  ║
-# ║    sh captive_portal.sh status               # cek kondisi           ║
-# ║    sh captive_portal.sh teardown             # bongkar semua         ║
+# ║  nft table ip eg_portal:                                             ║
+# ║     set hiburan_ip  (timeout) — IP situs hiburan  (diisi pemantau)   ║
+# ║     set edukasi_ip  (timeout) — IP situs edukasi  (diisi pemantau)   ║
+# ║     set blok_mac              — MAC yg hiburannya sedang dibatasi    ║
+# ║     chain measure            — counter byte hiburan/edukasi per MAC  ║
+# ║                                                                       ║
+# ║  Subcommand: init | sinkhole <dom...> | add-hiburan <ip...> |        ║
+# ║   add-edukasi <ip...> | measure-mac <MAC> | read-measure |           ║
+# ║   blok-hiburan <MAC> | buka-hiburan <MAC> | status | teardown        ║
 # ╚══════════════════════════════════════════════════════════════════════╝
 
 PORTAL_IP="192.168.1.2"
@@ -21,14 +27,14 @@ LAN_IP="192.168.1.1"
 HTTP_PORT="8880"
 HTTPS_PORT="8843"
 IFACE="br-lan"
+IP_TTL="3h"
 BASE="$(cd "$(dirname "$0")" && pwd)"
 DOCROOT="$BASE/portal"
-# dnsmasq OpenWrt memakai confdir ber-suffix instance (mis.
-# /tmp/dnsmasq.cfg01411c.d). Deteksi otomatis; fallback ke /tmp/dnsmasq.d.
+NFT_TABLE="ip eg_portal"
+
 SINKHOLE_DIR="$(ls -d /tmp/dnsmasq.*.d 2>/dev/null | head -1)"
 [ -z "$SINKHOLE_DIR" ] && SINKHOLE_DIR="/tmp/dnsmasq.d"
 SINKHOLE_CONF="$SINKHOLE_DIR/eg_sinkhole.conf"
-NFT_TABLE="ip eg_portal"
 
 log() { echo "[portal] $*"; }
 
@@ -38,14 +44,12 @@ pasang_alias() {
         log "alias $PORTAL_IP sudah ada"
     else
         ip addr add "$PORTAL_IP/24" dev "$IFACE" 2>/dev/null \
-            && log "alias $PORTAL_IP ditambahkan ke $IFACE" \
-            || log "gagal menambah alias (mungkin sudah ada)"
+            && log "alias $PORTAL_IP ditambahkan" || log "alias gagal (mungkin sudah ada)"
     fi
 }
 
-# ─── 2. UHTTPD INSTANCE PORTAL ─────────────────────────────────────────────
+# ─── 2. UHTTPD PORTAL ──────────────────────────────────────────────────────
 pasang_uhttpd() {
-    # Catch-all: index + error_page → index.html (apa pun path → blokir)
     uci -q delete uhttpd.egportal
     uci set uhttpd.egportal=uhttpd
     uci add_list uhttpd.egportal.listen_http="${LAN_IP}:${HTTP_PORT}"
@@ -59,63 +63,144 @@ pasang_uhttpd() {
     uci set uhttpd.egportal.max_requests='5'
     uci commit uhttpd
     /etc/init.d/uhttpd restart >/dev/null 2>&1
-    log "uhttpd instance 'egportal' aktif di ${LAN_IP}:${HTTP_PORT}/${HTTPS_PORT}"
+    log "uhttpd 'egportal' aktif (${LAN_IP}:${HTTP_PORT}/${HTTPS_PORT})"
 }
 
-# ─── 3. NFT DNAT 80/443 → portal ───────────────────────────────────────────
+# ─── 3. NFT: sets + chains ─────────────────────────────────────────────────
 pasang_nft() {
     nft delete table $NFT_TABLE 2>/dev/null
     nft -f - <<EOF
 table $NFT_TABLE {
+    set hiburan_ip {
+        type ipv4_addr
+        flags timeout
+    }
+    set edukasi_ip {
+        type ipv4_addr
+        flags timeout
+    }
+    set blok_mac {
+        type ether_addr
+    }
     chain prerouting {
         type nat hook prerouting priority dstnat; policy accept;
-        ip daddr $PORTAL_IP tcp dport 80  dnat ip to ${LAN_IP}:${HTTP_PORT}
-        ip daddr $PORTAL_IP tcp dport 443 dnat ip to ${LAN_IP}:${HTTPS_PORT}
+        # Negatif sinkhole (domain → $PORTAL_IP): HTTP → portal.
+        ip daddr $PORTAL_IP tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
+        # Hiburan diblokir utk MAC: HTTP → portal (HTTPS di-drop di forward).
+        ether saddr @blok_mac ip daddr @hiburan_ip tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
+    }
+    chain input {
+        type filter hook input priority filter; policy accept;
+        # Negatif via sinkhole: HTTPS ke portal-IP → drop senyap (hindari
+        # LuCI nyangkut & peringatan sertifikat).
+        ip daddr $PORTAL_IP tcp dport 443 drop
+    }
+    chain measure {
+        type filter hook forward priority -10; policy accept;
+        # Diisi dinamis (measure-mac): counter byte hiburan & edukasi per MAC.
+    }
+    chain forward {
+        type filter hook forward priority filter; policy accept;
+        # Hiburan diblokir utk MAC: semua trafik ke IP hiburan → drop senyap.
+        # (port 80 sudah di-DNAT di prerouting → daddr berubah → lolos ke portal)
+        ether saddr @blok_mac ip daddr @hiburan_ip counter drop
     }
 }
 EOF
-    [ $? -eq 0 ] && log "nft DNAT 80→$HTTP_PORT, 443→$HTTPS_PORT siap" \
-                 || log "gagal pasang nft DNAT"
+    [ $? -eq 0 ] && log "nft eg_portal siap (hiburan_ip/edukasi_ip/blok_mac/measure)" \
+                 || log "gagal pasang nft"
 }
 
-# ─── 4. DNSMASQ SINKHOLE ───────────────────────────────────────────────────
+# ─── TANDAI IP per kategori (dipanggil pemantau) ───────────────────────────
+_add_ip_to_set() {
+    set_name="$1"; shift
+    nft list table $NFT_TABLE >/dev/null 2>&1 || pasang_nft
+    n=0
+    for ip in "$@"; do
+        case "$ip" in
+            [0-9]*.[0-9]*.[0-9]*.[0-9]*)
+                nft add element $NFT_TABLE "$set_name" "{ $ip timeout $IP_TTL }" 2>/dev/null && n=$((n+1)) ;;
+        esac
+    done
+    [ "$n" -gt 0 ] && log "+$n IP → $set_name"
+}
+add_hiburan() { _add_ip_to_set hiburan_ip "$@"; }
+add_edukasi() { _add_ip_to_set edukasi_ip "$@"; }
+
+# ─── COUNTER pemakaian per MAC (idempoten) ─────────────────────────────────
+measure_mac() {
+    mac="$1"; [ -z "$mac" ] && return 1
+    nft list table $NFT_TABLE >/dev/null 2>&1 || pasang_nft
+    cur="$(nft list chain $NFT_TABLE measure 2>/dev/null)"
+    echo "$cur" | grep -qi "ether saddr $mac ip daddr @hiburan_ip" \
+        || nft add rule $NFT_TABLE measure ether saddr "$mac" ip daddr @hiburan_ip counter comment "\"hib_$mac\"" 2>/dev/null
+    echo "$cur" | grep -qi "ether saddr $mac ip daddr @edukasi_ip" \
+        || nft add rule $NFT_TABLE measure ether saddr "$mac" ip daddr @edukasi_ip counter comment "\"edu_$mac\"" 2>/dev/null
+}
+
+# ─── BACA COUNTER (JSON) → dipakai kuota_tracker & reward ───────────────────
+read_measure() {
+    nft -j list chain $NFT_TABLE measure 2>/dev/null
+}
+
+# ─── BLOK / BUKA HIBURAN per MAC ───────────────────────────────────────────
+blok_hiburan() {
+    mac="$1"; [ -z "$mac" ] && { echo "Usage: blok-hiburan <MAC>"; return 1; }
+    nft list table $NFT_TABLE >/dev/null 2>&1 || pasang_nft
+    nft add element $NFT_TABLE blok_mac "{ $mac }" 2>/dev/null \
+        && log "⛔ hiburan $mac dibatasi" || log "= $mac sudah dibatasi"
+}
+buka_hiburan() {
+    mac="$1"; [ -z "$mac" ] && { echo "Usage: buka-hiburan <MAC>"; return 1; }
+    nft delete element $NFT_TABLE blok_mac "{ $mac }" 2>/dev/null \
+        && log "✅ hiburan $mac dibuka" || log "= $mac memang tidak dibatasi"
+}
+
+# ─── DNSMASQ SINKHOLE (negatif global) ─────────────────────────────────────
 set_sinkhole() {
     mkdir -p "$SINKHOLE_DIR"
     : > "$SINKHOLE_CONF"
     n=0
     for d in "$@"; do
         [ -z "$d" ] && continue
-        # address=/domain/IP → domain & semua subdomain → portal
         echo "address=/$d/$PORTAL_IP" >> "$SINKHOLE_CONF"
         n=$((n+1))
     done
-    log "$n domain di-sinkhole → $PORTAL_IP"
+    log "$n domain negatif di-sinkhole → $PORTAL_IP"
     /etc/init.d/dnsmasq restart >/dev/null 2>&1
-    log "dnsmasq di-reload"
 }
 
-# ─── STATUS ────────────────────────────────────────────────────────────────
+# ─── STATUS / TEARDOWN ─────────────────────────────────────────────────────
 status() {
     echo "── Edge Guard Captive Portal ──"
-    echo -n "alias $PORTAL_IP : "; ip addr show "$IFACE" | grep -q "$PORTAL_IP/" && echo "ADA" || echo "TIDAK"
-    echo -n "uhttpd egportal  : "; pgrep -f "egportal\|${LAN_IP}:${HTTP_PORT}" >/dev/null 2>&1 && echo "?" ; uci -q get uhttpd.egportal >/dev/null && echo "TERKONFIG" || echo "TIDAK"
-    echo -n "nft DNAT         : "; nft list table $NFT_TABLE >/dev/null 2>&1 && echo "ADA" || echo "TIDAK"
-    echo -n "sinkhole domains : "; [ -f "$SINKHOLE_CONF" ] && wc -l < "$SINKHOLE_CONF" || echo 0
-    echo "isi sinkhole:"; cat "$SINKHOLE_CONF" 2>/dev/null | sed 's/^/  /'
+    echo -n "alias $PORTAL_IP : "; ip addr show "$IFACE" | grep -q "$PORTAL_IP/" && echo ADA || echo TIDAK
+    echo -n "uhttpd egportal  : "; uci -q get uhttpd.egportal >/dev/null && echo TERKONFIG || echo TIDAK
+    echo -n "nft table        : "; nft list table $NFT_TABLE >/dev/null 2>&1 && echo ADA || echo TIDAK
+    echo -n "IP hiburan       : "; nft list set $NFT_TABLE hiburan_ip 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | wc -l
+    echo -n "IP edukasi       : "; nft list set $NFT_TABLE edukasi_ip 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | wc -l
+    echo -n "MAC dibatasi     : "; nft list set $NFT_TABLE blok_mac 2>/dev/null | grep -oE '([0-9a-f]{2}:){5}[0-9a-f]{2}' | tr '\n' ' '; echo
+    echo -n "sinkhole negatif : "; [ -f "$SINKHOLE_CONF" ] && wc -l < "$SINKHOLE_CONF" || echo 0
 }
 
-# ─── TEARDOWN ──────────────────────────────────────────────────────────────
 teardown() {
     nft delete table $NFT_TABLE 2>/dev/null && log "nft table dihapus"
-    rm -f "$SINKHOLE_CONF" && /etc/init.d/dnsmasq restart >/dev/null 2>&1 && log "sinkhole dihapus + dnsmasq reload"
-    uci -q delete uhttpd.egportal && uci commit uhttpd && /etc/init.d/uhttpd restart >/dev/null 2>&1 && log "uhttpd egportal dihapus"
-    ip addr del "$PORTAL_IP/24" dev "$IFACE" 2>/dev/null && log "alias $PORTAL_IP dihapus"
+    rm -f "$SINKHOLE_CONF" /tmp/dnsmasq.d/eg_sinkhole.conf 2>/dev/null
+    /etc/init.d/dnsmasq restart >/dev/null 2>&1
+    uci -q delete uhttpd.egportal && uci commit uhttpd && /etc/init.d/uhttpd restart >/dev/null 2>&1
+    ip addr del "$PORTAL_IP/24" dev "$IFACE" 2>/dev/null
+    log "portal dibongkar"
 }
 
 case "${1:-}" in
-    init)     pasang_alias; pasang_uhttpd; pasang_nft ;;
-    sinkhole) shift; set_sinkhole "$@" ;;
-    status)   status ;;
-    teardown) teardown ;;
-    *) echo "Usage: $0 {init|sinkhole <domain...>|status|teardown}"; exit 1 ;;
+    init)          pasang_alias; pasang_uhttpd; pasang_nft ;;
+    sinkhole)      shift; set_sinkhole "$@" ;;
+    add-hiburan)   shift; add_hiburan "$@" ;;
+    add-edukasi)   shift; add_edukasi "$@" ;;
+    measure-mac)   measure_mac "$2" ;;
+    read-measure)  read_measure ;;
+    blok-hiburan)  blok_hiburan "$2" ;;
+    buka-hiburan)  buka_hiburan "$2" ;;
+    status)        status ;;
+    teardown)      teardown ;;
+    *) echo "Usage: $0 {init|sinkhole|add-hiburan|add-edukasi|measure-mac|read-measure|blok-hiburan|buka-hiburan|status|teardown}"; exit 1 ;;
 esac

@@ -1,21 +1,16 @@
 """
 ╔══════════════════════════════════════════════════════════════════════╗
-║  EDGE GUARD — REWARD SISTEM (Penjadwalan Cerdas)                    ║
+║  EDGE GUARD — REWARD SISTEM (belajar → bonus kuota hiburan)          ║
 ║                                                                       ║
-║  Konsep: anak yang belajar (akses kategori 'edukasi') dapat hadiah    ║
-║          waktu hiburan otomatis.                                      ║
+║  Konsep: anak yang mengakses konten EDUKASI mengumpulkan menit       ║
+║  belajar. Tiap 'durasi_belajar_menit' menit belajar → +bonus         ║
+║  'waktu_bonus_menit' menit ke kuota hiburan (sisa_hiburan di VPS),    ║
+║  dibatasi batas_harian.                                              ║
 ║                                                                       ║
-║  Algoritma sederhana:                                                 ║
-║   • Pantau log dari klasifikasi_ai (via shared cache, in-memory)     ║
-║   • Edu N menit (cfg.durasi_belajar_menit, default 30) → buka        ║
-║     akses 'eg_hiburan' selama M menit (cfg.waktu_bonus_menit, 10)    ║
-║   • Maksimum bonus per hari = cfg.batas_bonus_menit (60)             ║
+║  Pengukuran belajar = byte trafik ke set edukasi_ip per MAC          ║
+║  (counter chain 'measure' di captive_portal.sh, comment 'edu_<MAC>').║
 ║                                                                       ║
-║  Karena kita TIDAK simpan log lokal (langsung push ke VPS), reward    ║
-║  ini bekerja in-memory selama proses jalan. Reset tiap ganti hari.   ║
-║                                                                       ║
-║  Jalankan:                                                            ║
-║    python3 reward_sistem.py                                          ║
+║  Reset harian ditangani VPS (dompet_kuota).                          ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
 import os, sys, json, time, threading, subprocess, argparse
@@ -27,17 +22,16 @@ BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 from config import CLOUD_URL, HTTP_TIMEOUT, CONFIG_TTL, DEBUG
 
-FIREWALL_SH = os.path.join(BASE, 'aturan_firewall.sh')
+PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
 
-# ─── default cfg fallback ────────────────────────────────────────────────
+# Ambang byte edukasi yang dianggap "aktif belajar" per siklus (anti idle-ping).
+EDU_BYTES_AKTIF = 40_000          # ~40 KB / siklus
+
 DEFAULT_CFG = {
     'durasi_belajar_menit': 30,
     'waktu_bonus_menit':    10,
-    'batas_bonus_menit':    60,
 }
-
-_cfg_cache = {}
-_cfg_ts    = 0
+_cfg_cache = {}; _cfg_ts = 0
 
 def ambil_cfg() -> dict:
     global _cfg_cache, _cfg_ts
@@ -54,148 +48,117 @@ def ambil_cfg() -> dict:
     except Exception:
         return _cfg_cache or DEFAULT_CFG
 
-# ═══════════════════════════════════════════════════════════════════════════
-# STATE per-MAC (in-memory)
-# ═══════════════════════════════════════════════════════════════════════════
-class State:
-    __slots__ = ['mac','nama','detik_belajar','bonus_tersisa','bonus_harian',
-                 'mode','tanggal']
-    def __init__(self, mac, nama=''):
-        self.mac, self.nama = mac, nama
-        self.detik_belajar  = 0.0
-        self.bonus_tersisa  = 0.0
-        self.bonus_harian   = 0.0
-        self.mode           = 'normal'    # 'normal' | 'bonus'
-        self.tanggal        = datetime.now().strftime('%Y-%m-%d')
-    def reset_jika_hari_baru(self):
-        td = datetime.now().strftime('%Y-%m-%d')
-        if self.tanggal != td:
-            self.detik_belajar = 0.0
-            self.bonus_harian  = 0.0
-            self.bonus_tersisa = 0.0
-            self.mode          = 'normal'
-            self.tanggal       = td
+# ─── State per MAC ──────────────────────────────────────────────────────────
+_edu_prev   = defaultdict(lambda: 0)    # byte edukasi terakhir per MAC
+_edu_menit  = defaultdict(float)        # akumulasi menit belajar (belum dibonus)
+_mac_dev    = {}                        # mac → dev_id
+_tanggal    = datetime.now().strftime('%Y-%m-%d')
 
-_perangkat: dict = {}     # {mac: State}
-_lock = threading.Lock()
+def log(msg):
+    ts = datetime.now().strftime('%H:%M:%S')
+    print(f"[Reward {ts}] {msg}")
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Firewall helpers
-# ═══════════════════════════════════════════════════════════════════════════
-def buka_hiburan(mac, nama, menit):
-    if os.path.exists(FIREWALL_SH):
-        subprocess.run(['sh', FIREWALL_SH, 'buka-hiburan-untuk', mac],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       timeout=5, check=False)
-    log(f"🎉 BONUS DIBUKA: {nama} ({mac}) — {menit:.1f}m hiburan")
-    push_event(mac, nama, 'bonus_mulai', menit)
-
-def tutup_hiburan(mac, nama):
-    if os.path.exists(FIREWALL_SH):
-        subprocess.run(['sh', FIREWALL_SH, 'blokir-hiburan-untuk', mac],
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-                       timeout=5, check=False)
-    log(f"⏹  BONUS SELESAI: {nama}")
-    push_event(mac, nama, 'bonus_selesai', 0)
-
-# ═══════════════════════════════════════════════════════════════════════════
-# Push event ke VPS (sebagai log_akses dengan alasan='reward_*')
-# ═══════════════════════════════════════════════════════════════════════════
-def push_event(mac, nama, event, menit):
+def _portal(*args):
+    if not os.path.exists(PORTAL_SH): return ''
     try:
-        payload = json.dumps({
-            'domain':     f'[Reward] {event}',
-            'kategori':   'edukasi',
-            'status':     'diizinkan',
-            'alasan':     f'reward_{event}',
-            'perangkat':  nama,
-            'mac':        mac,
-            'confidence': menit,
-        }).encode()
-        req = urllib.request.Request(CLOUD_URL + '/api/log',
-                                     data=payload, method='POST',
-                                     headers={'Content-Type':'application/json'})
-        urllib.request.urlopen(req, timeout=HTTP_TIMEOUT)
-    except Exception: pass
+        return subprocess.run(['sh', PORTAL_SH, *args], timeout=15, check=False,
+                              text=True, stdout=subprocess.PIPE,
+                              stderr=subprocess.DEVNULL).stdout
+    except Exception:
+        return ''
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Sync daftar perangkat awal
-# ═══════════════════════════════════════════════════════════════════════════
 def sync_perangkat():
     try:
         req = urllib.request.Request(CLOUD_URL + '/api/perangkat',
                                      headers={'Accept':'application/json'})
         with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
             data = json.loads(r.read().decode())
-        with _lock:
-            for d in data.get('perangkat', []):
-                mac = (d.get('mac') or '').upper()
-                if mac and mac not in _perangkat:
-                    _perangkat[mac] = State(mac, d.get('nama', mac))
-                    log(f"Perangkat baru: {d.get('nama')} ({mac})")
-    except Exception: pass
+        for d in data.get('perangkat', []):
+            mac = (d.get('mac') or '').upper()
+            if mac:
+                _mac_dev[mac] = d.get('id')
+                _portal('measure-mac', mac)
+    except Exception:
+        pass
 
-# ═══════════════════════════════════════════════════════════════════════════
-# Catat akses edu — dipanggil oleh modul lain (atau via API hook future)
-# ═══════════════════════════════════════════════════════════════════════════
-def tambah_belajar(mac: str, nama: str, detik: float):
-    """Public function: catat 'detik' menit aktivitas edukasi untuk MAC ini."""
-    mac_u = mac.upper()
-    cfg = ambil_cfg()
-    durasi = int(cfg.get('durasi_belajar_menit', 30)) * 60
-    bonus  = int(cfg.get('waktu_bonus_menit', 10))   * 60
-    batas  = int(cfg.get('batas_bonus_menit', 60))   * 60
+def baca_byte_edukasi() -> dict:
+    """{mac_upper: total_byte_edukasi} dari chain measure (comment 'edu_<MAC>')."""
+    out = {}
+    raw = _portal('read-measure')
+    if not raw: return out
+    try:
+        data = json.loads(raw)
+    except Exception:
+        return out
+    for item in data.get('nftables', []):
+        rule = item.get('rule')
+        if not rule: continue
+        cmt = rule.get('comment', '')
+        if not cmt.startswith('edu_'): continue
+        mac = cmt[4:].upper()
+        for e in rule.get('expr', []):
+            if 'counter' in e:
+                out[mac] = int(e['counter'].get('bytes', 0))
+    return out
 
-    with _lock:
-        st = _perangkat.setdefault(mac_u, State(mac_u, nama))
-        st.reset_jika_hari_baru()
-        if st.mode == 'normal':
-            st.detik_belajar += detik
-            if (st.detik_belajar >= durasi
-                    and st.bonus_harian < batas):
-                aktual = min(bonus, batas - st.bonus_harian)
-                st.mode = 'bonus'
-                st.bonus_tersisa  = aktual
-                st.bonus_harian  += aktual
-                st.detik_belajar  = 0
-                buka_hiburan(mac_u, st.nama, aktual / 60)
+def beri_bonus(dev_id, edu_menit: int, bonus_menit: int):
+    try:
+        payload = json.dumps({'dev_id': dev_id,
+                              'edu_menit': edu_menit,
+                              'bonus_menit': bonus_menit}).encode()
+        req = urllib.request.Request(CLOUD_URL + '/api/edu-bonus',
+                                     data=payload, method='POST',
+                                     headers={'Content-Type':'application/json'})
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+            return json.loads(r.read().decode())
+    except Exception:
+        return None
 
-def tick(interval_detik: int):
-    """Kurangi timer bonus untuk semua perangkat dalam mode 'bonus'."""
-    with _lock:
-        for mac, st in _perangkat.items():
-            st.reset_jika_hari_baru()
-            if st.mode == 'bonus':
-                st.bonus_tersisa -= interval_detik
-                if st.bonus_tersisa <= 0:
-                    st.bonus_tersisa = 0
-                    st.mode = 'normal'
-                    tutup_hiburan(mac, st.nama)
+def reset_harian_jika_perlu():
+    global _tanggal
+    td = datetime.now().strftime('%Y-%m-%d')
+    if td != _tanggal:
+        _tanggal = td
+        _edu_menit.clear()
+        _edu_prev.clear()
+        log("Hari baru — akumulasi belajar di-reset.")
 
-def log(msg):
-    ts = datetime.now().strftime('%H:%M:%S')
-    print(f"[Reward {ts}] {msg}")
+def siklus(interval: int):
+    reset_harian_jika_perlu()
+    cfg     = ambil_cfg()
+    durasi  = int(cfg.get('durasi_belajar_menit', 30))
+    bonus_m = int(cfg.get('waktu_bonus_menit', 10))
+    edu_now = baca_byte_edukasi()
 
-# ═══════════════════════════════════════════════════════════════════════════
-# MAIN — jalan sebagai daemon yang men-tick tiap N detik
-# ═══════════════════════════════════════════════════════════════════════════
+    for mac, dev_id in list(_mac_dev.items()):
+        prev  = _edu_prev[mac]
+        curr  = edu_now.get(mac, 0)
+        delta = max(0, curr - prev)
+        if curr < prev: delta = 0
+        _edu_prev[mac] = curr
+
+        if delta >= EDU_BYTES_AKTIF:
+            _edu_menit[mac] += interval / 60.0
+            if _edu_menit[mac] >= durasi:
+                _edu_menit[mac] -= durasi
+                res = beri_bonus(dev_id, durasi, bonus_m)
+                sisa = res.get('sisa_hiburan') if res else '?'
+                log(f"🎁 {mac}: belajar {durasi}m → +{bonus_m}m hiburan (sisa bonus: {sisa}m)")
+
 def main():
     p = argparse.ArgumentParser(description='Edge Guard — Reward Sistem')
-    p.add_argument('--interval','-i', type=int, default=10)
+    p.add_argument('--interval','-i', type=int, default=30)
     args = p.parse_args()
 
     print("=" * 55)
-    print("  Edge Guard — Reward Sistem (Penjadwalan Cerdas)")
-    print(f"  Interval  : {args.interval} detik")
-    print(f"  Cloud URL : {CLOUD_URL}")
+    print("  Edge Guard — Reward Sistem (belajar → bonus hiburan)")
     cfg = ambil_cfg()
-    print(f"  Config    : belajar {cfg.get('durasi_belajar_menit',30)}m "
-          f"→ bonus {cfg.get('waktu_bonus_menit',10)}m "
-          f"(max {cfg.get('batas_bonus_menit',60)}m/hari)")
+    print(f"  Aturan: belajar {cfg.get('durasi_belajar_menit',30)}m "
+          f"→ +{cfg.get('waktu_bonus_menit',10)}m hiburan")
+    print(f"  Cloud : {CLOUD_URL}")
     print("=" * 55)
-    sync_perangkat()
 
-    # Thread re-sync perangkat 60s
+    sync_perangkat()
     def sync_loop():
         while True:
             time.sleep(60); sync_perangkat()
@@ -204,7 +167,9 @@ def main():
     try:
         while True:
             time.sleep(args.interval)
-            tick(args.interval)
+            try: siklus(args.interval)
+            except Exception as e:
+                if DEBUG: log(f"siklus error: {e}")
     except KeyboardInterrupt:
         log("Dihentikan.")
 

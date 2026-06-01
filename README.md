@@ -137,7 +137,7 @@ python3 api_dashboard.py
 
 ## 📈 Status Proyek
 
-> **v4.5-Beta** — Tahap penyusunan hasil & integrasi router.
+> **v5.1-Beta** — Tahap penyusunan hasil & Perbaikan AI.
 
 ---
 

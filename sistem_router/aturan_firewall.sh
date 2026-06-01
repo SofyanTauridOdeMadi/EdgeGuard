@@ -95,17 +95,27 @@ izinkan_domain() {
 # ═══════════════════════════════════════════════════════════════════════
 # jeda / lanjutkan per MAC
 # ═══════════════════════════════════════════════════════════════════════
+# Jeda / lanjutkan kini DELEGASI ke captive_portal.sh: alih-alih DROP total
+# (blackout), MAC diarahkan ke halaman portal untuk web (80/443) sehingga anak
+# TAHU kenapa aksesnya berhenti; trafik non-web di-DROP. DNS tetap hidup.
+PORTAL_SH="$(dirname "$0")/captive_portal.sh"
+
 jeda_mac() {
   local mac="$1"; [ -z "$mac" ] && { echo "Usage: jeda <MAC>"; exit 1; }
-  # Add rule: drop semua trafik dari MAC ini di FORWARD (paling atas chain)
-  iptables -C "$CHAIN" -m mac --mac-source "$mac" -j DROP 2>/dev/null \
-    || iptables -I "$CHAIN" 1 -m mac --mac-source "$mac" -j DROP
-  echo "[firewall] ⏸  JEDA $mac"
+  # Enforcement utama (jeda/jadwal/kuota) dilakukan kuota_tracker via
+  # captive_portal.sh blok-hiburan. Subcommand ini hanya jalan pintas manual.
+  if [ -f "$PORTAL_SH" ]; then
+    sh "$PORTAL_SH" blok-hiburan "$mac"
+  fi
+  echo "[firewall] ⏸  JEDA (hiburan) $mac"
 }
 
 lanjutkan_mac() {
   local mac="$1"; [ -z "$mac" ] && { echo "Usage: lanjutkan <MAC>"; exit 1; }
-  # Hapus rule DROP MAC sumber (jika ada, mungkin lebih dari satu)
+  if [ -f "$PORTAL_SH" ]; then
+    sh "$PORTAL_SH" buka-hiburan "$mac"
+  fi
+  # Bersihkan rule DROP MAC lama (warisan versi blackout sebelumnya)
   while iptables -D "$CHAIN" -m mac --mac-source "$mac" -j DROP 2>/dev/null; do :; done
   echo "[firewall] ▶  LANJUTKAN $mac"
 }

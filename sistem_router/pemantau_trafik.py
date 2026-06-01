@@ -196,11 +196,41 @@ def kirim_log(keputusan: dict, perangkat: str, mac: str):
 # ═══════════════════════════════════════════════════════════════════════════
 # EKSEKUSI FIREWALL
 # ═══════════════════════════════════════════════════════════════════════════
+PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
+
 def fw_blokir(domain: str):
+    """Negatif → DROP keras (resolve domain → eg_blokir ipset)."""
     if os.path.exists(FIREWALL_SH):
         subprocess.run(['sh', FIREWALL_SH, 'blokir', domain],
                        timeout=5, check=False,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+def _resolve_ips(domain: str):
+    """Resolve A-record domain → list IP (pakai resolver router, cepat krn cache)."""
+    try:
+        import socket
+        _, _, ips = socket.gethostbyname_ex(domain)
+        return [ip for ip in ips if not ip.startswith('127.')]
+    except Exception:
+        return []
+
+def tandai_kategori_ip(domain: str, kategori: str):
+    """Daftarkan IP domain ke nft set sesuai kategori (utk enforcement &
+    pengukuran kuota). EDUKASI → edukasi_ip; HIBURAN → hiburan_ip.
+    Negatif/infra/unknown tidak ditandai."""
+    if kategori not in ('hiburan', 'edukasi'):
+        return
+    if not os.path.exists(PORTAL_SH):
+        return
+    ips = _resolve_ips(domain)
+    if not ips:
+        return
+    sub = 'add-hiburan' if kategori == 'hiburan' else 'add-edukasi'
+    try:
+        subprocess.run(['sh', PORTAL_SH, sub, *ips], timeout=8, check=False,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception:
+        pass
 
 # ═══════════════════════════════════════════════════════════════════════════
 # PROSES SATU DOMAIN  (entry-point dari capture)
@@ -235,12 +265,17 @@ def tangani(domain: str, ip_src: str = '', mac_src: str = ''):
     nama = nama_perangkat(mac_src)
     keputusan = putuskan(domain, mac_src)
     cache.set(key, keputusan['aksi'])
+    kat = keputusan.get('kategori', 'unknown')
 
     # Eksekusi firewall + log
     if keputusan['aksi'] == 'blokir':
         fw_blokir(domain)
         ic = '🚫'
     else:
+        # Tandai IP domain ke set kategori (hiburan→kuota, edukasi→reward).
+        # Hanya untuk yang diizinkan; enforcement hiburan per-MAC dilakukan
+        # kuota_tracker. Edukasi & infra tetap selalu lolos.
+        tandai_kategori_ip(domain, kat)
         ic = '✅'
     kirim_log(keputusan, nama, mac_src)
 
@@ -339,6 +374,35 @@ def capture_dns(iface: str):
     finally: proc.terminate()
 
 # ═══════════════════════════════════════════════════════════════════════════
+# SINKHOLE SYNC — captive portal (domain blacklist → dnsmasq → halaman blokir)
+# ═══════════════════════════════════════════════════════════════════════════
+PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
+_sinkhole_terakhir = None       # set domain terakhir di-apply (hindari reload sia2)
+
+def sinkhole_sync_loop():
+    """Tiap 60 dtk: ambil daftar_hitam dari VPS → update dnsmasq sinkhole.
+    Hanya reload dnsmasq bila daftar BERUBAH (hemat beban router)."""
+    global _sinkhole_terakhir
+    if not os.path.exists(PORTAL_SH):
+        return
+    from klasifikasi_ai import ambil_config
+    while True:
+        try:
+            cfg   = ambil_config()
+            hitam = sorted(set(d.strip().lower()
+                               for d in cfg.get('daftar_hitam', []) if d.strip()))
+            if hitam != _sinkhole_terakhir:
+                subprocess.run(['sh', PORTAL_SH, 'sinkhole'] + hitam,
+                               timeout=20, check=False,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                _sinkhole_terakhir = hitam
+                if DEBUG:
+                    print(f"[sinkhole] {len(hitam)} domain blacklist disinkronkan ke portal")
+        except Exception as e:
+            if DEBUG: print(f"[sinkhole] error: {e}")
+        time.sleep(60)
+
+# ═══════════════════════════════════════════════════════════════════════════
 # STATS LOOP
 # ═══════════════════════════════════════════════════════════════════════════
 def stats_loop():
@@ -402,6 +466,12 @@ def main():
         threading.Thread(target=capture_dns, args=(IFACE,),
                          daemon=True, name='dns').start()
         print("[EdgeGuard] DNS capture thread aktif.")
+
+    # Thread sinkhole sync (captive portal: blacklist → halaman blokir)
+    if os.path.exists(PORTAL_SH):
+        threading.Thread(target=sinkhole_sync_loop,
+                         daemon=True, name='sinkhole').start()
+        print("[EdgeGuard] Sinkhole sync thread aktif (captive portal).")
 
     # Refresh perangkat pertama kali
     refresh_perangkat()

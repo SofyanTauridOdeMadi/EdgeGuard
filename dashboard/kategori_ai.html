@@ -40,7 +40,8 @@ a{text-decoration:none;color:inherit}
 .stat-tile.t-edu .stat-num{color:#2563EB}
 .stat-tile.t-hib .stat-num{color:#F97316}
 .stat-tile.t-neg .stat-num{color:#EF4444}
-.stat-tile.t-unk .stat-num{color:#6B7280}
+/* Netral menggantikan unknown */
+.stat-tile.t-net .stat-num{color:#6B7280}
 
 .sec-label{font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin:14px 4px 8px;display:flex;align-items:center;justify-content:space-between}
 
@@ -61,7 +62,8 @@ a{text-decoration:none;color:inherit}
 .row-ic.k-edu{background:#2563EB}
 .row-ic.k-hib{background:#F97316}
 .row-ic.k-neg{background:#EF4444}
-.row-ic.k-unk{background:#9CA3AF}
+/* Netral: abu-abu, bukan kuning/abu gelap */
+.row-ic.k-net{background:#9CA3AF}
 .row-mid{min-width:0}
 .row-domain{font-weight:600;font-size:13.5px;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row-sub{font-size:11px;color:#6B7280;margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -69,7 +71,7 @@ a{text-decoration:none;color:inherit}
 .row-sub .kat.k-edu{color:#2563EB}
 .row-sub .kat.k-hib{color:#F97316}
 .row-sub .kat.k-neg{color:#EF4444}
-.row-sub .kat.k-unk{color:#9CA3AF}
+.row-sub .kat.k-net{color:#6B7280}
 .row-sub .sep{color:#D1D5DB}
 .row-sub .hit{background:#F3F4F6;color:#4B5563;padding:1px 7px;border-radius:20px;font-size:10px;font-weight:600}
 .row-right{text-align:right;flex-shrink:0}
@@ -136,11 +138,12 @@ a{text-decoration:none;color:inherit}
       <div class="stat-num">{{ stats.negatif }}</div>
       <div class="stat-lbl">Negatif</div>
     </a>
-    <a class="stat-tile t-unk {{ 'active' if kat == 'unknown' }}"
-       href="/kategori?kat=unknown&urut={{urut}}{% if q %}&q={{q}}{% endif %}">
-      <div class="stat-emoji">❓</div>
-      <div class="stat-num">{{ stats.unknown }}</div>
-      <div class="stat-lbl">Unknown</div>
+    <!-- Netral menggantikan unknown: domain infrastruktur / CDN / sertifikat -->
+    <a class="stat-tile t-net {{ 'active' if kat == 'netral' }}"
+       href="/kategori?kat=netral&urut={{urut}}{% if q %}&q={{q}}{% endif %}">
+      <div class="stat-emoji">⚪</div>
+      <div class="stat-num">{{ stats.netral }}</div>
+      <div class="stat-lbl">Netral</div>
     </a>
   </div>
 
@@ -177,10 +180,10 @@ a{text-decoration:none;color:inherit}
   <div id="list">
     {% for r in cache_list %}
     {% set k = r.kategori %}
-    {% set kshort = 'edu' if k=='edukasi' else 'hib' if k=='hiburan' else 'neg' if k=='negatif' else 'unk' %}
+    {% set kshort = 'edu' if k=='edukasi' else 'hib' if k=='hiburan' else 'neg' if k=='negatif' else 'net' %}
     <div class="row-card">
       <div class="row-ic k-{{kshort}}">
-        {{ '📚' if k=='edukasi' else '🎬' if k=='hiburan' else '🚫' if k=='negatif' else '❓' }}
+        {{ '📚' if k=='edukasi' else '🎬' if k=='hiburan' else '🚫' if k=='negatif' else '⚪' }}
       </div>
       <div class="row-mid">
         <div class="row-domain" title="{{r.domain_url}}">{{r.domain_url}}</div>

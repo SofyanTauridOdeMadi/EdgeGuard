@@ -247,10 +247,15 @@ def ambil_config() -> dict:
         }
 
 def aksi_kategori(nama: str) -> str:
+    """Kembalikan aksi untuk kategori AI.
+    'netral' = domain infrastruktur/CDN (model v2.1+) → selalu izinkan.
+    'unknown' = alias lama, diperlakukan sama dgn netral → izinkan."""
     if not _kategori_aksi: ambil_config()
     aksi = _kategori_aksi.get(nama)
-    if aksi: return aksi
-    return 'blokir' if nama == 'negatif' else 'izinkan'
+    if aksi and aksi != 'netral': return aksi   # 'blokir'/'izinkan' eksplisit
+    # Fallback deterministik: hanya negatif yang diblokir
+    if nama == 'negatif':  return 'blokir'
+    return 'izinkan'  # edukasi, hiburan, netral, unknown → izinkan
 
 # ═══════════════════════════════════════════════════════════════════════════
 # 6. KEPUTUSAN TERPADU  (jeda > whitelist > blacklist > AI)
@@ -260,10 +265,11 @@ def putuskan(domain: str, mac_src: str = '') -> dict:
     if d.startswith('www.'): d = d[4:]
     cfg = ambil_config()
 
-    # 1) MAC dijeda
-    if mac_src and mac_src.upper() in [m.upper() for m in cfg.get('perangkat_jeda', [])]:
-        return {'domain': d, 'aksi':'blokir', 'alasan':'perangkat_dijeda',
-                'kategori':'unknown', 'confidence':100}
+    # Catatan: penjedaan / kuota-habis TIDAK lagi ditangani di sini.
+    # Enforcement per-perangkat dilakukan di level jaringan (kuota_tracker.py →
+    # captive_portal.sh block-mac → redirect SEMUA web MAC tsb ke portal).
+    # putuskan() murni klasifikasi konten domain, sehingga aktivitas perangkat
+    # yang dijeda tetap tercatat (untuk audit) tanpa meracuni blocklist global.
 
     # 2) Whitelist domain
     if d in cfg.get('daftar_putih', []):
@@ -275,10 +281,13 @@ def putuskan(domain: str, mac_src: str = '') -> dict:
         return {'domain': d, 'aksi':'blokir', 'alasan':'blacklist',
                 'kategori':'negatif', 'confidence':100}
 
-    # 3b) Domain infrastruktur/CDN/sertifikat → selalu izinkan (anti over-block)
+    # 3b) Domain infrastruktur/CDN/sertifikat → selalu izinkan (safety net).
+    # Setelah model v2.1, model sendiri akan mengklasifikasi infra sebagai
+    # 'netral'. Pengecekan ini tetap ada sebagai lapisan perlindungan ganda
+    # untuk domain yang belum pernah ada di data latih.
     if _is_infra(d):
         return {'domain': d, 'aksi':'izinkan', 'alasan':'infrastruktur',
-                'kategori':'unknown', 'confidence':0}
+                'kategori':'netral', 'confidence':0}
 
     # 4) Klasifikasi AI
     if cfg.get('ai_aktif', True):

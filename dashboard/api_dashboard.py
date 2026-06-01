@@ -171,8 +171,13 @@ def ensure_admin_password(default_username: str = 'stom',
 # ══════════════════════════════════════════════════════════════════════════════
 def reset_kuota_jika_hari_baru():
     today = now_lokal().date().isoformat()
+    # Reset pemakaian hiburan harian per perangkat.
     query("UPDATE pengguna_anak SET kuota_terpakai=0, last_reset=%s "
           "WHERE last_reset IS NULL OR last_reset <> %s", (today, today))
+    # Reset dompet reward (bonus & akumulasi belajar) tiap ganti hari.
+    query("UPDATE dompet_kuota SET sisa_hiburan=0, total_edukasi=0, "
+          "terakhir_reset=%s WHERE terakhir_reset IS NULL OR terakhir_reset <> %s",
+          (today, today))
 
 def refresh_status_online():
     th = int(get_cfg('heartbeat_offline_detik', '120'))
@@ -1489,7 +1494,7 @@ def kategori_list():
     q     = (request.args.get('q')   or '').strip().lower()
     kat   = (request.args.get('kat') or 'all').strip().lower()
     urut  = (request.args.get('urut')or 'terbaru').strip().lower()
-    if kat not in ('all','edukasi','hiburan','negatif','unknown'): kat = 'all'
+    if kat not in ('all','edukasi','hiburan','negatif','netral'): kat = 'all'
     if urut not in ('terbaru','populer','confidence'):              urut = 'terbaru'
 
     # Statistik per kategori
@@ -1521,7 +1526,8 @@ def kategori_list():
             'edukasi': stats.get('edukasi', 0),
             'hiburan': stats.get('hiburan', 0),
             'negatif': stats.get('negatif', 0),
-            'unknown': stats.get('unknown', 0),
+            # 'netral' menggantikan 'unknown' — domain infra/CDN/sertifikat
+            'netral':  stats.get('netral', 0) + stats.get('unknown', 0),
             'total':   total,
         },
         q=q, kat=kat, urut=urut,
@@ -1674,27 +1680,10 @@ def domain_terakhir(perangkat: str = '', device_id: str = '') -> str:
         pass
     return ''
 
-@app.route('/blokir')
-def blokir():
-    return render_template('halaman_blokir.html',
-        tipe='blokir',
-        domain=request.args.get('domain', 'situs ini'),
-        device_id=request.args.get('device_id', ''),
-        perangkat=request.args.get('perangkat', ''))
-
-@app.route('/habis')
-def habis():
-    sisa      = int(get_cfg('durasi_belajar_menit', 30))
-    perangkat = request.args.get('perangkat', '')
-    device_id = request.args.get('device_id', '')
-    # Link terakhir yang dicoba diakses anak sebelum dialihkan ke sini.
-    last_dom  = (request.args.get('domain', '')
-                 or domain_terakhir(perangkat, device_id))
-    return render_template('halaman_blokir.html',
-        tipe='habis', sisa_belajar=sisa,
-        domain=last_dom,
-        device_id=device_id,
-        perangkat=perangkat)
+# Catatan: route /blokir & /habis + halaman_blokir.html DIHAPUS.
+# Captive portal kini sepenuhnya di sisi router (sistem_router/portal/index.html
+# disajikan uhttpd 'egportal'), bukan lagi di VPS. /minta-izin tetap ada karena
+# dipakai tombol "Minta Izin" pada portal router untuk notif ke orang tua.
 
 @app.route('/minta-izin', methods=['POST'])
 def minta_izin():
@@ -1726,25 +1715,48 @@ def api_config():
         "perangkat_jeda":       [r['mac_address'] for r in dijeda],
         "kategori_ai":          [
             {"nama":"edukasi","aksi":"izinkan"},
-            {"nama":"hiburan","aksi":"netral"},
+            {"nama":"hiburan","aksi":"netral"},   # aksi=netral → izinkan/kontrol kuota
             {"nama":"negatif","aksi":"blokir"},
+            {"nama":"netral", "aksi":"izinkan"},  # domain infra: selalu izinkan
         ],
         "kuota_harian_menit":   int(get_cfg('kuota_harian_menit','120')),
         "durasi_belajar_menit": int(get_cfg('durasi_belajar_menit','30')),
         "waktu_bonus_menit":    int(get_cfg('waktu_bonus_menit','10')),
     })
 
+def _jadwal_blokir_aktif(user_id, now=None):
+    """True bila SAAT INI (WITA) berada dalam window jadwal mode='blokir'
+    untuk user ini. Mendukung window yang melewati tengah malam."""
+    now = now or now_lokal()
+    hari = HARI_LIST[now.weekday()]          # weekday(): Senin=0
+    jam  = now.strftime('%H:%M:%S')
+    rows = query("SELECT jam_mulai, jam_selesai FROM jadwal_blokir "
+                 "WHERE user_id=%s AND hari=%s AND mode='blokir'",
+                 (user_id, hari)) or []
+    for r in rows:
+        m = str(r['jam_mulai']); s = str(r['jam_selesai'])
+        if m <= s:
+            if m <= jam < s: return True      # window normal (mis. 08:00-15:00)
+        else:
+            if jam >= m or jam < s: return True  # lewat tengah malam (22:00-05:00)
+    return False
+
 @app.route('/api/perangkat')
 def api_perangkat():
     reset_kuota_jika_hari_baru()
     devs = query(
-        "SELECT user_id AS id, nama, device_name AS label, mac_address AS mac, "
-        "       kuota_harian, kuota_terpakai, jeda, "
-        "       (CASE WHEN status_aktif THEN 'online' ELSE 'offline' END) AS status, "
-        "       last_seen "
-        "FROM pengguna_anak") or []
-    return jsonify({"perangkat":[dict(d, last_seen=str(d['last_seen']) if d.get('last_seen') else None)
-                                 for d in devs]})
+        "SELECT p.user_id AS id, p.nama, p.device_name AS label, "
+        "       p.mac_address AS mac, p.kuota_harian, p.kuota_terpakai, p.jeda, "
+        "       (CASE WHEN p.status_aktif THEN 'online' ELSE 'offline' END) AS status, "
+        "       p.last_seen, COALESCE(d.sisa_hiburan, 0) AS sisa_hiburan "
+        "FROM pengguna_anak p "
+        "LEFT JOIN dompet_kuota d ON d.user_id = p.user_id") or []
+    out = []
+    for d in devs:
+        d['last_seen']     = str(d['last_seen']) if d.get('last_seen') else None
+        d['blokir_jadwal'] = _jadwal_blokir_aktif(d['id'])
+        out.append(d)
+    return jsonify({"perangkat": out})
 
 @app.route('/api/heartbeat', methods=['POST'])
 def api_heartbeat():
@@ -1765,8 +1777,11 @@ def api_log():
     if not data: return jsonify({"status":"error"}), 400
 
     mac        = (data.get('mac') or '').upper()
-    kat        = data.get('kategori', 'unknown')
-    if kat not in ('edukasi','hiburan','negatif','unknown'): kat = 'unknown'
+    kat        = data.get('kategori', 'netral')
+    # 'netral' = domain infrastruktur aman (CDN, sertifikat, OS update)
+    # 'unknown' diterima sbg alias lama → dipetakan ke 'netral'
+    if kat not in ('edukasi','hiburan','negatif','netral'): kat = 'netral'
+    if kat == 'unknown': kat = 'netral'
     status     = data.get('status', 'diizinkan')
     aksi       = 'blokir' if status == 'diblokir' else 'izinkan'
     domain     = (data.get('domain') or '').strip().lower()
@@ -1840,6 +1855,41 @@ def api_kuota_update():
         "pct":round(kuota_terpakai/kh*100) if kh else 0,
         "habis":kuota_terpakai >= kh,
     })
+
+@app.route('/api/edu-bonus', methods=['POST'])
+def api_edu_bonus():
+    """Router (reward_sistem) melapor akumulasi menit belajar & meminta bonus
+    hiburan. Payload: {dev_id, edu_menit, bonus_menit}.
+    - total_edukasi += edu_menit
+    - sisa_hiburan  += bonus_menit  (dibatasi batas_harian)
+    Mengembalikan sisa_hiburan terbaru."""
+    data = request.get_json(silent=True) or {}
+    try:
+        dev_id = int(data.get('dev_id', 0))
+    except (TypeError, ValueError):
+        dev_id = 0
+    edu_menit   = max(0, int(data.get('edu_menit', 0) or 0))
+    bonus_menit = max(0, int(data.get('bonus_menit', 0) or 0))
+    if not dev_id:
+        return jsonify({"status":"error","msg":"dev_id required"}), 400
+
+    today = now_lokal().date().isoformat()
+    # Pastikan baris dompet ada.
+    query("INSERT INTO dompet_kuota (user_id, terakhir_reset) VALUES (%s,%s) "
+          "ON DUPLICATE KEY UPDATE user_id=user_id", (dev_id, today))
+    # Terapkan: total_edukasi += edu, sisa_hiburan += bonus (cap batas_harian).
+    query("UPDATE dompet_kuota "
+          "SET total_edukasi = total_edukasi + %s, "
+          "    sisa_hiburan  = LEAST(batas_harian, sisa_hiburan + %s), "
+          "    terakhir_reset = %s "
+          "WHERE user_id = %s",
+          (edu_menit, bonus_menit, today, dev_id))
+    row = query("SELECT sisa_hiburan, total_edukasi, batas_harian "
+                "FROM dompet_kuota WHERE user_id=%s", (dev_id,), one=True) or {}
+    return jsonify({"status":"ok",
+                    "sisa_hiburan": int(row.get('sisa_hiburan', 0)),
+                    "total_edukasi": int(row.get('total_edukasi', 0)),
+                    "batas_harian": int(row.get('batas_harian', 0))})
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TELEGRAM — halaman pengaturan + endpoint test

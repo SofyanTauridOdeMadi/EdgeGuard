@@ -1,0 +1,5 @@
+Kategori,Precision,Recall,F1-Score,Support
+Negatif,100.00%,97.30%,98.63%,37
+Edukasi,97.30%,100.00%,98.63%,36
+Hiburan,86.05%,100.00%,92.50%,37
+Netral,100.00%,83.78%,91.18%,37
