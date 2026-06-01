@@ -4,17 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Edge Guard — Pengaturan Telegram</title>
+<link rel="icon" type="image/png" href="/aset/icon.png">
+<link rel="apple-touch-icon" href="/aset/icon.png">
 <link rel="stylesheet" href="/aset/responsive.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#F9FAFB;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#EFF6FF;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
 a{text-decoration:none;color:inherit}
 
-.topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
-.back{background:none;border:none;font-size:22px;cursor:pointer;padding:0;line-height:1;color:#111827}
-.topbar h1{font-size:17px;font-weight:600}
+.topbar{background:#2563EB;padding:14px 18px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;box-shadow:0 2px 12px rgba(37,99,235,.25)}
+.back{background:rgba(255,255,255,.15);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:7px;border-radius:10px;line-height:1;color:#fff;transition:background .15s}
+.topbar h1{font-size:17px;font-weight:700;color:#fff}
 
-.page{padding:14px 14px 100px}
+.page{padding:14px 14px 28px}
 .flash{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:10px;line-height:1.5}
 .flash-success{background:#F0FDF4;color:#15803D}
 .flash-error  {background:#FEF2F2;color:#EF4444}
@@ -93,13 +95,13 @@ a{text-decoration:none;color:inherit}
 .bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 env(safe-area-inset-bottom,10px);z-index:20}
 .ni{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;color:#9CA3AF;text-decoration:none}
 .ni.active{color:#2563EB}
-.ni-ic{font-size:22px}.ni-lbl{font-size:11px;font-weight:500}
+.ni-ic{display:flex;align-items:center;justify-content:center}.ni-lbl{font-size:11px;font-weight:500}
 </style>
 </head>
 <body data-page="telegram">
 
 <div class="topbar">
-  <a href="/aturan" class="back">←</a>
+  <a href="/aturan" class="back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg></a>
   <h1>Pengaturan Telegram</h1>
 </div>
 
@@ -111,7 +113,7 @@ a{text-decoration:none;color:inherit}
 
   <!-- Hero -->
   <div class="tg-hero">
-    <div class="tg-ic">📲</div>
+    <div class="tg-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
     <h2>Telegram Bot Notifikasi</h2>
     <p>Terima alert instan di Telegram saat AI<br>memblokir situs atau anak meminta izin akses.</p>
   </div>
@@ -145,7 +147,7 @@ a{text-decoration:none;color:inherit}
     <strong>📖 Cara setup (2 langkah):</strong>
     <ol>
       <li>Buka bot Edge Guard di Telegram → kirim <code>/start</code>.</li>
-      <li>Tap tombol <strong>"🔍 Cari Chat ID"</strong> di bawah, lalu pilih chat Anda → <strong>Simpan</strong>.</li>
+      <li>Tap tombol <strong>"<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> Cari Chat ID"</strong> di bawah, lalu pilih chat Anda → <strong>Simpan</strong>.</li>
     </ol>
     <div style="font-size:11.5px;color:#6B7280;margin-top:8px">
       ℹ️ Bot sudah terpasang oleh sistem — Anda cukup menghubungkan Chat ID.
@@ -184,7 +186,7 @@ a{text-decoration:none;color:inherit}
     <div class="card">
       <div class="tg-toggle">
         <label for="aktif-sw">
-          {% if aktif %}🔔 Notifikasi aktif{% else %}🔕 Notifikasi nonaktif{% endif %}
+          {% if aktif %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> Notifikasi aktif{% else %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.73 21a2 2 0 0 1-3.46 0"/><path d="M18.63 13A17.888 17.888 0 0 1 18 8"/><path d="M6.26 6.26A5.86 5.86 0 0 0 6 8c0 7-3 9-3 9h14"/><path d="M18 8a6 6 0 0 0-9.33-5"/><line x1="1" y1="1" x2="23" y2="23"/></svg> Notifikasi nonaktif{% endif %}
           <div style="font-size:11.5px;color:#9CA3AF;font-weight:400;margin-top:3px">
             Notif dikirim untuk: situs blacklist diblokir · web baru terdeteksi
             negatif oleh AI · anak minta izin saat durasi habis
@@ -197,18 +199,13 @@ a{text-decoration:none;color:inherit}
       </div>
     </div>
 
-    <button type="submit" class="btn-save-tg">💾 Simpan Pengaturan</button>
+    <button type="submit" class="btn-save-tg"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Pengaturan</button>
   </form>
 
 </div>
 
 <div class="toast" id="toast"></div>
 
-<nav class="bnav">
-  <a href="/jadwal" class="ni"><span class="ni-ic">🕐</span><span class="ni-lbl">Penjadwalan</span></a>
-  <a href="/"       class="ni"><span class="ni-ic">🏠</span><span class="ni-lbl">Beranda</span></a>
-  <a href="/aturan" class="ni active"><span class="ni-ic">🛡️</span><span class="ni-lbl">Aturan</span></a>
-</nav>
 
 <script>
 /* ── Toast helper ─────────────────────────────────── */
@@ -216,8 +213,8 @@ function toast(msg, dur) {
   var t = document.getElementById('toast');
   t.textContent = msg;
   t.classList.remove('ok','err');
-  if (/^[✅📨]/.test(msg)) t.classList.add('ok');
-  else if (/^[⚠️❌]/.test(msg)) t.classList.add('err');
+  if (/^\{"ok"/.test(msg) || msg.startsWith('✓')) t.classList.add('ok');
+  else if (msg.includes('gagal') || msg.includes('error')) t.classList.add('err');
   t.classList.add('show');
   clearTimeout(t._t);
   t._t = setTimeout(function(){ t.classList.remove('show'); }, dur || 3500);

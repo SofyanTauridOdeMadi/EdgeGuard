@@ -4,17 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Edge Guard — Knowledge AI</title>
+<link rel="icon" type="image/png" href="/aset/logo.png">
+<link rel="apple-touch-icon" href="/aset/icon.png">
 <link rel="stylesheet" href="/aset/responsive.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#F9FAFB;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#EFF6FF;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
 a{text-decoration:none;color:inherit}
 
-.topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
-.back{background:none;border:none;font-size:22px;cursor:pointer;padding:0;line-height:1;color:#111827}
-.topbar h1{font-size:17px;font-weight:600}
+.topbar{background:#2563EB;padding:14px 18px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;box-shadow:0 2px 12px rgba(37,99,235,.25)}
+.back{background:rgba(255,255,255,.15);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:7px;border-radius:10px;line-height:1;color:#fff;transition:background .15s}
+.topbar h1{font-size:17px;font-weight:700;color:#fff}
 
-.page{padding:14px 14px 100px}
+.page{padding:14px 14px 28px}
 .flash{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:10px}
 .flash-success{background:#F0FDF4;color:#15803D}
 .flash-error{background:#FEF2F2;color:#EF4444}
@@ -23,9 +25,9 @@ a{text-decoration:none;color:inherit}
 /* ── AI Toggle Card ── */
 .ai-card{background:#fff;border-radius:14px;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
 .ai-label{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
-.badge-aktif{background:#DCFCE7;color:#16A34A;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;font-family:inherit}
+.badge-aktif{background:#DCFCE7;color:#16A34A;display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;font-family:inherit}
 .badge-aktif .dot{width:7px;height:7px;background:#22C55E;border-radius:50%}
-.badge-off{background:#F3F4F6;color:#6B7280;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;font-family:inherit}
+.badge-off{background:#F3F4F6;color:#6B7280;display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;font-family:inherit}
 .badge-off .dot{width:7px;height:7px;background:#9CA3AF;border-radius:50%}
 
 /* ── Stat 4 kategori ── */
@@ -34,11 +36,11 @@ a{text-decoration:none;color:inherit}
 .stat-tile:hover{border-color:#E5E7EB}
 .stat-tile:active{transform:scale(.98)}
 .stat-tile.active{border-color:#2563EB}
-.stat-emoji{font-size:18px;line-height:1;margin-bottom:4px}
+.stat-emoji{font-size:18px;display:flex;align-items:center;justify-content:center;line-height:1;margin-bottom:4px}
 .stat-num{font-size:18px;font-weight:700;color:#111827;line-height:1}
 .stat-lbl{font-size:10px;color:#6B7280;text-transform:uppercase;letter-spacing:.04em;margin-top:3px}
-.stat-tile.t-edu .stat-num{color:#2563EB}
-.stat-tile.t-hib .stat-num{color:#F97316}
+.stat-tile.t-edu .stat-num{color:#16A34A}
+.stat-tile.t-hib .stat-num{color:#D97706}
 .stat-tile.t-neg .stat-num{color:#EF4444}
 /* Netral menggantikan unknown */
 .stat-tile.t-net .stat-num{color:#6B7280}
@@ -58,9 +60,9 @@ a{text-decoration:none;color:inherit}
 
 /* ── Row Cache Domain ── */
 .row-card{background:#fff;border-radius:12px;padding:11px 13px;margin-bottom:7px;box-shadow:0 1px 2px rgba(0,0,0,.05);display:grid;grid-template-columns:auto 1fr auto;column-gap:10px;align-items:center}
-.row-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;color:#fff;flex-shrink:0}
-.row-ic.k-edu{background:#2563EB}
-.row-ic.k-hib{background:#F97316}
+.row-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;display:flex;align-items:center;justify-content:center;color:#fff;flex-shrink:0}
+.row-ic.k-edu{background:#16A34A}
+.row-ic.k-hib{background:#D97706}
 .row-ic.k-neg{background:#EF4444}
 /* Netral: abu-abu, bukan kuning/abu gelap */
 .row-ic.k-net{background:#9CA3AF}
@@ -68,8 +70,8 @@ a{text-decoration:none;color:inherit}
 .row-domain{font-weight:600;font-size:13.5px;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .row-sub{font-size:11px;color:#6B7280;margin-top:2px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .row-sub .kat{font-weight:600;text-transform:capitalize}
-.row-sub .kat.k-edu{color:#2563EB}
-.row-sub .kat.k-hib{color:#F97316}
+.row-sub .kat.k-edu{color:#16A34A}
+.row-sub .kat.k-hib{color:#D97706}
 .row-sub .kat.k-neg{color:#EF4444}
 .row-sub .kat.k-net{color:#6B7280}
 .row-sub .sep{color:#D1D5DB}
@@ -81,23 +83,21 @@ a{text-decoration:none;color:inherit}
 .row-meter-fill{height:100%;border-radius:2px;transition:width .3s}
 
 .empty{text-align:center;padding:40px 14px;color:#9CA3AF;font-size:13px;line-height:1.6}
-.empty .ei{font-size:42px;margin-bottom:10px;display:block}
+.empty .ei{display:flex;align-items:center;justify-content:center;margin-bottom:10px;margin-bottom:10px;display:block}
 
 /* ── Bottom Nav ── */
 .bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 env(safe-area-inset-bottom,10px);z-index:20}
 .ni{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;color:#9CA3AF;text-decoration:none}
 .ni.active{color:#2563EB}
-.ni-ic{font-size:22px}.ni-lbl{font-size:11px;font-weight:500}
+.ni-ic{display:flex;align-items:center;justify-content:center}.ni-lbl{font-size:11px;font-weight:500}
 </style>
 </head>
 <body data-page="kategori">
 
 <div class="topbar">
-  <a href="/aturan" class="back">←</a>
+  <a href="/aturan" class="back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg></a>
   <h1>Knowledge AI</h1>
-  <span style="margin-left:auto;font-size:11px;color:#6B7280">
-    {{ stats.total }} domain
-  </span>
+  <span style="margin-left:auto;font-size:11px;font-weight:600;color:rgba(255,255,255,.8)">{{ stats.total }} domain</span>
 </div>
 
 <div class="page">
@@ -108,7 +108,7 @@ a{text-decoration:none;color:inherit}
 
   <!-- ─── AI Toggle ─── -->
   <div class="ai-card">
-    <span class="ai-label">✨ Status Klasifikasi AI</span>
+    <span class="ai-label"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L9.5 8.5 3 11l6.5 2.5L12 20l2.5-6.5L21 11l-6.5-2.5z"/></svg> Status Klasifikasi AI</span>
     <form method="POST" action="/kategori/toggle-ai" style="margin:0">
       {% if ai_aktif %}
         <button type="submit" class="badge-aktif"><span class="dot"></span> AKTIF</button>
@@ -122,26 +122,26 @@ a{text-decoration:none;color:inherit}
   <div class="stat-row">
     <a class="stat-tile t-edu {{ 'active' if kat == 'edukasi' }}"
        href="/kategori?kat=edukasi&urut={{urut}}{% if q %}&q={{q}}{% endif %}">
-      <div class="stat-emoji">📚</div>
+      <div class="stat-emoji"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
       <div class="stat-num">{{ stats.edukasi }}</div>
       <div class="stat-lbl">Edukasi</div>
     </a>
     <a class="stat-tile t-hib {{ 'active' if kat == 'hiburan' }}"
        href="/kategori?kat=hiburan&urut={{urut}}{% if q %}&q={{q}}{% endif %}">
-      <div class="stat-emoji">🎬</div>
+      <div class="stat-emoji"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg></div>
       <div class="stat-num">{{ stats.hiburan }}</div>
       <div class="stat-lbl">Hiburan</div>
     </a>
     <a class="stat-tile t-neg {{ 'active' if kat == 'negatif' }}"
        href="/kategori?kat=negatif&urut={{urut}}{% if q %}&q={{q}}{% endif %}">
-      <div class="stat-emoji">🚫</div>
+      <div class="stat-emoji"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></div>
       <div class="stat-num">{{ stats.negatif }}</div>
       <div class="stat-lbl">Negatif</div>
     </a>
     <!-- Netral menggantikan unknown: domain infrastruktur / CDN / sertifikat -->
     <a class="stat-tile t-net {{ 'active' if kat == 'netral' }}"
        href="/kategori?kat=netral&urut={{urut}}{% if q %}&q={{q}}{% endif %}">
-      <div class="stat-emoji">⚪</div>
+      <div class="stat-emoji"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></div>
       <div class="stat-num">{{ stats.netral }}</div>
       <div class="stat-lbl">Netral</div>
     </a>
@@ -162,16 +162,16 @@ a{text-decoration:none;color:inherit}
     <input type="hidden" name="urut" id="urut-hidden" value="{{urut}}">
     <div class="toolbar-row">
       <div class="search-wrap">
-        <span class="ic">🔍</span>
+        <span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
         <input type="text" name="q" id="search-inp"
                placeholder="Cari domain…" value="{{ q }}" autocomplete="off">
         <button type="button" class="clear {{ 'show' if q }}"
-                id="clear-btn" onclick="clearSearch()">✕</button>
+                id="clear-btn" onclick="clearSearch()"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
       </div>
       <select class="sort-select" id="sort-sel" onchange="onSort(this.value)">
-        <option value="terbaru"    {{ 'selected' if urut=='terbaru' }}>📅 Terbaru</option>
-        <option value="populer"    {{ 'selected' if urut=='populer' }}>🔥 Populer</option>
-        <option value="confidence" {{ 'selected' if urut=='confidence' }}>🎯 Confidence</option>
+        <option value="terbaru"    {{ 'selected' if urut=='terbaru' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg> Terbaru</option>
+        <option value="populer"    {{ 'selected' if urut=='populer' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg> Populer</option>
+        <option value="confidence" {{ 'selected' if urut=='confidence' }}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg> Confidence</option>
       </select>
     </div>
   </form>
@@ -183,7 +183,7 @@ a{text-decoration:none;color:inherit}
     {% set kshort = 'edu' if k=='edukasi' else 'hib' if k=='hiburan' else 'neg' if k=='negatif' else 'net' %}
     <div class="row-card">
       <div class="row-ic k-{{kshort}}">
-        {{ '📚' if k=='edukasi' else '🎬' if k=='hiburan' else '🚫' if k=='negatif' else '⚪' }}
+        {% if k=='edukasi' %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>{% elif k=='hiburan' %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>{% elif k=='negatif' %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>{% else %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>{% endif %}
       </div>
       <div class="row-mid">
         <div class="row-domain" title="{{r.domain_url}}">{{r.domain_url}}</div>
@@ -199,8 +199,8 @@ a{text-decoration:none;color:inherit}
         <div class="row-conf">{{ '%.1f'|format(r.confidence_score|float) }}%</div>
         <div class="row-meter">
           <div class="row-meter-fill" style="width:{{ r.confidence_score|round|int }}%;background:{{
-            '#2563EB' if k=='edukasi' else
-            '#F97316' if k=='hiburan' else
+            '#16A34A' if k=='edukasi' else
+            '#D97706' if k=='hiburan' else
             '#EF4444' if k=='negatif' else '#9CA3AF'
           }}"></div>
         </div>
@@ -208,7 +208,7 @@ a{text-decoration:none;color:inherit}
     </div>
     {% else %}
     <div class="empty">
-      <span class="ei">🧠</span>
+      <span class="ei"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg></span>
       {% if q %}
         Tidak ada domain yang cocok dengan <strong style="color:#374151">"{{q}}"</strong>{% if kat != 'all' %} di kategori <strong>{{kat}}</strong>{% endif %}.
       {% elif kat != 'all' %}
@@ -223,11 +223,6 @@ a{text-decoration:none;color:inherit}
 
 </div>
 
-<nav class="bnav">
-  <a href="/jadwal" class="ni"><span class="ni-ic">🕐</span><span class="ni-lbl">Penjadwalan</span></a>
-  <a href="/"       class="ni"><span class="ni-ic">🏠</span><span class="ni-lbl">Beranda</span></a>
-  <a href="/aturan" class="ni active"><span class="ni-ic">🛡️</span><span class="ni-lbl">Aturan</span></a>
-</nav>
 
 <script>
 /* ─── Search debounced auto-submit ─── */

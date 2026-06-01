@@ -23,6 +23,39 @@ try:
 except ImportError:
     _BCRYPT = False
 
+# ── Normalisasi domain ke root (eTLD+1) ───────────────────────────────────────
+# SLD 2-level yang diperlakukan sebagai satu TLD (mis. .co.id, .ac.id)
+_SLD_2LV = {
+    'co.id','ac.id','go.id','or.id','sch.id','net.id','mil.id',
+    'co.uk','ac.uk','gov.uk','org.uk','me.uk','net.uk',
+    'co.jp','ne.jp','or.jp','go.jp',
+    'co.kr','go.kr','or.kr','ne.kr',
+    'co.nz','co.za','co.in','co.th',
+    'com.au','net.au','org.au','gov.au','edu.au',
+    'com.br','net.br','org.br','gov.br',
+    'com.sg','edu.sg','gov.sg','net.sg',
+    'com.my','net.my','org.my','gov.my',
+}
+
+def root_domain(domain: str) -> str:
+    """Normalisasi subdomain ke root domain (eTLD+1).
+
+    tip.wetv.com   → wetv.com
+    api.wetv.com   → wetv.com
+    m.bca.co.id    → bca.co.id
+    google.com     → google.com  (tidak berubah)
+    """
+    d = (domain or '').lower().strip()
+    if d.startswith('www.'):
+        d = d[4:]
+    parts = d.split('.')
+    if len(parts) <= 2:
+        return d
+    # Cek SLD 2-level (mis. co.id → butuh 3 bagian: name.co.id)
+    if '.'.join(parts[-2:]) in _SLD_2LV:
+        return '.'.join(parts[-3:]) if len(parts) >= 3 else d
+    return '.'.join(parts[-2:])
+
 # ══════════════════════════════════════════════════════════════════════════════
 # KONFIGURASI APP
 # ══════════════════════════════════════════════════════════════════════════════
@@ -184,9 +217,16 @@ def proporsi_dari_logs(rows):
     edu = sum(1 for r in rows if r.get('kategori') == 'edukasi')
     hib = sum(1 for r in rows if r.get('kategori') == 'hiburan')
     neg = sum(1 for r in rows if r.get('kategori') == 'negatif')
-    tot = edu + hib + neg
-    if tot == 0: return 0, 0, 0
-    return round(edu/tot*100), round(hib/tot*100), round(neg/tot*100)
+    net = sum(1 for r in rows if r.get('kategori') == 'netral')
+    tot = edu + hib + neg + net
+    if tot == 0: return 0, 0, 0, 0
+    # Hitung persen, pastikan total ≤ 100 (rounding error)
+    pe = round(edu/tot*100); ph = round(hib/tot*100)
+    pn = round(neg/tot*100); pt = round(net/tot*100)
+    # Koreksi agar total tepat 100
+    diff = 100 - (pe + ph + pn + pt)
+    if diff != 0: pe += diff
+    return pe, ph, pn, pt
 
 def hitung_bar_data_hari_ini():
     """Bar chart 2-jam-an dari log hari ini."""
@@ -892,16 +932,19 @@ def beranda():
         "FROM log_akses l "
         "LEFT JOIN pengguna_anak p ON p.user_id = l.user_id "
         "WHERE DATE(l.waktu_akses) = CURDATE() "
-        "ORDER BY l.waktu_akses DESC LIMIT 5") or []
+        "ORDER BY l.waktu_akses DESC LIMIT 15") or []
     riwayat = [normalize_log(r) for r in rows]
 
     # Proporsi: log HARI INI
     logs_today = query(
         "SELECT kategori FROM log_akses "
         "WHERE DATE(waktu_akses) = CURDATE()") or []
-    pe, ph, pn    = proporsi_dari_logs(logs_today)
-    prop_total    = pe + ph + pn
-    prop_dash_edu = round(pe / 100 * 251.33, 1) if prop_total else 0
+    pe, ph, pn, pnet = proporsi_dari_logs(logs_today)
+    CIRC = 251.33
+    prop_total       = pe + ph + pn + pnet
+    prop_dash_edu    = round(pe / 100 * CIRC, 1) if prop_total else 0
+    prop_dash_ehib   = round((pe+ph) / 100 * CIRC, 1) if prop_total else 0
+    prop_dash_ehneg  = round((pe+ph+pn) / 100 * CIRC, 1) if prop_total else 0
     pv            = devs[0] if devs else {}
 
     return render_template('dashboard.html',
@@ -912,9 +955,11 @@ def beranda():
         kS_raw=total_sisa,  kT_raw=total_harian,
         pct=pct_global, circ=circ, dash=dash,
         jml_perangkat=len(devs),
-        pct_edu=pe, pct_hib=ph, pct_neg=pn,
+        pct_edu=pe, pct_hib=ph, pct_neg=pn, pct_net=pnet,
         prop_total=prop_total,
         prop_dash_edu=prop_dash_edu,
+        prop_dash_ehib=prop_dash_ehib,
+        prop_dash_ehneg=prop_dash_ehneg,
         riwayat=riwayat,
         jeda_aktif=bool(pv.get('jeda', 0)))
 
@@ -1124,12 +1169,15 @@ def api_proporsi():
         sql2  += " AND COALESCE(p.nama, l.perangkat_nama) = %s"
         args2  = (nama,)
     logs_today = query(sql2, args2) or []
-    pe, ph, pn = proporsi_dari_logs(logs_today)
-    prop_total = pe + ph + pn
+    pe, ph, pn, pnet = proporsi_dari_logs(logs_today)
+    CIRC = 251.33
+    prop_total = pe + ph + pn + pnet
     return jsonify({
-        "pct_edu":pe, "pct_hib":ph, "pct_neg":pn,
+        "pct_edu":pe, "pct_hib":ph, "pct_neg":pn, "pct_net":pnet,
         "prop_total":prop_total,
-        "prop_dash_edu":round(pe/100*251.33, 1) if prop_total else 0,
+        "prop_dash_edu":round(pe/100*CIRC,1) if prop_total else 0,
+        "prop_dash_ehib":round((pe+ph)/100*CIRC,1) if prop_total else 0,
+        "prop_dash_ehneg":round((pe+ph+pn)/100*CIRC,1) if prop_total else 0,
         "riwayat":rows
     })
 
@@ -1142,7 +1190,7 @@ def riwayat_detail():
     nama = request.args.get('nama', '')
     kat  = request.args.get('kat',  'all')
     page = max(1, int(request.args.get('page', 1)))
-    per  = 20
+    per  = 30
 
     conds, args = [], []
     if nama:
@@ -1150,6 +1198,7 @@ def riwayat_detail():
     if   kat == 'edukasi': conds.append("l.kategori = 'edukasi'")
     elif kat == 'hiburan': conds.append("l.kategori = 'hiburan'")
     elif kat == 'negatif': conds.append("l.aksi = 'blokir'")
+    elif kat == 'netral':  conds.append("l.kategori = 'netral'")
 
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     total = query(
@@ -1167,11 +1216,26 @@ def riwayat_detail():
     devs  = query("SELECT nama FROM pengguna_anak WHERE admin_id=%s ORDER BY nama",
                   (current_admin_id(),)) or []
 
+    # Hitung total per kategori — tidak dipengaruhi filter kat, hanya filter nama
+    nama_conds = ["COALESCE(p.nama, l.perangkat_nama) = %s"] if nama else []
+    nama_where = ("WHERE " + " AND ".join(nama_conds)) if nama_conds else ""
+    nama_args  = [nama] if nama else []
+    kat_rows = query(
+        f"SELECT l.kategori, COUNT(*) AS n FROM log_akses l "
+        f"LEFT JOIN pengguna_anak p ON p.user_id = l.user_id "
+        f"{nama_where} GROUP BY l.kategori",
+        nama_args) or []
+    kat_counts = {r['kategori']: r['n'] for r in kat_rows}
+
     return render_template('riwayat_detail.html',
         riwayat=items, total=total, page=page,
         per=per, kat=kat, nama=nama,
         total_pages=max(1, math.ceil(total / per)),
-        perangkat_list=list(devs))
+        perangkat_list=list(devs),
+        stat_edu=kat_counts.get('edukasi', 0),
+        stat_hib=kat_counts.get('hiburan', 0),
+        stat_neg=kat_counts.get('negatif', 0),
+        stat_net=kat_counts.get('netral',  0))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # JADWAL — konfigurasi reward + JADWAL_BLOKIR (per anak, per hari, jam)
@@ -1365,6 +1429,44 @@ def jadwal_blokir_hapus_grup():
     js   = rows[0]['js']
     flash(f'Jadwal {jm}–{js} untuk {nama} dihapus ({n} hari).', 'success')
     return redirect(url_for('jadwal'))
+
+
+@app.route('/api/jadwal/toggle-mode', methods=['POST'])
+@login_required
+def jadwal_toggle_mode():
+    """Toggle mode jadwal grup: blokir ↔ izinkan (tanpa reload halaman)."""
+    data = request.get_json(silent=True) or {}
+    raw_ids = data.get('ids', [])
+    try:
+        ids = [int(x) for x in raw_ids if str(x).strip().isdigit()]
+    except Exception:
+        ids = []
+    if not ids:
+        return jsonify({'status': 'error', 'msg': 'IDs tidak valid'})
+
+    placeholders = ','.join(['%s'] * len(ids))
+    rows = query(
+        f"SELECT j.jadwal_id, j.mode "
+        f"FROM jadwal_blokir j "
+        f"JOIN pengguna_anak p ON p.user_id = j.user_id "
+        f"WHERE j.jadwal_id IN ({placeholders}) AND p.admin_id=%s",
+        ids + [current_admin_id()]
+    ) or []
+
+    if not rows:
+        return jsonify({'status': 'error', 'msg': 'Jadwal tidak ditemukan atau bukan milik Anda'})
+
+    # Ambil mode saat ini dari baris pertama, lalu flip
+    current_mode = rows[0]['mode']
+    new_mode = 'izinkan' if current_mode == 'blokir' else 'blokir'
+
+    owned_ids = [r['jadwal_id'] for r in rows]
+    ph2 = ','.join(['%s'] * len(owned_ids))
+    query(f"UPDATE jadwal_blokir SET mode=%s WHERE jadwal_id IN ({ph2})",
+          [new_mode] + owned_ids)
+
+    return jsonify({'status': 'ok', 'new_mode': new_mode})
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # ATURAN FILTER  (whitelist + blacklist digabung di tabel daftar_filter)
@@ -1725,6 +1827,47 @@ def _jadwal_blokir_aktif(user_id, now=None):
             if jam >= m or jam < s: return True  # lewat tengah malam (22:00-05:00)
     return False
 
+# ── Cache DHCP clients dari router (di-update via POST /api/dhcp-clients) ──
+_dhcp_clients_cache: list = []
+_dhcp_clients_ts: float   = 0.0
+
+@app.route('/api/dhcp-clients', methods=['POST'])
+def api_dhcp_clients_push():
+    """Router push DHCP client list ke sini setiap beberapa menit."""
+    global _dhcp_clients_cache, _dhcp_clients_ts
+    data = request.get_json(silent=True)
+    if not data or 'clients' not in data:
+        return jsonify({'status': 'error'}), 400
+    import time as _time
+    _dhcp_clients_cache = data['clients']
+    _dhcp_clients_ts    = _time.time()
+    return jsonify({'status': 'ok', 'n': len(_dhcp_clients_cache)})
+
+@app.route('/api/dhcp-clients')
+@login_required
+def api_dhcp_clients_get():
+    """Dashboard ambil daftar perangkat yang terdeteksi di router.
+    Sertakan flag 'registered' jika MAC sudah terdaftar di pengguna_anak."""
+    import time as _time
+    # Ambil MAC yang sudah terdaftar
+    registered = set()
+    rows = query("SELECT UPPER(mac_address) AS m FROM pengguna_anak") or []
+    for r in rows:
+        if r.get('m'):
+            registered.add(r['m'])
+    result = []
+    for c in _dhcp_clients_cache:
+        mac = (c.get('mac') or '').upper()
+        result.append({
+            'mac':        mac,
+            'ip':         c.get('ip', ''),
+            'hostname':   c.get('hostname', ''),
+            'registered': mac in registered,
+        })
+    result.sort(key=lambda x: (x['registered'], x.get('hostname', '') or x.get('ip', '')))
+    freshness = int(_time.time() - _dhcp_clients_ts) if _dhcp_clients_ts else -1
+    return jsonify({'clients': result, 'freshness_detik': freshness})
+
 @app.route('/api/perangkat')
 def api_perangkat():
     reset_kuota_jika_hari_baru()
@@ -1762,56 +1905,80 @@ def api_log():
 
     mac        = (data.get('mac') or '').upper()
     kat        = data.get('kategori', 'netral')
-    # 'netral' = domain infrastruktur aman (CDN, sertifikat, OS update)
-    # 'unknown' diterima sbg alias lama → dipetakan ke 'netral'
     if kat not in ('edukasi','hiburan','negatif','netral'): kat = 'netral'
     if kat == 'unknown': kat = 'netral'
     status     = data.get('status', 'diizinkan')
     aksi       = 'blokir' if status == 'diblokir' else 'izinkan'
-    domain     = (data.get('domain') or '').strip().lower()
+    alasan_raw = data.get('alasan', '')
     perangkat  = data.get('perangkat', '')
     confidence = float(data.get('confidence', 0) or 0)
     traffic    = float(data.get('traffic_kbps', 0) or 0)
+
+    # ── 1. Skip domain infrastruktur (CDN, sertifikat, telemetri) ─────────────
+    # Router menandai domain ini dengan alasan='infrastruktur'. Tidak perlu
+    # dicatat — hanya akan memenuhi riwayat dengan noise teknis.
+    if alasan_raw == 'infrastruktur':
+        return jsonify({"status": "ok", "skip": "infra"})
+
+    # ── 2. Normalisasi subdomain → root domain ─────────────────────────────────
+    # tip.wetv.com, api.wetv.com, info.wetv.com → semua jadi wetv.com
+    domain = root_domain((data.get('domain') or '').strip().lower())
+    if not domain:
+        return jsonify({"status": "ok", "skip": "no_domain"})
 
     dev = query("SELECT user_id, nama FROM pengguna_anak WHERE UPPER(mac_address)=%s",
                 (mac,), one=True) if mac else None
     user_id = dev['user_id'] if dev else None
     if dev and not perangkat: perangkat = dev['nama']
 
-    # Upsert cache_domain
-    if domain:
-        query(
-            "INSERT INTO cache_domain (domain_url, kategori, confidence_score, jumlah_hit) "
-            "VALUES (%s, %s, %s, 1) "
-            "ON DUPLICATE KEY UPDATE "
-            "  kategori = VALUES(kategori), "
-            "  confidence_score = VALUES(confidence_score), "
-            "  terakhir_diakses = CURRENT_TIMESTAMP, "
-            "  jumlah_hit = jumlah_hit + 1",
-            (domain, kat, confidence))
+    # ── 3. Upsert cache_domain (knowledge base AI) ─────────────────────────────
+    query(
+        "INSERT INTO cache_domain (domain_url, kategori, confidence_score, jumlah_hit) "
+        "VALUES (%s, %s, %s, 1) "
+        "ON DUPLICATE KEY UPDATE "
+        "  kategori         = VALUES(kategori), "
+        "  confidence_score = VALUES(confidence_score), "
+        "  terakhir_diakses = CURRENT_TIMESTAMP, "
+        "  jumlah_hit       = jumlah_hit + 1",
+        (domain, kat, confidence))
 
-    # Insert log_akses
+    # ── 4. Dedup log_akses: skip jika domain sama sudah dicatat dalam 5 menit ──
+    # Mencegah puluhan entri wetv.com tiap sesi — kecuali aksi blokir yang
+    # selalu dicatat agar orang tua tahu percobaan akses negatif.
+    if aksi != 'blokir' and user_id:
+        recent = query(
+            "SELECT 1 FROM log_akses "
+            "WHERE user_id=%s AND domain_url=%s "
+            "  AND waktu_akses > DATE_SUB(NOW(), INTERVAL 5 MINUTE) LIMIT 1",
+            (user_id, domain), one=True)
+        if recent:
+            # Update last_seen saja, tidak tambah baris baru
+            query("UPDATE pengguna_anak SET status_aktif=1, last_seen=NOW() "
+                  "WHERE user_id=%s", (user_id,))
+            return jsonify({"status": "ok", "dedup": True})
+
+    # ── 5. Insert log_akses ────────────────────────────────────────────────────
     query(
         "INSERT INTO log_akses "
         "(user_id, domain_url, kategori, aksi, alasan, confidence, traffic_kbps, "
         " perangkat_nama, mac, waktu_akses) "
         "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s, NOW())",
-        (user_id, domain or None, kat, aksi,
-         data.get('alasan',''), confidence, traffic,
+        (user_id, domain, kat, aksi,
+         alasan_raw, confidence, traffic,
          perangkat, mac))
 
-    # Heartbeat implisit
+    # ── 6. Heartbeat implisit ─────────────────────────────────────────────────
     if mac and dev:
         query("UPDATE pengguna_anak SET status_aktif=1, last_seen=NOW() "
               "WHERE user_id=%s", (user_id,))
 
-    # Notif Telegram jika diblokir karena negatif
+    # ── 7. Notif Telegram jika diblokir karena negatif ────────────────────────
     if aksi == 'blokir' and kat == 'negatif':
         notif_telegram('blokir',
-                       domain=domain, alasan=data.get('alasan',''),
+                       domain=domain, alasan=alasan_raw,
                        kategori=kat, perangkat=perangkat,
                        confidence=confidence)
-    return jsonify({"status":"ok"})
+    return jsonify({"status": "ok"})
 
 @app.route('/api/kuota-update', methods=['POST'])
 def api_kuota_update():

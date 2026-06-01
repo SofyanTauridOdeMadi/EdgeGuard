@@ -1,40 +1,82 @@
 /* ═══════════════════════════════════════════════════════════════════════
-   TABLET (≥ 640px) — sedikit lebih lega
+   SVG ICON — sizing global untuk semua halaman
+   ═══════════════════════════════════════════════════════════════════════ */
+.ni-ic svg          { width:22px;height:22px;display:block }
+.back svg           { width:18px;height:18px }
+.inp-wrap .ic       { display:flex;align-items:center;flex-shrink:0 }
+.inp-wrap .ic svg   { width:18px;height:18px }
+.eye svg            { display:block }
+.stat-emoji svg     { display:block;margin:0 auto }
+.row-ic svg         { display:block }
+.act-ic svg         { display:block }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   TABLET (≥ 640px) — topbar full-width, konten di-center
    ═══════════════════════════════════════════════════════════════════════ */
 @media (min-width: 640px) {
+  /* Body tidak dibatasi lagi — biarkan topbar melebar penuh */
   body {
-    max-width: 640px !important;
-    background: #F1F5F9 !important;
+    max-width: 100% !important;
+    background: #E0EAFF !important;
   }
-  .topbar { max-width: 640px; }
-  .bnav   { max-width: 640px !important; }
-  .page   { padding: 18px 18px 110px !important; }
+
+  /* Topbar melebar penuh ke viewport, padding menyesuaikan */
+  .topbar {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: max(24px, calc((100vw - 680px) / 2 + 18px)) !important;
+    padding-right: max(24px, calc((100vw - 680px) / 2 + 18px)) !important;
+  }
+
+  /* Konten tetap di tengah ≤ 680px */
+  .page {
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 20px 20px 110px !important;
+  }
+
+  /* Bottom nav floating pill */
+  .bnav {
+    max-width: 600px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   DESKTOP (≥ 1024px) — container lebar, multi-kolom untuk list
+   DESKTOP (≥ 1024px) — multi-kolom, topbar masih full-width
    ═══════════════════════════════════════════════════════════════════════ */
 @media (min-width: 1024px) {
 
   body {
-    max-width: 1024px !important;
-    margin: 0 auto !important;
-    padding-bottom: 24px;
+    max-width: 100% !important;
+    background: #DBEAFE !important;
   }
-  .topbar { max-width: 1024px; }
-  .page   { padding: 24px 28px 110px !important; }
+
+  .topbar {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: max(32px, calc((100vw - 1000px) / 2 + 24px)) !important;
+    padding-right: max(32px, calc((100vw - 1000px) / 2 + 24px)) !important;
+  }
+
+  .page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 24px 32px 110px !important;
+  }
 
   /* Bayangan & radius card lebih halus untuk layar besar */
   .card, .dev-card, .domain-item, .kat-card, .ai-card {
     border-radius: 16px;
   }
 
-  /* ─── KELOLA PERANGKAT: CSS Grid 2-3 kolom, no kosong di samping ─ */
+  /* ─── KELOLA PERANGKAT: CSS Grid 2-3 kolom ─ */
   body[data-page="kelola"] .page {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    column-gap: 12px;
-    row-gap: 10px;
+    column-gap: 14px;
+    row-gap: 12px;
     align-items: start;
   }
   body[data-page="kelola"] .page > .flash,
@@ -69,52 +111,48 @@
     grid-column: 1 / -1;
   }
 
-  /* ─── RIWAYAT: kolom item lebih luas, font sedikit lebih besar ── */
+  /* ─── RIWAYAT: kolom item lebih luas ── */
   body[data-page="riwayat"] .act-item {
     padding: 12px 16px;
   }
 
-  /* ─── Bottom Nav: bentuk floating pill yang centered ─────────── */
+  /* ─── Bottom Nav: floating pill ─────────── */
   .bnav {
     position: fixed !important;
-    bottom: 18px !important;
+    bottom: 20px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
     width: auto !important;
-    min-width: 360px;
+    min-width: 380px;
     max-width: none !important;
-    border-radius: 18px !important;
+    border-radius: 20px !important;
     border-top: none !important;
-    box-shadow: 0 8px 30px rgba(15,23,42,.18);
-    padding: 6px 8px env(safe-area-inset-bottom,8px) !important;
+    box-shadow: 0 8px 30px rgba(15,23,42,.20);
+    padding: 8px 10px env(safe-area-inset-bottom,8px) !important;
     column-gap: 6px;
   }
   .ni {
-    padding: 8px 22px !important;
+    padding: 8px 24px !important;
     border-radius: 12px;
     transition: background .15s, color .15s;
   }
-  .ni:hover   { background: #F1F5F9; }
-  .ni.active  { background: #EFF6FF; }
+  .ni:hover   { background: #EFF6FF; }
+  .ni.active  { background: #DBEAFE; }
 
-  /* ─── Sheet (Tambah Waktu, Device detail) ────────────────────── */
+  /* ─── Sheet / modal ────────────────────── */
   .sheet {
-    max-width: 480px !important;
+    max-width: 500px !important;
     border-radius: 24px !important;
     box-shadow: 0 24px 60px rgba(15,23,42,.25);
   }
-
-  /* Toast tetap di top-center (CSS dasar sudah cukup) */
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   LAYAR LEBAR (≥ 1400px) — kasih nafas ekstra
+   LAYAR LEBAR (≥ 1400px)
    ═══════════════════════════════════════════════════════════════════════ */
 @media (min-width: 1400px) {
-  body    { max-width: 1200px !important; }
-  .topbar { max-width: 1200px; }
+  .page { max-width: 1100px; }
 
-  /* Kelola perangkat: 3 kolom di layar lebar */
   body[data-page="kelola"] .page {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }

@@ -137,7 +137,7 @@ python3 api_dashboard.py
 
 ## 📈 Status Proyek
 
-> **v5.3-Beta** — Tahap penyusunan hasil & Perbaikan AI.
+> **v5.7-Beta** —  Optimalkan Website & Perbaikan AI.
 
 ---
 

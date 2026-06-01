@@ -23,12 +23,11 @@ from config import CLOUD_URL, HEARTBEAT, HTTP_TIMEOUT, DEBUG
 
 
 def baca_arp():
-    """Return list of (ip, mac_upper) dari /proc/net/arp.
-    Skip MAC 00:00:00:00:00:00 dan IP yang tidak resolved."""
+    """Return list of (ip, mac_upper) dari /proc/net/arp."""
     out = []
     try:
         with open('/proc/net/arp') as f:
-            lines = f.read().strip().split('\n')[1:]   # skip header
+            lines = f.read().strip().split('\n')[1:]
         for line in lines:
             parts = line.split()
             if len(parts) < 4:
@@ -36,12 +35,10 @@ def baca_arp():
             ip   = parts[0]
             mac  = parts[3].upper()
             flag = parts[2]
-            # flag 0x0 = invalid/incomplete; hanya ambil yg 0x2 (resolved)
             if mac in ('00:00:00:00:00:00', '') or flag == '0x0':
                 continue
             out.append((ip, mac))
     except FileNotFoundError:
-        # Bukan di OpenWrt — coba `arp -n` (untuk dev di Mac/Linux)
         try:
             import subprocess
             res = subprocess.check_output(['arp', '-n'], timeout=2, text=True)
@@ -54,6 +51,28 @@ def baca_arp():
     except Exception as e:
         if DEBUG: print(f"[Heartbeat] baca_arp error: {e}")
     return out
+
+
+def baca_dhcp_clients():
+    """Baca /tmp/dhcp.leases → list device {mac, ip, hostname}.
+    Hanya menggunakan DHCP leases agar tidak ikut membaca perangkat
+    dari jaringan upstream (mesh/ISP) yang muncul di ARP table.
+    Format lease: <expiry> <mac> <ip> <hostname> <clientid>"""
+    clients = {}
+    try:
+        with open('/tmp/dhcp.leases') as f:
+            for line in f:
+                p = line.strip().split()
+                if len(p) < 4:
+                    continue
+                mac      = p[1].upper()
+                ip       = p[2]
+                hostname = p[3] if p[3] != '*' else ''
+                if mac and mac != '00:00:00:00:00:00':
+                    clients[mac] = {'mac': mac, 'ip': ip, 'hostname': hostname}
+    except Exception:
+        pass
+    return list(clients.values())
 
 
 def kirim(mac: str, ip: str = '') -> bool:
@@ -76,14 +95,40 @@ def kirim(mac: str, ip: str = '') -> bool:
         return False
 
 
+def kirim_dhcp_clients(clients: list) -> bool:
+    """POST /api/dhcp-clients — kirim semua client DHCP sekaligus ke VPS."""
+    if not clients:
+        return True
+    try:
+        payload = json.dumps({'clients': clients}).encode()
+        req = urllib.request.Request(
+            CLOUD_URL + '/api/dhcp-clients',
+            data=payload,
+            headers={'Content-Type': 'application/json'},
+            method='POST'
+        )
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+            return json.loads(r.read().decode()).get('status') == 'ok'
+    except Exception as e:
+        if DEBUG: print(f"[Heartbeat] kirim_dhcp error: {e}")
+        return False
+
+
 def loop():
     print(f"[Heartbeat] Mulai, interval={HEARTBEAT}d → {CLOUD_URL}")
+    _tick = 0
     while True:
         try:
             macs = baca_arp()
-            sent  = sum(1 for ip, mac in macs if kirim(mac, ip))
-            ts = datetime.now().strftime('%H:%M:%S')
+            sent = sum(1 for ip, mac in macs if kirim(mac, ip))
+            ts   = datetime.now().strftime('%H:%M:%S')
             print(f"[Heartbeat {ts}] {sent}/{len(macs)} MAC dikirim")
+            # Kirim DHCP clients setiap 3 tick (± 3 menit) agar tidak terlalu sering
+            _tick += 1
+            if _tick % 3 == 1:
+                clients = baca_dhcp_clients()
+                kirim_dhcp_clients(clients)
+                if DEBUG: print(f"[Heartbeat] DHCP clients: {len(clients)} dikirim")
         except Exception as e:
             print(f"[Heartbeat] loop error: {e}")
         time.sleep(HEARTBEAT)

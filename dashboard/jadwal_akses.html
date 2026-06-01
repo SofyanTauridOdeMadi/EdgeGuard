@@ -4,71 +4,90 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Edge Guard — Penjadwalan</title>
+<link rel="icon" type="image/png" href="/aset/logo.png">
+<link rel="apple-touch-icon" href="/aset/icon.png">
 <link rel="stylesheet" href="/aset/responsive.css">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#F9FAFB;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
-.topbar{background:#fff;padding:14px 18px;display:flex;align-items:center;gap:14px;border-bottom:1px solid #E5E7EB;position:sticky;top:0;z-index:10}
-.back{background:none;border:none;font-size:22px;cursor:pointer;padding:0;line-height:1;color:#111827}
-.topbar h1{font-size:17px;font-weight:600}
-.page{padding:14px 14px 100px}
-.flash{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:10px;line-height:1.5}
-.flash-success{background:#F0FDF4;color:#15803D}
-.flash-error  {background:#FEF2F2;color:#EF4444}
-.flash-info   {background:#EFF6FF;color:#1D4ED8}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;background:#EFF6FF;color:#111827;max-width:430px;margin:0 auto;min-height:100vh}
 
-/* ── Banner info ── */
-.info-banner{background:#EFF6FF;border:1px solid #BFDBFE;border-radius:14px;padding:13px 15px;margin-bottom:16px;display:flex;gap:10px;align-items:flex-start}
-.info-banner p{font-size:13px;color:#374151;line-height:1.55}
-.info-banner u{color:#2563EB;font-weight:600;text-decoration:none}
+/* ── Topbar ── */
+.topbar{background:#2563EB;padding:14px 18px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:10;box-shadow:0 2px 12px rgba(37,99,235,.25)}
+.back{background:rgba(255,255,255,.15);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;padding:7px;border-radius:10px;line-height:1;color:#fff;transition:background .15s}
+.back:hover{background:rgba(255,255,255,.25)}
+.topbar h1{font-size:17px;font-weight:700;color:#fff}
 
-.sec-lbl{font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin:18px 2px 8px;display:flex;align-items:center;justify-content:space-between}
-.sec-lbl .add-btn{background:#2563EB;color:#fff;border:none;border-radius:10px;padding:7px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0;text-decoration:none}
+.page{padding:16px 14px 100px}
+.flash{padding:12px 14px;border-radius:12px;font-size:13px;margin-bottom:12px;font-weight:500}
+.flash-success{background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0}
+.flash-error  {background:#FEF2F2;color:#EF4444;border:1px solid #FECACA}
+.flash-info   {background:#EFF6FF;color:#1D4ED8;border:1px solid #BFDBFE}
+
+/* ── Banner reward intro ── */
+.info-banner{background:linear-gradient(135deg,#1D4ED8 0%,#2563EB 60%,#3B82F6 100%);border-radius:18px;padding:18px 18px;margin-bottom:18px;display:flex;gap:12px;align-items:flex-start;box-shadow:0 4px 16px rgba(37,99,235,.30)}
+.info-banner-ic{width:44px;height:44px;background:rgba(255,255,255,.2);border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:#fff}
+.info-banner p{font-size:13.5px;color:#fff;line-height:1.6;font-weight:500}
+.info-banner u{color:#229ED9;font-weight:700;text-decoration:none}
+
+/* ── Section label ── */
+.sec-lbl{font-size:11px;font-weight:700;color:#1E3A8A;text-transform:uppercase;letter-spacing:.08em;margin:20px 2px 10px;display:flex;align-items:center;justify-content:space-between}
+.sec-lbl .add-btn{background:#2563EB;color:#fff;border:none;border-radius:10px;padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:5px;text-transform:none;letter-spacing:0;text-decoration:none;box-shadow:0 2px 6px rgba(37,99,235,.25);transition:opacity .15s}
 .sec-lbl .add-btn:hover{opacity:.9}
 
-/* ── Card umum (reward config) ── */
-.card{background:#fff;border-radius:14px;padding:16px 18px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
-.card-title{font-size:14px;font-weight:600;margin-bottom:14px}
+/* ── Reward cards ── */
+.card{background:#fff;border-radius:18px;padding:18px;margin-bottom:12px;box-shadow:0 2px 10px rgba(37,99,235,.08);border:1px solid #E0EAFF}
+.card-header{display:flex;align-items:center;gap:12px;margin-bottom:16px}
+.card-ic{width:44px;height:44px;border-radius:14px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.card-ic.blue{background:#EFF6FF;color:#2563EB}
+.card-ic.amber{background:#FFFBEB;color:#D97706}
+.card-ic.gray{background:#F3F4F6;color:#6B7280}
+.card-title{font-size:15px;font-weight:700;color:#111827}
+.card-title-sub{font-size:12px;color:#6B7280;margin-top:2px}
 
-.ctr{display:flex;align-items:center;gap:10px}
-.ctr-btn{width:40px;height:40px;border-radius:10px;background:#EFF6FF;border:none;cursor:pointer;font-size:26px;color:#2563EB;display:flex;align-items:center;justify-content:center;line-height:1;font-family:inherit;transition:background .12s}
-.ctr-btn:hover{background:#BFDBFE}
-.ctr-val{font-size:26px;font-weight:700;flex:1;text-align:center}
-.ctr-unit{font-size:13px;color:#9CA3AF}
+/* ── Compact counter (inline dalam card header) ── */
+.reward-row{display:flex;align-items:center;gap:12px}
+.ctr-mini{display:flex;align-items:center;gap:6px;flex-shrink:0}
+.ctr-mini-btn{width:32px;height:32px;border-radius:9px;background:#EFF6FF;border:none;cursor:pointer;font-size:20px;font-weight:300;color:#2563EB;display:flex;align-items:center;justify-content:center;transition:all .15s;font-family:inherit;line-height:1}
+.ctr-mini-btn:hover{background:#DBEAFE;transform:scale(1.06)}
+.ctr-mini-btn:active{transform:scale(.96)}
+.ctr-mini-center{text-align:center;min-width:52px;background:#F0F7FF;border-radius:10px;padding:6px 8px;border:1.5px solid #BFDBFE}
+.ctr-mini-val{font-size:22px;font-weight:800;color:#2563EB;line-height:1;display:block}
+.ctr-mini-unit{font-size:10px;color:#9CA3AF;margin-top:2px;display:block;font-weight:500}
 
-.sl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
-.sl-head h4{font-size:14px;font-weight:600}
-.sl-val{font-size:13px;font-weight:600;color:#2563EB}
-input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer}
-.sl-labs{display:flex;justify-content:space-between;font-size:11px;color:#9CA3AF;margin-top:5px}
+/* Slider */
+.sl-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sl-head h4{font-size:14px;font-weight:600;color:#111827}
+.sl-val{font-size:13px;font-weight:700;color:#2563EB;background:#EFF6FF;padding:3px 10px;border-radius:8px}
+input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer;height:4px}
+.sl-labs{display:flex;justify-content:space-between;font-size:11px;color:#9CA3AF;margin-top:8px}
 
-.btn-save{width:100%;padding:14px;background:#2563EB;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;transition:opacity .15s}
-.btn-save:hover{opacity:.88}
+/* Save button */
+.btn-save{width:100%;padding:16px;background:linear-gradient(135deg,#1D4ED8,#2563EB);color:#fff;border:none;border-radius:16px;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;transition:opacity .15s,transform .1s;box-shadow:0 4px 16px rgba(37,99,235,.30)}
+.btn-save:hover{opacity:.92}
+.btn-save:active{transform:scale(.99)}
 
-/* ─────────────────────────────────────────────────────────
-   JADWAL ISTIRAHAT — flat list compact, no group cards
-   ───────────────────────────────────────────────────────── */
-.jad-list{background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.07);overflow:hidden}
-.jad-row{padding:11px 14px;border-bottom:1px solid #F3F4F6;display:flex;align-items:center;gap:10px}
+/* ── Jadwal list ── */
+.jad-list{background:#fff;border-radius:18px;box-shadow:0 2px 10px rgba(37,99,235,.08);border:1px solid #E0EAFF;overflow:hidden}
+.jad-row{padding:14px 16px;border-bottom:1px solid #F0F5FF;display:flex;align-items:center;gap:12px}
 .jad-row:last-child{border-bottom:none}
-.jad-ic{width:36px;height:36px;border-radius:10px;background:#F3F4F6;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.jad-ic{width:44px;height:44px;border-radius:12px;background:#EFF6FF;color:#2563EB;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px}
 .jad-body{flex:1;min-width:0}
-.jad-line1{display:flex;align-items:center;gap:8px;font-size:13.5px;line-height:1.3;flex-wrap:wrap}
+.jad-line1{display:flex;align-items:center;gap:8px;font-size:14px;line-height:1.3;flex-wrap:wrap}
 .jad-line1 .nama{font-weight:700;color:#111827}
 .jad-line1 .sep{color:#D1D5DB}
-.jad-line1 .jam{font-family:'SF Mono','Menlo',monospace;font-weight:700;color:#111827}
-.jad-line2{margin-top:5px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-.h-pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;background:#F3F4F6;color:#4B5563;letter-spacing:.04em;font-family:'SF Mono','Menlo',monospace}
-.h-pill.act{background:#EFF6FF;color:#2563EB}
-.jad-mode{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0}
-.jad-mode.blokir{background:#FEF2F2;color:#B91C1C}
-.jad-mode.izinkan{background:#DCFCE7;color:#15803D}
-.del-btn{background:none;border:none;color:#D1D5DB;cursor:pointer;font-size:16px;padding:5px 6px;line-height:1;transition:color .15s;flex-shrink:0;border-radius:6px}
+.jad-line1 .jam{font-family:'SF Mono','Menlo',monospace;font-weight:700;color:#2563EB;font-size:13px}
+.jad-line2{margin-top:6px;display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+.h-pill{font-size:10px;font-weight:700;padding:3px 7px;border-radius:7px;background:#F3F4F6;color:#6B7280;letter-spacing:.03em;font-family:'SF Mono','Menlo',monospace}
+.h-pill.act{background:#DBEAFE;color:#1D4ED8}
+.jad-mode{font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;text-transform:uppercase;letter-spacing:.04em;flex-shrink:0;display:flex;align-items:center;gap:4px}
+.jad-mode.blokir{background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA}
+.jad-mode.izinkan{background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0}
+.del-btn{background:none;border:none;color:#D1D5DB;cursor:pointer;padding:7px;transition:all .15s;flex-shrink:0;border-radius:8px;display:flex;align-items:center}
 .del-btn:hover{color:#EF4444;background:#FEF2F2}
 
 /* Empty state */
-.empty-jad{text-align:center;padding:36px 14px;color:#9CA3AF;font-size:13px;line-height:1.6;background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.07)}
-.empty-jad .ei{font-size:42px;margin-bottom:10px;display:block}
+.empty-jad{text-align:center;padding:40px 16px;color:#9CA3AF;font-size:13px;line-height:1.7;background:#fff;border-radius:18px;border:1.5px dashed #BFDBFE}
+.empty-jad .ei{display:flex;align-items:center;justify-content:center;margin-bottom:12px}
 
 /* ─────────────────────────────────────────────────────────
    MODAL Tambah Jadwal
@@ -114,17 +133,29 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer}
   .overlay.show .sheet{transform:translateY(0) scale(1)}
 }
 
+
+/* Card header inline */
+.card-header-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.card-header-row .card-ic{flex-shrink:0}
+.card-header-row .card-title{font-size:15px;font-weight:700;color:#111827}
+.card-header-row .card-title-sub{font-size:12px;color:#6B7280;margin-top:1px}
+/* Banner */
+.info-banner{padding:14px 16px;margin-bottom:12px}
+.info-banner-ic{width:36px;height:36px;border-radius:10px}
+/* Section label */
+.sec-lbl{margin:14px 2px 8px}
+
 /* ── Bottom Nav ── */
 .bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 env(safe-area-inset-bottom,10px);z-index:20}
 .ni{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;color:#9CA3AF;text-decoration:none}
 .ni.active{color:#2563EB}
-.ni-ic{font-size:22px}.ni-lbl{font-size:11px;font-weight:500}
+.ni-ic{display:flex;align-items:center;justify-content:center}.ni-lbl{font-size:11px;font-weight:500}
 </style>
 </head>
 <body data-page="jadwal">
 
 <div class="topbar">
-  <a href="/" class="back">←</a>
+  <a href="/" class="back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg></a>
   <h1>Penjadwalan</h1>
 </div>
 
@@ -135,56 +166,88 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer}
   {% endwith %}
 
   <div class="info-banner">
-    <span style="font-size:16px;flex-shrink:0;margin-top:1px">✨</span>
-    <p>Setiap <u id="lb">{{cfg.durasi_belajar_menit}}</u> menit akses edukasi
-    memberikan bonus <u id="lbo">{{cfg.waktu_bonus_menit}}</u> menit waktu hiburan.</p>
+    <span class="info-banner-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L9.5 8.5 3 11l6.5 2.5L12 20l2.5-6.5L21 11l-6.5-2.5z"/></svg></span>
+    <div>
+      <p style="font-weight:700;font-size:14px;margin-bottom:4px;color:#fff">Sistem Reward</p>
+      <p style="font-size:13px">Setiap <u id="lb">{{cfg.durasi_belajar_menit}}</u> menit belajar,
+      anak dapat bonus <u id="lbo">{{cfg.waktu_bonus_menit}}</u> menit hiburan.</p>
+    </div>
   </div>
 
   <!-- ════════ Konfigurasi Reward ════════ -->
   <form method="POST" action="/jadwal">
     <p class="sec-lbl"><span>Konfigurasi Reward</span></p>
 
-    <div class="card">
-      <div class="card-title">📖 Durasi Belajar</div>
-      <div class="ctr">
-        <button type="button" class="ctr-btn" onclick="adj('b',-5)">−</button>
-        <span class="ctr-val" id="vb">{{cfg.durasi_belajar_menit}}</span>
-        <span class="ctr-unit">menit</span>
-        <button type="button" class="ctr-btn" onclick="adj('b',5)">+</button>
+    <!-- Card 1: Durasi Belajar -->
+    <div class="card" style="padding:14px 16px">
+      <div class="reward-row">
+        <div class="card-ic blue" style="flex-shrink:0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="card-title">Durasi Belajar</div>
+          <div class="card-title-sub">Waktu belajar sebelum dapat bonus</div>
+        </div>
+        <div class="ctr-mini">
+          <button type="button" class="ctr-mini-btn" onclick="adj('b',-5)">−</button>
+          <div class="ctr-mini-center">
+            <span class="ctr-mini-val" id="vb">{{cfg.durasi_belajar_menit}}</span>
+            <span class="ctr-mini-unit">Menit</span>
+          </div>
+          <button type="button" class="ctr-mini-btn" onclick="adj('b',5)">+</button>
+        </div>
       </div>
       <input type="hidden" name="durasi_belajar" id="ib" value="{{cfg.durasi_belajar_menit}}">
     </div>
 
-    <div class="card">
-      <div class="card-title">🎮 Waktu Bonus</div>
-      <div class="ctr">
-        <button type="button" class="ctr-btn" onclick="adj('o',-5)">−</button>
-        <span class="ctr-val" id="vo">{{cfg.waktu_bonus_menit}}</span>
-        <span class="ctr-unit">menit</span>
-        <button type="button" class="ctr-btn" onclick="adj('o',5)">+</button>
+    <!-- Card 2: Waktu Bonus -->
+    <div class="card" style="padding:14px 16px">
+      <div class="reward-row">
+        <div class="card-ic amber" style="flex-shrink:0">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="11" x2="15" y2="11" stroke-width="3"/><line x1="17" y1="13" x2="17" y2="13" stroke-width="3"/><rect x="2" y="8" width="20" height="10" rx="5"/></svg>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div class="card-title">Waktu Bonus Hiburan</div>
+          <div class="card-title-sub">Bonus per sesi belajar selesai</div>
+        </div>
+        <div class="ctr-mini">
+          <button type="button" class="ctr-mini-btn" onclick="adj('o',-5)">−</button>
+          <div class="ctr-mini-center">
+            <span class="ctr-mini-val" id="vo">{{cfg.waktu_bonus_menit}}</span>
+            <span class="ctr-mini-unit">Menit</span>
+          </div>
+          <button type="button" class="ctr-mini-btn" onclick="adj('o',5)">+</button>
+        </div>
       </div>
       <input type="hidden" name="waktu_bonus" id="io" value="{{cfg.waktu_bonus_menit}}">
     </div>
 
+    <!-- Card 3: Batas Bonus Harian -->
     <div class="card">
       <div class="sl-head">
-        <h4>⏱ Batas Bonus Harian</h4>
-        <span class="sl-val" id="sv">{{cfg.batas_bonus_harian_menit}} mnt maks</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="card-ic gray">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6"/><path d="m22 6-3-3"/></svg>
+          </div>
+          <div>
+            <div class="card-title">Batas Bonus Harian</div>
+            <div class="card-title-sub">Maksimum bonus hiburan per hari</div>
+          </div>
+        </div>
+        <span class="sl-val" id="sv">{{cfg.batas_bonus_harian_menit}} menit</span>
       </div>
       <input type="range" name="batas_bonus" min="10" max="120" step="5"
              value="{{cfg.batas_bonus_harian_menit}}"
-             oninput="document.getElementById('sv').textContent=this.value+' mnt maks'">
-      <div class="sl-labs">
-        <span>0m</span><span>30m</span><span>1j</span><span>1.5j</span><span>2j</span>
-      </div>
+             oninput="document.getElementById('sv').textContent=this.value+' menit'">
+      <div class="sl-labs"><span>10m</span><span>30m</span><span>1j</span><span>1.5j</span><span>2j</span></div>
     </div>
 
-    <button type="submit" class="btn-save">💾 Simpan Konfigurasi Reward</button>
+    <button type="submit" class="btn-save"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Konfigurasi Reward</button>
   </form>
 
   <!-- ════════ Jadwal Istirahat Internet (jadwal_blokir) ════════ -->
   <p class="sec-lbl" style="margin-top:24px">
-    <span>⏰ Jadwal Istirahat Internet</span>
+    <span><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6M22 6l-3-3"/></svg> Jadwal Istirahat Internet</span>
     {% if perangkat_list %}
     <button class="add-btn" onclick="bukaModalJadwal()">+ Tambah</button>
     {% endif %}
@@ -192,7 +255,7 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer}
 
   {% if not perangkat_list %}
   <div class="empty-jad">
-    <span class="ei">📱</span>
+    <span class="ei"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></span>
     <strong style="color:#6B7280">Belum ada perangkat</strong><br>
     <a href="/perangkat/tambah" style="color:#2563EB;font-weight:600">Tambah perangkat anak</a>
     dulu untuk mengatur jadwal.
@@ -200,7 +263,7 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer}
 
   {% elif total_jadwal == 0 %}
   <div class="empty-jad">
-    <span class="ei">⏰</span>
+    <span class="ei"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6M22 6l-3-3"/><line x1="12" y1="1" x2="12" y2="3"/></svg></span>
     <strong style="color:#6B7280">Belum ada jadwal istirahat.</strong><br>
     <span style="font-size:12px">Atur jam-jam saat internet anak otomatis<br>dimatikan
       — misal jam belajar atau jam tidur.</span>
@@ -210,12 +273,12 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer}
   <div class="jad-list">
     {% for g in jadwal_grup %}
     <div class="jad-row">
-      <div class="jad-ic">{{ g.ikon }}</div>
+      <div class="jad-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6M22 6l-3-3"/></svg></div>
       <div class="jad-body">
         <div class="jad-line1">
           <span class="nama">{{ g.nama }}</span>
           <span class="sep">·</span>
-          <span class="jam">{{ g.jam_mulai }} → {{ g.jam_selesai }}</span>
+          <span class="jam">{{ g.jam_mulai }} – {{ g.jam_selesai }}</span>
         </div>
         <div class="jad-line2">
           {# Tampilkan 7 hari, yang aktif berwarna biru #}
@@ -228,14 +291,16 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer}
           {% endfor %}
         </div>
       </div>
-      <span class="jad-mode {{ g.mode }}">
-        {% if g.mode == 'blokir' %}🚫{% else %}✅{% endif %}
+      <span class="jad-mode {{ g.mode }}" title="Klik untuk ganti mode"
+            data-ids="{{ g.ids|join(',') }}" onclick="toggleJadwalMode(this)"
+            style="cursor:pointer;user-select:none">
+        {% if g.mode == 'blokir' %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>{% else %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>{% endif %}
       </span>
       <form method="POST" action="/jadwal/blokir/hapus-grup"
             onsubmit="return confirm('Hapus jadwal {{ g.jam_mulai }}–{{ g.jam_selesai }} untuk {{ g.nama }}?');"
             style="margin:0">
         <input type="hidden" name="ids" value="{{ g.ids|join(',') }}">
-        <button type="submit" class="del-btn" title="Hapus jadwal">🗑</button>
+        <button type="submit" class="del-btn" title="Hapus jadwal"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
       </form>
     </div>
     {% endfor %}
@@ -293,10 +358,10 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer}
       <label>Mode</label>
       <div class="mode-row" id="mode-row">
         <button type="button" class="mode-btn blokir active" data-mode="blokir" onclick="setMode('blokir')">
-          🚫 Matikan
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Matikan
         </button>
         <button type="button" class="mode-btn izinkan" data-mode="izinkan" onclick="setMode('izinkan')">
-          ✅ Izinkan
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Izinkan
         </button>
       </div>
       <input type="hidden" name="mode" id="modeVal" value="blokir">
@@ -304,16 +369,16 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer}
 
     <div class="s-actions">
       <button type="button" class="btn-c cancel" onclick="tutupModalJadwal()">Batal</button>
-      <button type="submit" class="btn-c submit">💾 Simpan</button>
+      <button type="submit" class="btn-c submit"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan</button>
     </div>
   </form>
 </div>
 {% endif %}
 
 <nav class="bnav">
-  <a href="/jadwal" class="ni active"><span class="ni-ic">🕐</span><span class="ni-lbl">Penjadwalan</span></a>
-  <a href="/"       class="ni"><span class="ni-ic">🏠</span><span class="ni-lbl">Beranda</span></a>
-  <a href="/aturan" class="ni"><span class="ni-ic">🛡️</span><span class="ni-lbl">Aturan</span></a>
+  <a href="/jadwal" class="ni active"><span class="ni-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span><span class="ni-lbl">Penjadwalan</span></a>
+  <a href="/"       class="ni"><span class="ni-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span><span class="ni-lbl">Beranda</span></a>
+  <a href="/aturan" class="ni"><span class="ni-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><span class="ni-lbl">Aturan</span></a>
 </nav>
 
 <script>
@@ -350,6 +415,35 @@ function setMode(mode){
   document.getElementById('modeVal').value = mode;
   document.querySelectorAll('.mode-btn').forEach(function(b){
     b.classList.toggle('active', b.dataset.mode === mode);
+  });
+}
+
+/* ── Toggle mode jadwal (blokir ↔ izinkan) tanpa reload ── */
+var _SVG_BLOKIR = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>';
+var _SVG_IZINKAN = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>';
+
+function toggleJadwalMode(el) {
+  var ids = el.getAttribute('data-ids').split(',').map(Number).filter(Boolean);
+  if (!ids.length) return;
+  el.style.opacity = '0.4';
+  el.style.pointerEvents = 'none';
+  fetch('/api/jadwal/toggle-mode', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ids: ids})
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(res) {
+    el.style.opacity = '1';
+    el.style.pointerEvents = '';
+    if (res.status !== 'ok') return;
+    var m = res.new_mode;
+    el.className = 'jad-mode ' + m;
+    el.innerHTML = m === 'blokir' ? _SVG_BLOKIR : _SVG_IZINKAN;
+  })
+  .catch(function() {
+    el.style.opacity = '1';
+    el.style.pointerEvents = '';
   });
 }
 </script>
