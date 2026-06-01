@@ -2189,11 +2189,25 @@ if __name__ == '__main__':
     except Exception as e:
         bot_status = f'gagal start: {e}'
 
+    # Matikan pesan "WARNING: This is a development server" dari Werkzeug
+    import logging
+    logging.getLogger('werkzeug').setLevel(logging.ERROR)
+
+    # Auto-detect SSL certificate
+    _base    = os.path.dirname(os.path.abspath(__file__))
+    _cert    = os.path.join(_base, 'ssl', 'cert.pem')
+    _key     = os.path.join(_base, 'ssl', 'key.pem')
+    _ssl_ctx = (_cert, _key) if (os.path.exists(_cert) and os.path.exists(_key)) else None
+    _scheme  = 'https' if _ssl_ctx else 'http'
+    _port    = 443     if _ssl_ctx else 8080
+
     print("=" * 60)
     print("  🛡️  Edge Guard Dashboard")
     print(f"  DB     : {DB['host']}:{DB['port']}/{DB.get('database', DB.get('db','?'))}")
-    print(f"  URL    : http://0.0.0.0:8080")
+    print(f"  URL    : {_scheme}://0.0.0.0:{_port}")
+    print(f"  SSL    : {'✓ HTTPS (self-signed)' if _ssl_ctx else '✗ HTTP — jalankan ssl_setup.sh untuk HTTPS'}")
     print(f"  bcrypt : {'ON' if _BCRYPT else '❌ OFF — WAJIB: pip install bcrypt'}")
     print(f"  Bot TG : {bot_status}")
     print("=" * 60)
-    app.run(debug=False, host='0.0.0.0', port=8080)
+    app.run(debug=False, host='0.0.0.0', port=_port,
+            ssl_context=_ssl_ctx, use_reloader=False)
