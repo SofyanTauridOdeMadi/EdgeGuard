@@ -36,21 +36,21 @@ notifikasi Telegram kepada orang tua.
 ## 🏗️ Arsitektur Sistem
 
 ```
-┌─────────────────────────────────────┐        ┌──────────────────────────────┐
-│        ROUTER (OpenWrt / Python)     │        │           VPS (Cloud)        │
+┌──────────────────────────────────────┐        ┌──────────────────────────────┐
+│       ROUTER (OpenWrt / Python)      │        │           VPS (Cloud)        │
 │                                      │        │                              │
-│  Sniff SNI ─► Naive Bayes ─► iptables│        │  Flask :8080  +  MySQL/Maria │
-│       │            │            │    │        │       │                      │
-│       └──────── POST log ───────┼────┼───────►│  Dashboard Web (orang tua)   │
-│                                 │    │        │       │                      │
-│         Heartbeat / Kuota ──────┘    │        │       └──► Bot & Notifikasi  │
-└─────────────────────────────────────┘        │            Telegram          │
+│ Sniff SNI ─► Naive Bayes ─► iptables │        │  Flask :8080  +  MySQL/Maria │
+│      │            │            │     │        │       │                      │
+│      └──────── POST log ───────┼─────┼───────►│  Dashboard Web (orang tua)   │
+│                                │     │        │       │                      │
+│        Heartbeat / Kuota ──────┘     │        │       └──► Bot & Notifikasi  │
+└──────────────────────────────────────┘        │            Telegram          │
                                                 └──────────────┬───────────────┘
-                                                               │
-                                                          ┌────▼─────┐
-                                                          │ Telegram │
-                                                          │ Orang Tua│
-                                                          └──────────┘
+                                                              │
+                                                         ┌────▼─────┐
+                                                         │ Telegram │
+                                                         │ Orang Tua│
+                                                         └──────────┘
 ```
 
 **Alur kerja:**
@@ -137,7 +137,7 @@ python3 api_dashboard.py
 
 ## 📈 Status Proyek
 
-> **v5.1-Beta** — Tahap penyusunan hasil & Perbaikan AI.
+> **v5.3-Beta** — Tahap penyusunan hasil & Perbaikan AI.
 
 ---
 

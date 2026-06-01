@@ -45,8 +45,6 @@ DB = {
     'charset':     'utf8mb4',
     'cursorclass': pymysql.cursors.DictCursor,
     'autocommit':  True,
-    # Paksa zona waktu sesi ke WITA (+08:00 = Makassar/Singapura) supaya NOW()
-    # & TIMESTAMP konsisten walau server VPS-nya berjalan di UTC.
     'init_command': "SET time_zone = '+08:00'",
 }
 
@@ -122,20 +120,6 @@ def verify_password(plain: str, hashed: str) -> bool:
 # ══════════════════════════════════════════════════════════════════════════════
 def ensure_admin_password(default_username: str = 'stom',
                           default_pw: str = ''):
-    """Pastikan admin pertama ada dengan username & password valid.
-
-    Login UI menerima username (yang dicocokkan dengan prefix email atau email
-    full). Jadi 'username' di sini = prefix email.
-
-    Password default dibaca dari env ADMIN_BOOTSTRAP_PW (fallback 'maba22ft'),
-    jadi tidak hardcoded mencolok di repo.
-
-    Perilaku:
-      • Tidak ada admin → buat baru dengan default.
-      • Hash kosong/placeholder/invalid → reset + paksa pakai username default.
-      • Hash valid (admin sudah punya password) → biarkan apa adanya
-        (jangan timpa password user yang sudah diganti).
-    """
     default_pw = default_pw or os.environ.get('ADMIN_BOOTSTRAP_PW', 'maba22ft')
     try:
         u = query("SELECT admin_id, email, password_hash FROM admin_orang_tua "

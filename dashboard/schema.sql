@@ -98,8 +98,7 @@ CREATE TABLE daftar_filter (
 -- ════════════════════════════════════════════════════════════════════════
 CREATE TABLE cache_domain (
   domain_url        VARCHAR(255) PRIMARY KEY,
-  -- 'netral' = domain infrastruktur/CDN/sertifikat (menggantikan 'unknown')
-  kategori          ENUM('edukasi','hiburan','negatif','netral','unknown')
+  kategori          ENUM('edukasi','hiburan','negatif','netral')
                        NOT NULL DEFAULT 'netral',
   confidence_score  FLOAT        NOT NULL DEFAULT 0,
   terakhir_diakses  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -116,13 +115,12 @@ CREATE TABLE log_akses (
   log_id        BIGINT       AUTO_INCREMENT PRIMARY KEY,
   user_id       INT          DEFAULT NULL,
   domain_url    VARCHAR(255) DEFAULT NULL,
-  kategori      ENUM('edukasi','hiburan','negatif','netral','unknown')
+  kategori      ENUM('edukasi','hiburan','negatif','netral')
                   NOT NULL DEFAULT 'netral',
   aksi          ENUM('izinkan','blokir') NOT NULL DEFAULT 'izinkan',
-  alasan        VARCHAR(64)  DEFAULT '',          -- 'whitelist','blacklist','klasifikasi_ai',...
+  alasan        VARCHAR(64)  DEFAULT '',
   confidence    DECIMAL(5,2) DEFAULT 0.00,
   traffic_kbps  FLOAT        DEFAULT 0,
-  -- snapshot untuk performa (sinkron via update saat pengguna_anak.nama diubah)
   perangkat_nama VARCHAR(120) DEFAULT '',
   mac           VARCHAR(17)  DEFAULT '',
   waktu_akses   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -225,8 +223,6 @@ INSERT INTO konfigurasi (k, v) VALUES
   ('login_max_gagal',        '3'),
   ('login_lockout_detik',    '300'),
   ('heartbeat_offline_detik','120'),
-  -- Token bot TIDAK disimpan di sini (rahasia). Diisi via env TG_BOT_TOKEN
-  -- atau file lokal dashboard/token_bot.txt yang di-.gitignore.
   ('telegram_chat_id',       ''),
   ('telegram_aktif',         '1'),
   ('telegram_last_ok',       '0'),

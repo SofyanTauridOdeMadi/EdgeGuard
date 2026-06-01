@@ -1,36 +1,22 @@
 -- ╔══════════════════════════════════════════════════════════════════════╗
--- ║  EDGE GUARD — SEED DATA (perangkat NYATA: 1 iPhone milik "Stom")     ║
--- ║                                                                       ║
--- ║  Jalankan SETELAH schema.sql:                                         ║
--- ║    mysql -u edgeguard -p edgeguard < dashboard/seed_demo.sql          ║
--- ║                                                                       ║
--- ║  Isi:                                                                 ║
--- ║   • 1 pengguna_anak NYATA — iPhone (F2:9C:78:8F:1F:FB) milik "Stom"  ║
+-- ║  Jalankan SETELAH schema.sql:                                        ║
+-- ║    mysql -u edgeguard -p edgeguard < dashboard/seed_demo.sql         ║
+-- ║                                                                      ║
+-- ║  Isi:                                                                ║
+-- ║   • pengguna_anak (F2:9C:78:8F:1F:FB) milik "Stom"                   ║
 -- ║   • Dompet kuota + jadwal istirahat untuk perangkat tsb              ║
 -- ║   • 18 whitelist + 16 blacklist (aturan filter manual)               ║
 -- ║   • cache_domain — knowledge base AI realtime                        ║
 -- ║   • log_akses 3 hari terakhir (semua milik perangkat nyata)          ║
--- ║                                                                       ║
+-- ║                                                                      ║
 -- ║  Aman dijalankan berkali-kali — RESET data lama dulu di awal.        ║
--- ║                                                                       ║
+-- ║                                                                      ║
 -- ║  CATATAN: F2:9C:78:8F:1F:FB adalah MAC "Private Wi-Fi Address"       ║
 -- ║  iPhone (acak). Agar stabil, matikan Private Address utk SSID        ║
 -- ║  EdgeGuard di: Settings → Wi-Fi → (i) → Private Wi-Fi Address: Off.  ║
 -- ╚══════════════════════════════════════════════════════════════════════╝
 
 USE edgeguard;
-
--- ════════════════════════════════════════════════════════════════════════
--- 0. RESET data lama (urut: anak dulu—FK cascade ke log/jadwal/dompet)
--- ════════════════════════════════════════════════════════════════════════
-DELETE FROM log_akses;
-DELETE FROM jadwal_blokir;
-DELETE FROM dompet_kuota;
-DELETE FROM cache_domain;
-DELETE FROM daftar_filter;
-DELETE FROM pengguna_anak;
-ALTER TABLE pengguna_anak AUTO_INCREMENT = 1;
-ALTER TABLE log_akses     AUTO_INCREMENT = 1;
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 1. PENGGUNA ANAK — 1 perangkat NYATA (iPhone milik "Stom")

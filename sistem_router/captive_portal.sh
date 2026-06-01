@@ -48,22 +48,28 @@ pasang_alias() {
     fi
 }
 
-# ─── 2. UHTTPD PORTAL ──────────────────────────────────────────────────────
-pasang_uhttpd() {
-    uci -q delete uhttpd.egportal
-    uci set uhttpd.egportal=uhttpd
-    uci add_list uhttpd.egportal.listen_http="${LAN_IP}:${HTTP_PORT}"
-    uci add_list uhttpd.egportal.listen_https="${LAN_IP}:${HTTPS_PORT}"
-    uci set uhttpd.egportal.home="$DOCROOT"
-    uci set uhttpd.egportal.cert='/etc/uhttpd.crt'
-    uci set uhttpd.egportal.key='/etc/uhttpd.key'
-    uci set uhttpd.egportal.index_page='index.html'
-    uci set uhttpd.egportal.error_page='/index.html'
-    uci set uhttpd.egportal.redirect_https='0'
-    uci set uhttpd.egportal.max_requests='5'
-    uci commit uhttpd
-    /etc/init.d/uhttpd restart >/dev/null 2>&1
-    log "uhttpd 'egportal' aktif (${LAN_IP}:${HTTP_PORT}/${HTTPS_PORT})"
+# ─── 2. PORTAL SERVER (Python, menggantikan uhttpd egportal) ───────────────
+pasang_portal_server() {
+    # Hentikan instance lama jika ada
+    pkill -f 'portal_server\.py' 2>/dev/null || true
+    sleep 1
+    # Hapus config uhttpd egportal lama + restart uhttpd agar port 8880 bebas
+    uci -q delete uhttpd.egportal && uci commit uhttpd 2>/dev/null || true
+    /etc/init.d/uhttpd restart >/dev/null 2>&1 || true
+    sleep 1
+
+    # Muat env agar EG_TG_TOKEN/EG_TG_CHAT terbaca oleh server
+    [ -f /etc/edgeguard.env ] && . /etc/edgeguard.env
+
+    # setsid: buat sesi baru agar proses tidak mati saat shell parent selesai
+    setsid python3 "$BASE/portal_server.py" \
+        >>/tmp/eg_portal.log 2>&1 &
+    sleep 1
+    if pgrep -f 'portal_server\.py' >/dev/null 2>&1; then
+        log "portal_server.py aktif (${LAN_IP}:${HTTP_PORT})"
+    else
+        log "⚠️  portal_server.py gagal start — cek /tmp/eg_portal.log"
+    fi
 }
 
 # ─── 3. NFT: sets + chains ─────────────────────────────────────────────────
@@ -173,26 +179,26 @@ set_sinkhole() {
 # ─── STATUS / TEARDOWN ─────────────────────────────────────────────────────
 status() {
     echo "── Edge Guard Captive Portal ──"
-    echo -n "alias $PORTAL_IP : "; ip addr show "$IFACE" | grep -q "$PORTAL_IP/" && echo ADA || echo TIDAK
-    echo -n "uhttpd egportal  : "; uci -q get uhttpd.egportal >/dev/null && echo TERKONFIG || echo TIDAK
-    echo -n "nft table        : "; nft list table $NFT_TABLE >/dev/null 2>&1 && echo ADA || echo TIDAK
-    echo -n "IP hiburan       : "; nft list set $NFT_TABLE hiburan_ip 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | wc -l
-    echo -n "IP edukasi       : "; nft list set $NFT_TABLE edukasi_ip 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | wc -l
-    echo -n "MAC dibatasi     : "; nft list set $NFT_TABLE blok_mac 2>/dev/null | grep -oE '([0-9a-f]{2}:){5}[0-9a-f]{2}' | tr '\n' ' '; echo
-    echo -n "sinkhole negatif : "; [ -f "$SINKHOLE_CONF" ] && wc -l < "$SINKHOLE_CONF" || echo 0
+    echo -n "alias $PORTAL_IP  : "; ip addr show "$IFACE" | grep -q "$PORTAL_IP/" && echo ADA || echo TIDAK
+    echo -n "portal_server.py  : "; pgrep -f 'python3.*portal_server\.py' >/dev/null 2>&1 && echo BERJALAN || echo TIDAK
+    echo -n "nft table         : "; nft list table $NFT_TABLE >/dev/null 2>&1 && echo ADA || echo TIDAK
+    echo -n "IP hiburan        : "; nft list set $NFT_TABLE hiburan_ip 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | wc -l
+    echo -n "IP edukasi        : "; nft list set $NFT_TABLE edukasi_ip 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | wc -l
+    echo -n "MAC dibatasi      : "; nft list set $NFT_TABLE blok_mac 2>/dev/null | grep -oE '([0-9a-f]{2}:){5}[0-9a-f]{2}' | tr '\n' ' '; echo
+    echo -n "sinkhole negatif  : "; [ -f "$SINKHOLE_CONF" ] && wc -l < "$SINKHOLE_CONF" || echo 0
 }
 
 teardown() {
     nft delete table $NFT_TABLE 2>/dev/null && log "nft table dihapus"
     rm -f "$SINKHOLE_CONF" /tmp/dnsmasq.d/eg_sinkhole.conf 2>/dev/null
     /etc/init.d/dnsmasq restart >/dev/null 2>&1
-    uci -q delete uhttpd.egportal && uci commit uhttpd && /etc/init.d/uhttpd restart >/dev/null 2>&1
+    pkill -f 'python3.*portal_server\.py' 2>/dev/null && log "portal_server.py dihentikan"
     ip addr del "$PORTAL_IP/24" dev "$IFACE" 2>/dev/null
     log "portal dibongkar"
 }
 
 case "${1:-}" in
-    init)          pasang_alias; pasang_uhttpd; pasang_nft ;;
+    init)          pasang_alias; pasang_portal_server; pasang_nft ;;
     sinkhole)      shift; set_sinkhole "$@" ;;
     add-hiburan)   shift; add_hiburan "$@" ;;
     add-edukasi)   shift; add_edukasi "$@" ;;

@@ -27,9 +27,9 @@ BASE        = os.path.dirname(os.path.abspath(__file__))
 MODEL_JSON  = os.path.join(BASE, 'model_export.json')
 
 # ─── ANTI OVER-BLOCK ───────────────────────────────────────────────────────
-# Model hanya punya 3 kelas (negatif/edukasi/hiburan) tanpa kelas
-# "infrastruktur", sehingga subdomain teknis (CDN, sertifikat, telemetri)
-# yang tak ada di data latih sering salah ditandai 'negatif'. Dua pengaman:
+# Model v2.10 punya 4 kelas: negatif / edukasi / hiburan / netral.
+# Kelas 'netral' menangkap subdomain teknis (CDN, sertifikat, telemetri).
+# Dua pengaman tambahan tetap dipertahankan sebagai lapisan perlindungan:
 #   1) _INFRA_WHITELIST → domain & subdomain ini TIDAK PERNAH diblokir.
 #   2) BLOCK_THRESHOLD  → 'negatif' hanya diblokir bila confidence >= ambang.
 BLOCK_THRESHOLD = float(os.environ.get('EG_BLOCK_THRESHOLD', '80'))

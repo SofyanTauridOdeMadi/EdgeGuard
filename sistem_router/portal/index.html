@@ -63,13 +63,10 @@ h1{font-size:22px;font-weight:700;margin-bottom:8px}
   </div>
 
 <script>
-// URL dashboard VPS (untuk kirim permintaan izin)
-var VPS = "http://202.10.34.171:8080";
-
-// Domain yang diblokir = host yang sedang diakses (browser kirim Host asli
-// walau di-sinkhole, karena DNS mengarah ke portal atas nama domain itu).
+// Domain yang diblokir diambil dari hostname di address bar browser.
+// DNS sinkhole mengarahkan domain ini ke router, sehingga hostname
+// tetap berisi nama domain asli yang coba diakses.
 var domain = location.hostname || "situs ini";
-// Buang www.
 if (domain.indexOf("www.") === 0) domain = domain.slice(4);
 document.getElementById("domain").textContent = domain;
 
@@ -80,19 +77,21 @@ function mintaIzin(){
   msg.className = "msg";
   msg.innerHTML = '<span class="spin"></span>Mengirim permintaan…';
 
-  fetch(VPS + "/minta-izin", {
+  // POST ke portal_server.py yang berjalan di router (192.168.1.1:8880).
+  // Karena sinkhole mengarahkan hostname ini ke IP router, URL absolut dengan
+  // IP router digunakan agar tidak kena loop sinkhole.
+  fetch("http://192.168.1.1:8880/minta-izin", {
     method: "POST",
     headers: {"Content-Type": "application/json"},
     body: JSON.stringify({domain: domain, perangkat: ""})
   })
   .then(function(r){ return r.json().catch(function(){ return {}; }); })
-  .then(function(){
+  .then(function(j){
     msg.className = "msg ok";
-    msg.textContent = "✅ Permintaan terkirim! Tunggu persetujuan orang tua.";
+    msg.textContent = "✅ " + (j.pesan || "Permintaan terkirim! Tunggu persetujuan orang tua.");
     btn.textContent = "✅ Permintaan Terkirim";
   })
   .catch(function(){
-    // Walau gagal fetch (mis. CORS), anggap terkirim — request tetap sampai.
     msg.className = "msg ok";
     msg.textContent = "✅ Permintaan dikirim ke orang tua.";
     btn.textContent = "✅ Permintaan Terkirim";

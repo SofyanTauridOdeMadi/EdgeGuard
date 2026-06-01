@@ -32,6 +32,40 @@ MAX_CACHE = 2000
 CACHE_TTL = 300                                  # 5 menit
 FIREWALL_SH = os.path.join(BASE, 'aturan_firewall.sh')
 
+# ─── Captive portal sinkhole ─────────────────────────────────────────────
+PORTAL_IP = '192.168.1.2'
+
+def _sinkhole_conf_path() -> str:
+    """Cari path konfigurasi dnsmasq sinkhole yang benar (OpenWrt vs generic)."""
+    import glob
+    dirs = glob.glob('/tmp/dnsmasq.*.d')
+    d = dirs[0] if dirs else '/tmp/dnsmasq.d'
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, 'eg_sinkhole.conf')
+
+# Set domain negatif yang terdeteksi oleh AI (in-memory, persisten selama proses hidup)
+_negatif_domains: set = set()
+
+def _muat_sinkhole_awal():
+    """Baca file sinkhole yang sudah ada ke _negatif_domains saat startup.
+    Mencegah domain lama hilang selama 60 detik pertama sebelum sinkhole_sync_loop berjalan."""
+    global _negatif_domains
+    conf = _sinkhole_conf_path()
+    try:
+        with open(conf) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('address=/'):
+                    parts = line.split('/')
+                    if len(parts) >= 2 and parts[1]:
+                        _negatif_domains.add(parts[1])
+        if _negatif_domains and DEBUG:
+            print(f"[sinkhole] dimuat dari file: {len(_negatif_domains)} domain")
+    except FileNotFoundError:
+        pass
+    except Exception as e:
+        if DEBUG: print(f"[sinkhole] load awal gagal: {e}")
+
 # ═══════════════════════════════════════════════════════════════════════════
 # ARP CACHE (IP → MAC)
 # ═══════════════════════════════════════════════════════════════════════════
@@ -139,13 +173,16 @@ def nama_perangkat(mac: str) -> str:
 
 def perangkat_terdaftar(mac: str) -> bool:
     """True bila MAC terdaftar sebagai perangkat anak di VPS.
-    Dipakai untuk filter 'hanya awasi perangkat yang tersimpan di database'.
-    Perangkat asing (mis. HP tamu, laptop ortu) → diabaikan total."""
+    Fallback: jika VPS tidak bisa dicapai dan cache kosong, monitor SEMUA
+    perangkat agar perlindungan tetap berjalan saat VPS offline."""
     mac_u = (mac or '').upper()
     if not mac_u:
         return False
     if time.time() - _perangkat_cache_ts > 60 or not _perangkat_cache:
         refresh_perangkat()
+    # Jika cache masih kosong setelah refresh (VPS unreachable), awasi semua
+    if not _perangkat_cache:
+        return True
     return mac_u in _perangkat_cache
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -198,12 +235,32 @@ def kirim_log(keputusan: dict, perangkat: str, mac: str):
 # ═══════════════════════════════════════════════════════════════════════════
 PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
 
-def fw_blokir(domain: str):
-    """Negatif → DROP keras (resolve domain → eg_blokir ipset)."""
-    if os.path.exists(FIREWALL_SH):
-        subprocess.run(['sh', FIREWALL_SH, 'blokir', domain],
-                       timeout=5, check=False,
+def _tulis_sinkhole():
+    """Tulis ulang file dnsmasq sinkhole dari _negatif_domains lalu reload dnsmasq."""
+    conf = _sinkhole_conf_path()
+    try:
+        with open(conf, 'w') as f:
+            for d in sorted(_negatif_domains):
+                f.write(f"address=/{d}/{PORTAL_IP}\n")
+        # HUP = reload conf tanpa restart penuh
+        subprocess.run(['killall', '-HUP', 'dnsmasq'], timeout=3, check=False,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except Exception as e:
+        if DEBUG: print(f"[sinkhole] tulis gagal: {e}")
+
+def fw_blokir(domain: str):
+    """Domain negatif → DNS sinkhole → captive portal.
+    nftables di captive_portal.sh sudah menangani:
+      • HTTP  (80)  ke PORTAL_IP → DNAT ke portal_server.py (halaman blokir)
+      • HTTPS (443) ke PORTAL_IP → DROP senyap (hindari cert warning)
+    Dengan sinkhole, IP lama yang ter-cache di browser otomatis digantikan
+    saat TTL habis. Hard-drop via ipset tidak dipakai lagi karena tidak
+    menampilkan halaman portal."""
+    if domain in _negatif_domains:
+        return
+    _negatif_domains.add(domain)
+    _tulis_sinkhole()
+    if DEBUG: print(f"[sinkhole] +{domain} ({len(_negatif_domains)} total)")
 
 def _resolve_ips(domain: str):
     """Resolve A-record domain → list IP (pakai resolver router, cepat krn cache)."""
@@ -376,30 +433,30 @@ def capture_dns(iface: str):
 # ═══════════════════════════════════════════════════════════════════════════
 # SINKHOLE SYNC — captive portal (domain blacklist → dnsmasq → halaman blokir)
 # ═══════════════════════════════════════════════════════════════════════════
-PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
-_sinkhole_terakhir = None       # set domain terakhir di-apply (hindari reload sia2)
+_sinkhole_vps_terakhir: set = set()   # blacklist manual dari VPS (terakhir diambil)
 
 def sinkhole_sync_loop():
-    """Tiap 60 dtk: ambil daftar_hitam dari VPS → update dnsmasq sinkhole.
-    Hanya reload dnsmasq bila daftar BERUBAH (hemat beban router)."""
-    global _sinkhole_terakhir
-    if not os.path.exists(PORTAL_SH):
-        return
+    """Tiap 60 dtk: gabungkan blacklist manual VPS + domain AI-detected negatif
+    → tulis ke dnsmasq sinkhole. Selalu tulis ulang agar file tetap konsisten
+    dengan set in-memory (mencegah gap jika file diubah dari luar).
+    Jika VPS tidak bisa dicapai, sinkhole tetap berjalan dengan data lokal AI."""
+    global _negatif_domains, _sinkhole_vps_terakhir
     from klasifikasi_ai import ambil_config
     while True:
         try:
-            cfg   = ambil_config()
-            hitam = sorted(set(d.strip().lower()
-                               for d in cfg.get('daftar_hitam', []) if d.strip()))
-            if hitam != _sinkhole_terakhir:
-                subprocess.run(['sh', PORTAL_SH, 'sinkhole'] + hitam,
-                               timeout=20, check=False,
-                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                _sinkhole_terakhir = hitam
-                if DEBUG:
-                    print(f"[sinkhole] {len(hitam)} domain blacklist disinkronkan ke portal")
+            cfg = ambil_config()
+            vps_hitam = set(
+                d.strip().lower()
+                for d in cfg.get('daftar_hitam', []) if d.strip()
+            )
+            _sinkhole_vps_terakhir = vps_hitam
+            _negatif_domains |= vps_hitam   # merge, jangan hapus deteksi AI
         except Exception as e:
-            if DEBUG: print(f"[sinkhole] error: {e}")
+            if DEBUG: print(f"[sinkhole] VPS sync gagal (pakai data lokal): {e}")
+        # Tulis ulang file setiap siklus untuk konsistensi
+        _tulis_sinkhole()
+        if DEBUG:
+            print(f"[sinkhole] sinkhole diperbarui: {len(_negatif_domains)} domain")
         time.sleep(60)
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -450,6 +507,22 @@ def main():
     except FileNotFoundError as e:
         print(f"\n❌ {e}"); sys.exit(1)
 
+    # Muat sinkhole domain yang sudah ada (hindari gap saat restart)
+    _muat_sinkhole_awal()
+
+    # Sync VPS blacklist segera (tidak menunggu 60 detik siklus pertama)
+    try:
+        from klasifikasi_ai import ambil_config
+        cfg = ambil_config()
+        vps_hitam = set(d.strip().lower()
+                        for d in cfg.get('daftar_hitam', []) if d.strip())
+        if vps_hitam:
+            _negatif_domains.update(vps_hitam)
+            _tulis_sinkhole()
+            print(f"[EdgeGuard] Sinkhole init: {len(_negatif_domains)} domain")
+    except Exception as e:
+        print(f"[EdgeGuard] Sinkhole init (VPS fallback: {e})")
+
     # Thread statistik
     threading.Thread(target=stats_loop, daemon=True).start()
 
@@ -467,11 +540,10 @@ def main():
                          daemon=True, name='dns').start()
         print("[EdgeGuard] DNS capture thread aktif.")
 
-    # Thread sinkhole sync (captive portal: blacklist → halaman blokir)
-    if os.path.exists(PORTAL_SH):
-        threading.Thread(target=sinkhole_sync_loop,
-                         daemon=True, name='sinkhole').start()
-        print("[EdgeGuard] Sinkhole sync thread aktif (captive portal).")
+    # Thread sinkhole sync (captive portal: merge VPS blacklist + AI detections)
+    threading.Thread(target=sinkhole_sync_loop,
+                     daemon=True, name='sinkhole').start()
+    print("[EdgeGuard] Sinkhole sync thread aktif (portal router-local).")
 
     # Refresh perangkat pertama kali
     refresh_perangkat()
