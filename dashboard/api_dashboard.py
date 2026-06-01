@@ -11,7 +11,7 @@
 ╚══════════════════════════════════════════════════════════════════════╝
 """
 from flask import (Flask, render_template, request, redirect, url_for,
-                   session, jsonify, flash)
+                   session, jsonify, flash, send_from_directory)
 import pymysql, pymysql.cursors
 import os, sys, json, time, math, secrets, re, threading
 from datetime import datetime, date, timedelta
@@ -62,6 +62,12 @@ def root_domain(domain: str) -> str:
 app = Flask(__name__, template_folder='.', static_folder='aset',
             static_url_path='/aset')
 app.secret_key = os.environ.get('SECRET_KEY') or secrets.token_hex(32)
+
+@app.route('/favicon.ico')
+def favicon():
+    """Serve logo.png sebagai favicon agar ikon muncul di tab browser."""
+    return send_from_directory(app.static_folder, 'logo.png',
+                               mimetype='image/png')
 app.config.update(
     SESSION_COOKIE_HTTPONLY = True,
     SESSION_COOKIE_SAMESITE = 'Lax',

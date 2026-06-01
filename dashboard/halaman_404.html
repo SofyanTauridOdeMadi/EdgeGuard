@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Edge Guard — {{ kode }} {{ judul }}</title>
 <link rel="icon" type="image/png" href="/aset/logo.png">
-<link rel="apple-touch-icon" href="/aset/icon.png">
+<link rel="apple-touch-icon" href="/aset/logo.png">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
@@ -42,43 +42,6 @@ body{
   align-items:center;justify-content:center;
   padding:28px 20px 40px;
   max-width:430px;margin:0 auto;width:100%;
-}
-
-/* ── Animated error number ── */
-.error-num-wrap{
-  position:relative;margin-bottom:8px;
-}
-.error-num{
-  font-size:clamp(80px,22vw,128px);
-  font-weight:900;line-height:1;
-  background:linear-gradient(135deg,#1D4ED8 0%,#2563EB 40%,#3B82F6 70%,#60A5FA 100%);
-  -webkit-background-clip:text;background-clip:text;color:transparent;
-  letter-spacing:-.04em;
-  display:inline-block;
-  animation:bounce-num 2.2s cubic-bezier(.36,.07,.19,.97) infinite;
-  transform-origin:center bottom;
-}
-@keyframes bounce-num{
-  0%,100%{transform:translateY(0) scale(1)}
-  10%{transform:translateY(-18px) scale(1.04)}
-  20%{transform:translateY(0) scale(.97)}
-  30%{transform:translateY(-10px) scale(1.02)}
-  40%{transform:translateY(0) scale(.99)}
-  50%{transform:translateY(-4px) scale(1.01)}
-  60%,90%{transform:translateY(0) scale(1)}
-}
-/* shadow bawah angka */
-.error-shadow{
-  width:80%;height:12px;margin:0 auto;
-  background:radial-gradient(closest-side,rgba(37,99,235,.2),transparent);
-  animation:shadow-pulse 2.2s cubic-bezier(.36,.07,.19,.97) infinite;
-}
-@keyframes shadow-pulse{
-  0%,100%{transform:scaleX(1);opacity:.7}
-  10%{transform:scaleX(.7);opacity:.3}
-  20%{transform:scaleX(1);opacity:.7}
-  30%{transform:scaleX(.8);opacity:.4}
-  40%,90%{transform:scaleX(1);opacity:.7}
 }
 
 /* ── Icon shield / lock / warning ── */
@@ -169,12 +132,6 @@ body{
 <!-- Content -->
 <div class="content">
   <div class="card">
-
-    <!-- Angka error dengan animasi bounce -->
-    <div class="error-num-wrap">
-      <div class="error-num">{{ kode }}</div>
-      <div class="error-shadow"></div>
-    </div>
 
     <!-- Icon mengambang -->
     <div class="err-icon-wrap">
