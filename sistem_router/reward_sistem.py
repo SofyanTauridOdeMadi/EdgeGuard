@@ -20,7 +20,7 @@ from collections import defaultdict
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from config import CLOUD_URL, HTTP_TIMEOUT, CONFIG_TTL, DEBUG
+from config import CLOUD_URL, HTTP_TIMEOUT, CONFIG_TTL, DEBUG, mk_ssl_ctx
 
 PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
 
@@ -41,7 +41,7 @@ def ambil_cfg() -> dict:
     try:
         req = urllib.request.Request(CLOUD_URL + '/api/config',
                                      headers={'Accept':'application/json'})
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx()) as r:
             _cfg_cache = json.loads(r.read().decode())
         _cfg_ts = now
         return _cfg_cache
@@ -71,7 +71,7 @@ def sync_perangkat():
     try:
         req = urllib.request.Request(CLOUD_URL + '/api/perangkat',
                                      headers={'Accept':'application/json'})
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx()) as r:
             data = json.loads(r.read().decode())
         for d in data.get('perangkat', []):
             mac = (d.get('mac') or '').upper()
@@ -109,7 +109,7 @@ def beri_bonus(dev_id, edu_menit: int, bonus_menit: int):
         req = urllib.request.Request(CLOUD_URL + '/api/edu-bonus',
                                      data=payload, method='POST',
                                      headers={'Content-Type':'application/json'})
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx()) as r:
             return json.loads(r.read().decode())
     except Exception:
         return None

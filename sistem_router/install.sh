@@ -53,7 +53,7 @@ if [ ! -f "$ENV_FILE" ]; then
 #   /etc/init.d/edgeguard restart
 
 # Endpoint VPS Cloud Dashboard
-export EG_CLOUD_URL='http://202.10.34.171:8080'
+export EG_CLOUD_URL='https://202.10.34.171'
 
 # Network interface LAN (br-lan untuk default OpenWrt)
 export EG_IFACE='br-lan'

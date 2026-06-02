@@ -37,7 +37,6 @@ a{text-decoration:none;color:inherit}
 .rv{font-size:32px;font-weight:700;line-height:1;color:#111827}
 .rv span{font-size:17px;font-weight:500}
 .rsm{font-size:13px;color:#374151;margin-top:2px}
-/* Teks ringkasan di BAWAH lingkaran, tidak overlay agar tidak tabrakan */
 .rsub{font-size:12.5px;color:#2563EB;font-weight:600;margin-top:10px;text-align:center}
 .ring-cap{font-size:13px;color:#4B5563;text-align:center;margin-top:6px;line-height:1.5}
 
@@ -258,8 +257,21 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
     <div class="ring-wrap">
       <div class="ring-box">
         <svg viewBox="0 0 148 148" width="148" height="148">
+          <defs>
+            {% if pct_global > 80 %}
+            <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#EF4444"/>
+              <stop offset="100%" stop-color="#F97316"/>
+            </linearGradient>
+            {% else %}
+            <linearGradient id="ring-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#2563EB"/>
+              <stop offset="100%" stop-color="#38BDF8"/>
+            </linearGradient>
+            {% endif %}
+          </defs>
           <circle cx="74" cy="74" r="54" fill="none" stroke="#F3F4F6" stroke-width="11"/>
-          <circle cx="74" cy="74" r="54" fill="none" stroke="#2563EB" stroke-width="11"
+          <circle cx="74" cy="74" r="54" fill="none" stroke="url(#ring-grad)" stroke-width="11"
             stroke-linecap="round" stroke-dasharray="{{dash}} {{circ}}" id="ring-fill"/>
         </svg>
         <div class="ring-center">
@@ -271,7 +283,6 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
           {% endif %}
         </div>
       </div>
-      <!-- Pindah keluar agar tidak bertabrakan dengan grafik lingkaran -->
       <div class="rsub">{{kS}} tersisa dari {{kT}}</div>
     </div>
 

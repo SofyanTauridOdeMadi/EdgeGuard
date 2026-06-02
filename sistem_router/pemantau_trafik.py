@@ -21,7 +21,7 @@ from collections import OrderedDict
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from config import CLOUD_URL, IFACE as IFACE_DEFAULT, HTTP_TIMEOUT, DEBUG as DEBUG_DEFAULT
+from config import CLOUD_URL, IFACE as IFACE_DEFAULT, HTTP_TIMEOUT, DEBUG as DEBUG_DEFAULT, mk_ssl_ctx
 from klasifikasi_ai import putuskan, load_model
 
 # ─── Konfigurasi runtime ──────────────────────────────────────────────────
@@ -112,7 +112,7 @@ def refresh_perangkat():
     try:
         req = urllib.request.Request(CLOUD_URL + '/api/perangkat',
                                      headers={'Accept':'application/json'})
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx()) as r:
             data = json.loads(r.read().decode())
         c = {}
         for d in data.get('perangkat', []):
@@ -226,7 +226,7 @@ def kirim_log(keputusan: dict, perangkat: str, mac: str):
             data=payload,
             headers={'Content-Type':'application/json'},
             method='POST')
-        urllib.request.urlopen(req, timeout=HTTP_TIMEOUT)
+        urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx())
     except Exception as e:
         if DEBUG: print(f"[push] gagal: {e}")
 

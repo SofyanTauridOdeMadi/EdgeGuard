@@ -12,9 +12,9 @@ Konfigurasi via /etc/edgeguard.env:
   EG_PORTAL_PORT  (default: 8880)
   EG_TG_TOKEN     — bot token Telegram (opsional, untuk kirim langsung)
   EG_TG_CHAT      — chat/group ID Telegram (opsional)
-  EG_CLOUD_URL    — URL VPS untuk fallback (default: http://202.10.34.171:8080)
+  EG_CLOUD_URL    — URL VPS untuk fallback (default: https://202.10.34.171)
 """
-import os, sys, json, threading
+import os, sys, json, ssl, threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import urllib.request
 
@@ -23,10 +23,19 @@ DOCROOT     = os.path.join(BASE, 'portal')
 
 PORTAL_HOST = os.environ.get('EG_PORTAL_HOST', '192.168.1.1')
 PORTAL_PORT = int(os.environ.get('EG_PORTAL_PORT', '8880'))
-CLOUD_URL   = os.environ.get('EG_CLOUD_URL', 'http://202.10.34.171:8080').rstrip('/')
+CLOUD_URL   = os.environ.get('EG_CLOUD_URL', 'https://202.10.34.171').rstrip('/')
 TG_TOKEN    = os.environ.get('EG_TG_TOKEN', '')
 TG_CHAT     = os.environ.get('EG_TG_CHAT', '')
 DEBUG       = bool(int(os.environ.get('EG_DEBUG', '0')))
+
+def _ssl_ctx():
+    """SSLContext unverified untuk self-signed cert VPS, atau None jika HTTP."""
+    if CLOUD_URL.startswith('https://'):
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode    = ssl.CERT_NONE
+        return ctx
+    return None
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -178,7 +187,7 @@ def _kirim_notif(domain: str, perangkat: str, client_ip: str):
             headers={'Content-Type': 'application/json'},
             method='POST'
         )
-        urllib.request.urlopen(req, timeout=6)
+        urllib.request.urlopen(req, timeout=6, context=_ssl_ctx())
         if DEBUG: print(f"[portal] Diteruskan ke VPS ✓")
         return
     except Exception as e:

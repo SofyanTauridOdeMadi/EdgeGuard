@@ -19,7 +19,7 @@ import urllib.request, urllib.error
 from datetime import datetime
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from config import CLOUD_URL, HEARTBEAT, HTTP_TIMEOUT, DEBUG
+from config import CLOUD_URL, HEARTBEAT, HTTP_TIMEOUT, DEBUG, mk_ssl_ctx
 
 
 def baca_arp():
@@ -85,7 +85,7 @@ def kirim(mac: str, ip: str = '') -> bool:
             headers={'Content-Type': 'application/json'},
             method='POST'
         )
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx()) as r:
             data = json.loads(r.read().decode())
             return data.get('status') == 'ok'
     except urllib.error.URLError:
@@ -107,7 +107,7 @@ def kirim_dhcp_clients(clients: list) -> bool:
             headers={'Content-Type': 'application/json'},
             method='POST'
         )
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx()) as r:
             return json.loads(r.read().decode()).get('status') == 'ok'
     except Exception as e:
         if DEBUG: print(f"[Heartbeat] kirim_dhcp error: {e}")

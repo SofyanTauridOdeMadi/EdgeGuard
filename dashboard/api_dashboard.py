@@ -957,9 +957,9 @@ def beranda():
         pv=pv,
         perangkat_list=[dict(d) for d in devs],
         nama_anak="Semua Perangkat",
-        kS=fmt(total_sisa), kT=fmt(total_harian),
+        kS=fmt(total_sisa), kT=fmt(total_harian), kU=fmt(total_terpakai),
         kS_raw=total_sisa,  kT_raw=total_harian,
-        pct=pct_global, circ=circ, dash=dash,
+        pct=pct_global, pct_global=pct_global, circ=circ, dash=dash,
         jml_perangkat=len(devs),
         pct_edu=pe, pct_hib=ph, pct_neg=pn, pct_net=pnet,
         prop_total=prop_total,
@@ -1563,6 +1563,27 @@ def tambah_domain():
     return redirect(url_for('aturan', tab=tipe))
 
 # Hapus by ID — endpoint terpadu (whitelist/blacklist sama tabel)
+@app.route('/aturan/edit/<int:fid>', methods=['POST'])
+@login_required
+def aturan_edit(fid):
+    domain = (request.form.get('domain') or '').strip().lower()
+    alasan = (request.form.get('alasan') or '').strip()[:255]
+    tipe   = request.form.get('tipe', 'putih')
+    if tipe not in ('putih', 'hitam'):
+        tipe = 'putih'
+    if not domain:
+        flash('Domain tidak boleh kosong.', 'error')
+        return redirect(url_for('aturan'))
+    row = query("SELECT filter_id FROM daftar_filter WHERE filter_id=%s AND admin_id=%s",
+                (fid, current_admin_id()), one=True)
+    if not row:
+        flash('Data tidak ditemukan.', 'error')
+        return redirect(url_for('aturan'))
+    query("UPDATE daftar_filter SET domain_url=%s, alasan=%s, tipe=%s WHERE filter_id=%s AND admin_id=%s",
+          (domain, alasan, tipe, fid, current_admin_id()))
+    flash(f'"{domain}" berhasil diperbarui.', 'success')
+    return redirect(url_for('aturan', tab=tipe))
+
 @app.route('/aturan/hapus/<int:fid>', methods=['POST'])
 @login_required
 def aturan_hapus(fid):

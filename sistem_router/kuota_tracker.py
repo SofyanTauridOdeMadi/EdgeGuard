@@ -22,7 +22,7 @@ from collections import defaultdict
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
-from config import CLOUD_URL, HTTP_TIMEOUT, KUOTA_INTERVAL, KBPS_AKTIF, DEBUG
+from config import CLOUD_URL, HTTP_TIMEOUT, KUOTA_INTERVAL, KBPS_AKTIF, DEBUG, mk_ssl_ctx
 
 PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
 
@@ -49,7 +49,7 @@ def ambil_perangkat():
     try:
         req = urllib.request.Request(CLOUD_URL + '/api/perangkat',
                                      headers={'Accept':'application/json'})
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx()) as r:
             data = json.loads(r.read().decode())
         with _state['lock']:
             _state['devs']    = data.get('perangkat', [])
@@ -103,7 +103,7 @@ def push_kuota(dev_id, kuota_terpakai: int) -> bool:
         req = urllib.request.Request(CLOUD_URL + '/api/kuota-update',
                                      data=payload, method='POST',
                                      headers={'Content-Type':'application/json'})
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx()) as r:
             return json.loads(r.read().decode()).get('status') == 'ok'
     except Exception:
         return False

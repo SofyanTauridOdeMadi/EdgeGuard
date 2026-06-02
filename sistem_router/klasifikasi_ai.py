@@ -21,7 +21,7 @@ import os, sys, json, math, time, re
 import urllib.request, urllib.error
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from config import CLOUD_URL, CONFIG_TTL, HTTP_TIMEOUT, DEBUG
+from config import CLOUD_URL, CONFIG_TTL, HTTP_TIMEOUT, DEBUG, mk_ssl_ctx
 
 BASE        = os.path.dirname(os.path.abspath(__file__))
 MODEL_JSON  = os.path.join(BASE, 'model_export.json')
@@ -230,7 +230,7 @@ def ambil_config() -> dict:
         req = urllib.request.Request(
             CLOUD_URL + '/api/config',
             headers={'Accept': 'application/json'})
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as r:
+        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx()) as r:
             data = json.loads(r.read().decode())
         _config_cache    = data
         _config_cache_ts = now

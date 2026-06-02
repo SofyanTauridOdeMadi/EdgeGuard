@@ -34,7 +34,7 @@ start_service() {
   # ── pemantau_trafik.py ──────────────────────────────────────────────
   procd_open_instance pemantau
   procd_set_param command python3 "$BASE/pemantau_trafik.py" --interface "${EG_IFACE:-br-lan}"
-  procd_set_param env EG_CLOUD_URL="${EG_CLOUD_URL:-http://127.0.0.1:8080}" \
+  procd_set_param env EG_CLOUD_URL="${EG_CLOUD_URL:-https://202.10.34.171}" \
                       EG_IFACE="${EG_IFACE:-br-lan}" \
                       EG_DEBUG="${EG_DEBUG:-0}"
   procd_set_param stdout 1
@@ -48,7 +48,7 @@ start_service() {
   procd_set_param command python3 "$BASE/kuota_tracker.py" \
                       --interval "${EG_KUOTA_INTERVAL:-60}" \
                       --kbps-aktif "${EG_KBPS_AKTIF:-10}"
-  procd_set_param env EG_CLOUD_URL="${EG_CLOUD_URL:-http://127.0.0.1:8080}" \
+  procd_set_param env EG_CLOUD_URL="${EG_CLOUD_URL:-https://202.10.34.171}" \
                       EG_DEBUG="${EG_DEBUG:-0}"
   procd_set_param stdout 1
   procd_set_param stderr 1
@@ -58,7 +58,7 @@ start_service() {
   # ── reward_sistem.py ────────────────────────────────────────────────
   procd_open_instance reward
   procd_set_param command python3 "$BASE/reward_sistem.py" --interval 10
-  procd_set_param env EG_CLOUD_URL="${EG_CLOUD_URL:-http://127.0.0.1:8080}" \
+  procd_set_param env EG_CLOUD_URL="${EG_CLOUD_URL:-https://202.10.34.171}" \
                       EG_DEBUG="${EG_DEBUG:-0}"
   procd_set_param stdout 1
   procd_set_param stderr 1

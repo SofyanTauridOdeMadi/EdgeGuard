@@ -46,11 +46,11 @@ notifikasi Telegram kepada orang tua.
 │        Heartbeat / Kuota ──────┘     │        │       └──► Bot & Notifikasi  │
 └──────────────────────────────────────┘        │            Telegram          │
                                                 └──────────────┬───────────────┘
-                                                              │
-                                                         ┌────▼─────┐
-                                                         │ Telegram │
-                                                         │ Orang Tua│
-                                                         └──────────┘
+                                                               │
+                                                          ┌────▼─────┐
+                                                          │ Telegram │
+                                                          │ Orang Tua│
+                                                          └──────────┘
 ```
 
 **Alur kerja:**
@@ -137,7 +137,7 @@ python3 api_dashboard.py
 
 ## 📈 Status Proyek
 
-> **v7.23** —  Perbaikan AI & Perbaikan Router Integrasi
+> **v8.11** —  Pengujian Proyek
 
 ---
 
