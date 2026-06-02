@@ -90,16 +90,19 @@ table $NFT_TABLE {
     }
     chain prerouting {
         type nat hook prerouting priority dstnat; policy accept;
+        # Paksa semua DNS LAN lewat dnsmasq router (override DNS ISP/Kominfo/DoH).
+        ip saddr 192.168.1.0/24 ip daddr != 192.168.1.1 udp dport 53 redirect
+        ip saddr 192.168.1.0/24 ip daddr != 192.168.1.1 tcp dport 53 redirect
         # Negatif sinkhole (domain → $PORTAL_IP): HTTP → portal.
         ip daddr $PORTAL_IP tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
-        # Hiburan diblokir utk MAC: HTTP → portal (HTTPS di-drop di forward).
+        # Hiburan diblokir utk MAC: HTTP → portal.
         ether saddr @blok_mac ip daddr @hiburan_ip tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
     }
     chain input {
         type filter hook input priority filter; policy accept;
-        # Negatif via sinkhole: HTTPS ke portal-IP → drop senyap (hindari
-        # LuCI nyangkut & peringatan sertifikat).
-        ip daddr $PORTAL_IP tcp dport 443 drop
+        # Negatif via sinkhole: HTTPS ke portal-IP → reject cepat
+        # (browser langsung tahu ditolak, tidak hang menunggu timeout).
+        ip daddr $PORTAL_IP tcp dport 443 reject with tcp reset
     }
     chain measure {
         type filter hook forward priority -10; policy accept;

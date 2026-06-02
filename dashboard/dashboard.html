@@ -312,11 +312,11 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
   {% set pct_d = ([kU_d, kT_d]|min / kT_d * 100)|int if kT_d else 0 %}
   <button class="dev-card" onclick="openDevSheet({{loop.index0}})">
     <div class="d-ic" id="d-ic-{{dev.id}}"
-      style="background:{{ '#FEF2F2' if jeda else '#DCFCE7' }}">
+      style="background:{{ '#FEF2F2' if jeda else ('#DCFCE7' if dev.status == 'online' else '#F3F4F6') }}">
       {% if jeda %}
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
       {% else %}
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        {{ dev.ikon | safe }}
       {% endif %}
     </div>
     <div class="d-info">

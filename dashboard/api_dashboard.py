@@ -26,32 +26,64 @@ except ImportError:
 # ── Normalisasi domain ke root (eTLD+1) ───────────────────────────────────────
 # SLD 2-level yang diperlakukan sebagai satu TLD (mis. .co.id, .ac.id)
 _SLD_2LV = {
-    'co.id','ac.id','go.id','or.id','sch.id','net.id','mil.id',
-    'co.uk','ac.uk','gov.uk','org.uk','me.uk','net.uk',
-    'co.jp','ne.jp','or.jp','go.jp',
-    'co.kr','go.kr','or.kr','ne.kr',
-    'co.nz','co.za','co.in','co.th',
-    'com.au','net.au','org.au','gov.au','edu.au',
-    'com.br','net.br','org.br','gov.br',
-    'com.sg','edu.sg','gov.sg','net.sg',
-    'com.my','net.my','org.my','gov.my',
+    # Indonesia
+    'co.id','ac.id','go.id','or.id','sch.id','net.id','mil.id','web.id',
+    # UK
+    'co.uk','ac.uk','gov.uk','org.uk','me.uk','net.uk','ltd.uk','plc.uk',
+    # Japan
+    'co.jp','ne.jp','or.jp','go.jp','ac.jp','ad.jp','ed.jp',
+    # Korea
+    'co.kr','go.kr','or.kr','ne.kr','ac.kr','re.kr',
+    # Australia
+    'com.au','net.au','org.au','gov.au','edu.au','asn.au','id.au',
+    # Brazil
+    'com.br','net.br','org.br','gov.br','edu.br','mil.br',
+    # Singapore
+    'com.sg','edu.sg','gov.sg','net.sg','org.sg','per.sg',
+    # Malaysia
+    'com.my','net.my','org.my','gov.my','edu.my','mil.my',
+    # India
+    'co.in','net.in','org.in','gov.in','ac.in','edu.in',
+    # New Zealand / South Africa / Thailand
+    'co.nz','org.nz','net.nz','co.za','org.za','net.za','co.th','ac.th',
+    # Philippines
+    'com.ph','net.ph','org.ph','gov.ph','edu.ph',
+    # Vietnam
+    'com.vn','net.vn','org.vn','gov.vn','edu.vn',
+    # China
+    'com.cn','net.cn','org.cn','gov.cn','edu.cn',
+    # US state/territory (sering muncul sebagai SLD di .us)
+    'ca.us','ny.us','tx.us','fl.us','wa.us','or.us','co.us','il.us',
+    'pa.us','oh.us','mi.us','ga.us','nc.us','nj.us','va.us','ma.us',
+    # Platform-style (dipakai sebagai "TLD" hosting)
+    'github.io','gitlab.io','vercel.app','netlify.app','pages.dev',
+    'cloudflare.net','firebaseapp.com','web.app',
 }
+
+_SUB_STRIP = {'www.','m.','api.','cdn.','static.','img.','assets.',
+              'mail.','smtp.','pop.','imap.','ftp.','sftp.',
+              'wap.','mobile.','app.','web.','portal.','secure.',
+              'en.','id.','ru.','de.','fr.','es.','pt.','ar.'}
 
 def root_domain(domain: str) -> str:
     """Normalisasi subdomain ke root domain (eTLD+1).
 
-    tip.wetv.com   → wetv.com
-    api.wetv.com   → wetv.com
-    m.bca.co.id    → bca.co.id
-    google.com     → google.com  (tidak berubah)
+    api.wetv.com       → wetv.com
+    m.bca.co.id        → bca.co.id
+    user.github.io     → user.github.io   (github.io = platform SLD)
+    repo.user.github.io→ user.github.io
+    google.com         → google.com  (tidak berubah)
     """
     d = (domain or '').lower().strip()
-    if d.startswith('www.'):
-        d = d[4:]
+    # Strip satu lapis subdomain teknis yang umum
+    for pfx in _SUB_STRIP:
+        if d.startswith(pfx):
+            d = d[len(pfx):]
+            break
     parts = d.split('.')
     if len(parts) <= 2:
         return d
-    # Cek SLD 2-level (mis. co.id → butuh 3 bagian: name.co.id)
+    # Cek SLD 2-level (mis. co.id, github.io → butuh 3 bagian)
     if '.'.join(parts[-2:]) in _SLD_2LV:
         return '.'.join(parts[-3:]) if len(parts) >= 3 else d
     return '.'.join(parts[-2:])
@@ -722,36 +754,37 @@ def mulai_bot_telegram():
 # ══════════════════════════════════════════════════════════════════════════════
 # DEVICE ICON — pilih emoji berdasarkan device_name
 # ══════════════════════════════════════════════════════════════════════════════
+_SVG_PHONE   = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>'
+_SVG_LAPTOP  = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>'
+_SVG_TABLET  = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="22" height="14" rx="2" ry="2"/><path d="M21 12h0" stroke-width="3"/></svg>'
+_SVG_TV      = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><polyline points="17 2 12 7 7 2"/></svg>'
+_SVG_CONSOLE = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="5" ry="5"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><path d="M15 11h0M17 13h0" stroke-width="3"/></svg>'
+
 def device_icon(device_name: str) -> str:
-    """Map device_name → emoji ikon.
-       💻 Laptop  · 📟 Tablet  · 📱 Ponsel  · 🎮 Konsol  · 📺 TV  · 🖥 Default."""
+    """Map device_name → SVG ikon sesuai jenis perangkat."""
     n = (device_name or '').lower()
-    if not n: return '📱'
-    # Konsol / Game (cek dulu sebelum 'pro' agar PS Pro tidak nyangkut ke laptop)
-    if any(k in n for k in ('playstation','ps5','ps4','ps3','xbox',
-                            'nintendo','switch','konsol','steam deck')):
-        return '🎮'
-    # TV
-    if any(k in n for k in ('smart tv','android tv','chromecast','tv ',
-                            'tv-','tv:','televisi','roku','firestick','apple tv')):
-        return '📺'
-    # Laptop / PC
-    if any(k in n for k in ('macbook','laptop','notebook','pc ','desktop',
-                            'windows','imac','surface','chromebook','thinkpad',
-                            'inspiron','vivobook','zenbook')):
-        return '💻'
+    if not n: return _SVG_PHONE
+    # Konsol / Game
+    if any(k in n for k in ('playstation','ps5','ps4','ps3','ps 5','ps 4',
+                            'xbox','nintendo','switch','konsol','steam deck','game')):
+        return _SVG_CONSOLE
+    # Smart TV
+    if any(k in n for k in ('smart tv','android tv','chromecast','firestick',
+                            'apple tv','roku','televisi','tv box',
+                            'tv stick','mi tv','xiaomi tv')):
+        return _SVG_TV
+    # Laptop / PC / Desktop
+    if any(k in n for k in ('macbook','laptop','notebook','desktop','pc ',
+                            'imac','surface','chromebook','thinkpad','inspiron',
+                            'vivobook','zenbook','asus laptop','acer','lenovo',
+                            'hp laptop','dell','windows pc','komputer')):
+        return _SVG_LAPTOP
     # Tablet
-    if any(k in n for k in ('ipad','tablet','tab ','tab-','galaxy tab',
-                            'mi pad','redmi pad','huawei matepad')):
-        return '📟'
-    # Ponsel / HP (default mobile)
-    if any(k in n for k in ('iphone','samsung galaxy','galaxy s','galaxy a',
-                            'galaxy m','galaxy z','xiaomi','redmi','poco',
-                            'oppo','vivo','realme','infinix','tecno',
-                            'pixel','huawei','honor','asus rog','rog phone',
-                            'ponsel','hp ','phone')):
-        return '📱'
-    return '📱'   # default ke ponsel
+    if any(k in n for k in ('ipad','tablet','tab ','tab-','tab\t',
+                            'galaxy tab','mi pad','redmi pad','matepad','mediapad')):
+        return _SVG_TABLET
+    # Default → Ponsel
+    return _SVG_PHONE
 
 def format_waktu_ramah(dt):
     """Format datetime jadi: '14:20' (hari ini), 'Kemarin 19:30', '23 Mei 14:20'."""
@@ -1203,7 +1236,7 @@ def riwayat_detail():
         conds.append("COALESCE(p.nama, l.perangkat_nama) = %s"); args.append(nama)
     if   kat == 'edukasi': conds.append("l.kategori = 'edukasi'")
     elif kat == 'hiburan': conds.append("l.kategori = 'hiburan'")
-    elif kat == 'negatif': conds.append("l.aksi = 'blokir'")
+    elif kat == 'negatif': conds.append("l.kategori = 'negatif'")
     elif kat == 'netral':  conds.append("l.kategori = 'netral'")
 
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
@@ -1310,6 +1343,59 @@ def jadwal():
 
     jadwal_grup = list(groups.values())
 
+    # ── Activity chart: per-device hourly counts hari ini ──────────────────
+    chart_rows = query(
+        "SELECT l.user_id, HOUR(l.waktu_akses) AS jam, l.kategori, COUNT(*) AS cnt "
+        "FROM log_akses l "
+        "JOIN pengguna_anak p ON p.user_id = l.user_id "
+        "WHERE p.admin_id=%s AND DATE(l.waktu_akses) = CURDATE() "
+        "AND l.kategori IN ('edukasi','hiburan') "
+        "GROUP BY l.user_id, HOUR(l.waktu_akses), l.kategori",
+        (current_admin_id(),)) or []
+
+    # Per-device bonus dari dompet_kuota
+    bonus_rows = query(
+        "SELECT p.user_id, p.nama, COALESCE(p.kuota_terpakai,0) AS kuota_terpakai, "
+        "       COALESCE(d.total_edukasi,0) AS total_edukasi, "
+        "       COALESCE(d.sisa_hiburan,0)  AS sisa_hiburan, "
+        "       COALESCE(d.batas_harian,60) AS batas_harian "
+        "FROM pengguna_anak p "
+        "LEFT JOIN dompet_kuota d ON d.user_id = p.user_id "
+        "WHERE p.admin_id=%s ORDER BY p.nama",
+        (current_admin_id(),)) or []
+
+    # Bangun struktur {user_id: {jam: {edu, hib}}}
+    dev_hourly = {}
+    for r in chart_rows:
+        uid = r['user_id']
+        if uid not in dev_hourly:
+            dev_hourly[uid] = {h: {'e': 0, 'h': 0} for h in range(24)}
+        k = 'e' if r['kategori'] == 'edukasi' else 'h'
+        dev_hourly[uid][r['jam']][k] += r['cnt']
+
+    # Gabungan semua perangkat (untuk chart "Semua")
+    all_hourly = {h: {'e': 0, 'h': 0} for h in range(24)}
+    for uid_data in dev_hourly.values():
+        for h, v in uid_data.items():
+            all_hourly[h]['e'] += v['e']
+            all_hourly[h]['h'] += v['h']
+
+    chart_devs = [{'id': 'all', 'nama': 'Semua',
+                   'hourly': all_hourly,
+                   'total_edu': sum(r['total_edukasi'] for r in bonus_rows),
+                   'total_hib': sum(r['kuota_terpakai'] for r in bonus_rows),
+                   'sisa_bonus': sum(r['sisa_hiburan'] for r in bonus_rows)}]
+    for b in bonus_rows:
+        uid = b['user_id']
+        chart_devs.append({
+            'id': uid,
+            'nama': b['nama'],
+            'hourly': dev_hourly.get(uid, {h: {'e':0,'h':0} for h in range(24)}),
+            'total_edu':  int(b['total_edukasi']),
+            'total_hib':  int(b['kuota_terpakai']),
+            'sisa_bonus': int(b['sisa_hiburan']),
+        })
+
     return render_template('jadwal_akses.html',
         cfg=cfg,
         perangkat_list=list(perangkat),
@@ -1317,7 +1403,8 @@ def jadwal():
         total_jadwal=len(jadwal_rows),
         hari_list=HARI_LIST,
         hari_label=HARI_LABEL,
-        hari_label_full=HARI_LABEL_FULL)
+        hari_label_full=HARI_LABEL_FULL,
+        chart_devs=chart_devs)
 
 # ── Tambah jadwal_blokir (boleh multi-hari sekaligus) ──────────────────
 @app.route('/jadwal/blokir/tambah', methods=['POST'])

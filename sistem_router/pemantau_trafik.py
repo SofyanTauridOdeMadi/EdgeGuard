@@ -43,6 +43,16 @@ def _sinkhole_conf_path() -> str:
     os.makedirs(d, exist_ok=True)
     return os.path.join(d, 'eg_sinkhole.conf')
 
+def _sinkhole_all_paths() -> list:
+    """Semua path sinkhole yang mungkin dibaca dnsmasq — tulis ke semuanya
+    agar tidak ada gap kalau OpenWrt memakai path dinamis ATAU statis."""
+    import glob
+    paths = set()
+    paths.add('/tmp/dnsmasq.d/eg_sinkhole.conf')
+    for d in glob.glob('/tmp/dnsmasq.*.d'):
+        paths.add(os.path.join(d, 'eg_sinkhole.conf'))
+    return list(paths)
+
 # Set domain negatif yang terdeteksi oleh AI (in-memory, persisten selama proses hidup)
 _negatif_domains: set = set()
 
@@ -236,12 +246,20 @@ def kirim_log(keputusan: dict, perangkat: str, mac: str):
 PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
 
 def _tulis_sinkhole():
-    """Tulis ulang file dnsmasq sinkhole dari _negatif_domains lalu reload dnsmasq."""
-    conf = _sinkhole_conf_path()
+    """Tulis ulang file dnsmasq sinkhole dari _negatif_domains lalu reload dnsmasq.
+    Tulis ke SEMUA path yang mungkin dibaca dnsmasq (statis + dinamis)."""
+    paths = _sinkhole_all_paths()
+    conf  = paths[0]  # path utama untuk log
     try:
-        with open(conf, 'w') as f:
-            for d in sorted(_negatif_domains):
-                f.write(f"address=/{d}/{PORTAL_IP}\n")
+        lines = ''.join(f"address=/{d}/{PORTAL_IP}\n" for d in sorted(_negatif_domains))
+        # Tulis ke semua path (statis + dinamis) agar dnsmasq pasti membacanya
+        for p in paths:
+            try:
+                os.makedirs(os.path.dirname(p), exist_ok=True)
+                with open(p, 'w') as f:
+                    f.write(lines)
+            except Exception:
+                pass
         # HUP = reload conf tanpa restart penuh
         subprocess.run(['killall', '-HUP', 'dnsmasq'], timeout=3, check=False,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -252,7 +270,7 @@ def fw_blokir(domain: str):
     """Domain negatif → DNS sinkhole → captive portal.
     nftables di captive_portal.sh sudah menangani:
       • HTTP  (80)  ke PORTAL_IP → DNAT ke portal_server.py (halaman blokir)
-      • HTTPS (443) ke PORTAL_IP → DROP senyap (hindari cert warning)
+      • HTTPS (443) ke PORTAL_IP → REJECT with tcp reset (langsung gagal, tidak hang)
     Dengan sinkhole, IP lama yang ter-cache di browser otomatis digantikan
     saat TTL habis. Hard-drop via ipset tidak dipakai lagi karena tidak
     menampilkan halaman portal."""
