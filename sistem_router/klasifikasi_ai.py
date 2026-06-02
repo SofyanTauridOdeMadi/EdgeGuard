@@ -57,6 +57,32 @@ _INFRA_WHITELIST = {
     'hubspot.com','hs-banner.com','hs-analytics.net','appsflyersdk.com','appsflyer.com',
     'exp-tas.com','snssdk.com','doubao.com','byteoversea.com','ibyteimg.com',
     'sgpstatic.com',
+    # Banking & payment Indonesia — JANGAN PERNAH diblokir
+    'bca.co.id','klikbca.com','halonasabah.bca.co.id',
+    'bri.co.id','brimo.bri.co.id','ibank.bri.co.id',
+    'bni.co.id','ocbc.id','mandiri.co.id','livin.mandiri.co.id',
+    'cimbniaga.co.id','danamon.co.id','permatabank.com',
+    'gopay.co.id','dana.id','ovo.id','linkaja.id',
+    'shopeepay.co.id','sakuku.bca.co.id',
+    # Analytics / monitoring / ad-tech (infrastruktur teknis, bukan konten)
+    'mixpanel.com','mix.panel.com',
+    'newrelic.com','nr-data.net',
+    'imrworldwide.com','scorecardresearch.com',
+    'doubleverify.com','ias.com','integralads.com',
+    'adnxs.com','appnexus.com',
+    'amplitude.com','segment.com','heap.io',
+    'optimizely.com','vwo.com',
+    'intercom.com','intercom.io','intercomcdn.com',
+    'hotjar.com','fullstory.com','logrocket.com',
+    'revenuecat.com','appsflyer.com',
+    # Streaming sah (sementara sampai model di-retrain)
+    'wetvinfo.com','wetv.vip',
+    # CDN / device system
+    'avcdn.net','heytapmobile.com','heytapdl.com','oppomobile.com',
+    'coloros.com','oneplus.com',
+    'xiaomipush.com','micloud.xiaomi.net',
+    # Samsung
+    'samsungcloud.com','samsungelectronics.com','samsungdm.com',
 }
 
 def _is_infra(domain: str) -> bool:
@@ -105,25 +131,44 @@ def load_model():
 # ═══════════════════════════════════════════════════════════════════════════
 # 2. PRE-PROCESSING  (REPLIKA dari AI_LATIH.ipynb)
 # ═══════════════════════════════════════════════════════════════════════════
-_TLD = {'com','net','org','id','co','io','info','biz','gov','edu','ac','tv','me',
-        'xyz','cc','cam','cf','tk','online','site','store','link','app'}
+_TLD = {
+    # Generic TLD
+    'com','net','org','id','co','io','info','biz','gov','edu','ac','tv','me',
+    'xyz','cc','cam','cf','tk','online','site','store','link','app',
+    # Country-code TLD (ccTLD) — sering muncul di SNI sebagai bagian domain pendek
+    'in','au','jp','sg','uk','de','fr','cn','ru','nl','br','us','ca',
+    'my','th','vn','ph','nz','za','eu','it','es','pl','kr','hk','tw',
+    'tr','sa','ae','pk','bd','lk','mm','kh','la','mn','az','kz',
+}
 _PREFIX = {'www.','m.','api.','cdn.','en.','ads.','static.','web.','mobile.'}
 
+# Token minimum 3 karakter agar n-gram bermakna (a, ab, 8d, vr, uk, sg, dll)
+_MIN_TOKEN_LEN = 3
+
 def normalize_domain(domain: str) -> str:
-    """Tokenisasi SNI — identik dengan training."""
+    """Tokenisasi SNI — identik dengan training.
+    Perubahan v2.11: min token 3 char + ccTLD difilter → kurangi noise domain pendek.
+    """
     d = str(domain).lower().strip()
     for pfx in _PREFIX:
         if d.startswith(pfx):
             d = d[len(pfx):]
+            break
     parts = []
     for seg in re.split(r'[\.\-_]', d):
-        if seg and seg not in _TLD and not seg.isdigit() and len(seg) > 1:
+        if seg and seg not in _TLD and not seg.isdigit() and len(seg) >= _MIN_TOKEN_LEN:
             parts.append(seg)
+            # Token alternatif tanpa digit di akhir (slot88 → slot)
             stripped = seg.rstrip('0123456789')
-            if stripped and stripped != seg and len(stripped) > 1:
+            if stripped and stripped != seg and len(stripped) >= _MIN_TOKEN_LEN:
                 parts.append(stripped)
-    # dict.fromkeys untuk pertahankan urutan & buang duplikat
-    return ' '.join(list(dict.fromkeys(parts)))
+    result = ' '.join(list(dict.fromkeys(parts)))
+    # Safety net: jika hasil normalisasi kosong/terlalu pendek,
+    # kembalikan segmen domain terpanjang dari domain asli sebagai fallback.
+    if len(result) < _MIN_TOKEN_LEN:
+        segs = [s for s in re.split(r'[\.\-_]', d) if len(s) >= _MIN_TOKEN_LEN]
+        result = ' '.join(segs) if segs else d.replace('.', ' ')
+    return result
 
 def augment_keyword(text_combined: str, keyword_global: dict) -> str:
     """Tambahkan token kw_<kategori>_<keyword> (repeat 2x) — identik training."""

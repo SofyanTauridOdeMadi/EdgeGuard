@@ -138,7 +138,7 @@ a{text-decoration:none;color:inherit}
         <!-- Quick type chips -->
         <div class="type-chips" id="type-chips">
           <button type="button" class="type-chip" onclick="setModel(this,'Ponsel')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> Ponsel</button>
-          <button type="button" class="type-chip" onclick="setModel(this,'Tablet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg> Tablet</button>
+          <button type="button" class="type-chip" onclick="setModel(this,'Tablet')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="22" height="14" rx="2" ry="2"/><path d="M21 12h0" stroke-width="3"/></svg> Tablet</button>
           <button type="button" class="type-chip" onclick="setModel(this,'Laptop')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg> Laptop</button>
           <button type="button" class="type-chip" onclick="setModel(this,'Smart TV')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg> Smart TV</button>
           <button type="button" class="type-chip" onclick="setModel(this,'Console')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="11" x2="15" y2="11" stroke-width="3"/><line x1="17" y1="13" x2="17" y2="13" stroke-width="3"/><rect x="2" y="8" width="20" height="10" rx="5"/></svg> Console</button>
@@ -239,7 +239,7 @@ a{text-decoration:none;color:inherit}
       <div id="preview-card" style="background:#F9FAFB;border-radius:10px;padding:12px 14px;margin-top:14px;border:1px solid #E5E7EB">
         <div style="font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">Preview Perangkat</div>
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;background:#DCFCE7;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
+          <div id="prev-ic" style="width:36px;height:36px;background:#DCFCE7;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg></div>
           <div>
             <div id="prev-nama" style="font-size:14px;font-weight:600">{{ dev.nama if dev else 'Nama Anak' }}</div>
             <div style="font-size:12px;color:#9CA3AF;margin-top:2px">
@@ -315,10 +315,20 @@ function setKuota(val) {
   document.getElementById('prev-kuota').textContent = kuota;
 }
 
+var _IC_MAP = {
+  'Ponsel':   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',
+  'Tablet':   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="22" height="14" rx="2" ry="2"/><path d="M21 12h0" stroke-width="3"/></svg>',
+  'Laptop':   '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="2" y1="20" x2="22" y2="20"/></svg>',
+  'Smart TV': '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"/><polyline points="17 2 12 7 7 2"/></svg>',
+  'Console':  '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><line x1="15" y1="11" x2="15" y2="11" stroke-width="3"/><line x1="17" y1="13" x2="17" y2="13" stroke-width="3"/><rect x="2" y="8" width="20" height="10" rx="5"/></svg>'
+};
+
 function setModel(btn, val) {
   document.getElementById('model').value = val;
   document.querySelectorAll('.type-chip').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
+  var ic = _IC_MAP[val];
+  if (ic) document.getElementById('prev-ic').innerHTML = ic;
 }
 
 function updatePreview() {
@@ -378,11 +388,14 @@ document.addEventListener('keydown', function(e){
 {% if dev %}
 validateMAC('{{ dev.mac }}');
 {% endif %}
-// Highlight model chip jika sesuai
+// Highlight model chip dan sync preview icon saat load
 var modelVal = document.getElementById('model').value;
 document.querySelectorAll('.type-chip').forEach(function(b){
-  if (modelVal && modelVal.toLowerCase().includes(b.textContent.trim().toLowerCase().replace(/^[^\s]+ /,''))) {
+  var label = b.textContent.trim();
+  if (modelVal && modelVal.toLowerCase().includes(label.toLowerCase())) {
     b.classList.add('active');
+    var ic = _IC_MAP[label];
+    if (ic) document.getElementById('prev-ic').innerHTML = ic;
   }
 });
 

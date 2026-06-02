@@ -294,6 +294,9 @@ function filterClient() {
     }
     sep.style.display = hasVisible ? '' : 'none';
   });
+  // Sembunyikan pagination saat pencarian aktif
+  var pag = document.querySelector('.pagination');
+  if (pag) pag.style.display = q ? 'none' : '';
 }
 </script>
 </body>

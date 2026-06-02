@@ -1,11 +1,11 @@
 Metrik,Nilai
-Akurasi (Test),95.24%
-Precision (Macro),95.84%
-Recall (Macro),95.27%
-F1-Score (Macro),95.23%
-Akurasi (CV-5 Mean),95.63%
-Standar Deviasi CV,±1.59%
-Jumlah Fitur Total,"10,995"
+Akurasi (Test),93.20%
+Precision (Macro),93.53%
+Recall (Macro),93.24%
+F1-Score (Macro),93.21%
+Akurasi (CV-5 Mean),94.40%
+Standar Deviasi CV,±1.85%
+Jumlah Fitur Total,"11,255"
 Jumlah Data Latih,585
 Jumlah Data Uji,147
 Jumlah Kategori,"4 (negatif, edukasi, hiburan, netral)"

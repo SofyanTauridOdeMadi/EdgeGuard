@@ -6,7 +6,7 @@
 -- ║   • pengguna_anak (F2:9C:78:8F:1F:FB) milik "Stom"                   ║
 -- ║   • Dompet kuota + jadwal istirahat untuk perangkat tsb              ║
 -- ║   • 18 whitelist + 16 blacklist (aturan filter manual)               ║
--- ║   • cache_domain — knowledge base AI realtime                        ║
+-- ║   • cache_domain — knowledge base AI (dataset v2.11, 809 entri)      ║
 -- ║   • log_akses 3 hari terakhir (semua milik perangkat nyata)          ║
 -- ║                                                                      ║
 -- ║  Aman dijalankan berkali-kali — RESET data lama dulu di awal.        ║
@@ -17,18 +17,6 @@
 -- ╚══════════════════════════════════════════════════════════════════════╝
 
 USE edgeguard;
-
--- ════════════════════════════════════════════════════════════════════════
--- 0. RESET DATA LAMA (idempoten — aman dijalankan berkali-kali)
--- ════════════════════════════════════════════════════════════════════════
-SET FOREIGN_KEY_CHECKS = 0;
-DELETE FROM log_akses;
-DELETE FROM jadwal_blokir;
-DELETE FROM daftar_filter;
-DELETE FROM dompet_kuota;
-DELETE FROM pengguna_anak;
-TRUNCATE TABLE cache_domain;
-SET FOREIGN_KEY_CHECKS = 1;
 
 -- ════════════════════════════════════════════════════════════════════════
 -- 1. PENGGUNA ANAK — 1 perangkat NYATA (iPhone milik "Stom")
@@ -102,7 +90,7 @@ INSERT INTO daftar_filter (admin_id, tipe, domain_url, alasan) VALUES
 -- ════════════════════════════════════════════════════════════════════════
 -- 5. CACHE_DOMAIN — knowledge base AI (hasil klasifikasi realtime)
 -- ════════════════════════════════════════════════════════════════════════
--- Reset + isi ulang dari datasetkumpulanweb.xlsx (755 SNI → 540 root domain)
+-- Reset + isi ulang dari datasetkumpulanweb.xlsx (809 SNI, dataset v2.11)
 -- Kategori diambil dari label dataset (ground truth), bukan prediksi AI.
 -- Aman dijalankan ulang — ON DUPLICATE KEY UPDATE menjaga idempoten.
 -- ════════════════════════════════════════════════════════════════════════
@@ -254,7 +242,7 @@ INSERT INTO cache_domain
   ('bilibili.com', 'hiburan', 96.9, 1),
   ('bola.com', 'hiburan', 71.4, 1),
   ('boombastis.com', 'hiburan', 37.3, 1),
-  ('branch.io', 'hiburan', 56.5, 1),
+  ('branch.io', 'netral', 99.0, 1),
   ('brightcove.com', 'hiburan', 79.0, 1),
   ('brilio.net', 'hiburan', 58.1, 1),
   ('catchplay.com', 'hiburan', 100.0, 1),
@@ -362,7 +350,7 @@ INSERT INTO cache_domain
   ('roblox.com', 'hiburan', 100.0, 1),
   ('sc-cdn.net', 'hiburan', 51.0, 1),
   ('selular.id', 'hiburan', 48.3, 1),
-  ('shopee.co.id', 'hiburan', 23.5, 1),
+  ('shopee.co.id', 'netral', 99.0, 1),
   ('snackvideo.com', 'hiburan', 99.9, 1),
   ('snapchat.com', 'hiburan', 100.0, 1),
   ('soundcloud.com', 'hiburan', 1.2, 1),
@@ -727,13 +715,44 @@ ON DUPLICATE KEY UPDATE
   confidence_score=VALUES(confidence_score),
   jumlah_hit=jumlah_hit+1;
 
--- Extra: domain yang dipakai log_akses demo tapi tidak ada di dataset
+-- Extra: domain log_akses demo + domain dari dataset v2.11 (baru ditambahkan)
 INSERT INTO cache_domain (domain_url, kategori, confidence_score, jumlah_hit) VALUES
+  -- domain untuk log_akses demo
   ('classroom.google.com', 'edukasi',  99.0, 1),
   ('scholar.google.com',   'edukasi',  98.9, 1),
   ('wikipedia.org',        'edukasi',  95.2, 1),
   ('dewa777slot.net',      'negatif',  99.8, 1),
-  ('kerumput-iklan.xyz',   'negatif',  91.2, 1)
+  ('kerumput-iklan.xyz',   'negatif',  91.2, 1),
+  -- e-commerce Indonesia (netral — tidak diblokir)
+  ('tokopediax.com',       'netral',   99.0, 1),
+  ('shopee.com',           'netral',   99.0, 1),
+  ('shopee.sg',            'netral',   99.0, 1),
+  ('shopeepay.co.id',      'netral',   99.0, 1),
+  -- banking Indonesia (netral — WAJIB tidak diblokir)
+  ('bca.co.id',            'netral',   99.0, 1),
+  ('klikbca.com',          'netral',   99.0, 1),
+  -- analytics / monitoring / ad-tech (netral — infrastruktur)
+  ('mix.panel.com',        'netral',   99.0, 1),
+  ('adnxs.com',            'netral',   99.0, 1),
+  ('newrelic.com',         'netral',   99.0, 1),
+  ('doubleverify.com',     'netral',   99.0, 1),
+  ('imrworldwide.com',     'netral',   99.0, 1),
+  ('revenuecat.com',       'netral',   99.0, 1),
+  -- CDN / device system (netral)
+  ('avcdn.net',            'netral',   99.0, 1),
+  ('heytapmobile.com',     'netral',   99.0, 1),
+  ('heytapdl.com',         'netral',   99.0, 1),
+  -- streaming sah (hiburan)
+  ('wetvinfo.com',         'hiburan',  99.0, 1),
+  ('vu.tv',                'hiburan',  57.0, 1),
+  -- domain pendek teknis (netral)
+  ('vr.in',                'netral',   99.0, 1),
+  ('8d.au',                'netral',   99.0, 1),
+  ('9.sg',                 'netral',   99.0, 1),
+  ('i8.cc',                'netral',   99.0, 1),
+  ('u.uk',                 'netral',   99.0, 1),
+  ('5sh0.jp',              'netral',   99.0, 1),
+  ('popin-minus.com',      'netral',   99.0, 1)
 ON DUPLICATE KEY UPDATE
   kategori=VALUES(kategori),
   confidence_score=VALUES(confidence_score),
@@ -795,6 +814,7 @@ UNION ALL SELECT 'CACHE_DOMAIN total',        COUNT(*) FROM cache_domain
 UNION ALL SELECT '  └─ edukasi',              COUNT(*) FROM cache_domain WHERE kategori='edukasi'
 UNION ALL SELECT '  └─ hiburan',              COUNT(*) FROM cache_domain WHERE kategori='hiburan'
 UNION ALL SELECT '  └─ negatif',              COUNT(*) FROM cache_domain WHERE kategori='negatif'
+UNION ALL SELECT '  └─ netral',               COUNT(*) FROM cache_domain WHERE kategori='netral'
 UNION ALL SELECT 'LOG total',                 COUNT(*) FROM log_akses
 UNION ALL SELECT '  └─ Hari ini',             COUNT(*) FROM log_akses WHERE DATE(waktu_akses) = CURDATE()
 UNION ALL SELECT '  └─ Kemarin',              COUNT(*) FROM log_akses WHERE DATE(waktu_akses) = CURDATE() - INTERVAL 1 DAY

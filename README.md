@@ -137,7 +137,7 @@ python3 api_dashboard.py
 
 ## 📈 Status Proyek
 
-> **v8.11** —  Pengujian Proyek
+> **v9.01** —  Pengujian Proyek
 
 ---
 
