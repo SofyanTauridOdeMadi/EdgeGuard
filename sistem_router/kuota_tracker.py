@@ -35,6 +35,7 @@ _state = {
     'hib_prev':   defaultdict(lambda: 0),   # byte hiburan terakhir per MAC
     'blok_set':   set(),                    # MAC yg sedang diblok hiburannya
     'jadwal_set': set(),                    # MAC yg sedang diblok jadwal (full)
+    'primed':     set(),                    # MAC yg counter awalnya sudah dicatat
     'lock':       threading.Lock(),
 }
 DEVS_TTL = 25
@@ -146,6 +147,13 @@ def siklus(interval: int, kbps_th: float):
         if curr < prev: delta = 0          # counter reset
         _state['hib_prev'][mac] = curr
 
+        # Prime: pada pengamatan PERTAMA sebuah MAC, jangan hitung delta.
+        # Mencegah kuota terpotong salah saat tracker restart sementara counter
+        # nft sudah berisi byte lama (delta = curr - 0 = besar → false spike).
+        if mac not in _state['primed']:
+            _state['primed'].add(mac)
+            delta = 0
+
         sudah_blok = mac in _state['blok_set']
         if not sudah_blok:
             kbps = (delta * 8) / (interval * 1000)
@@ -202,6 +210,11 @@ def main():
         print("⚠️  Butuh root untuk nft"); sys.exit(1)
 
     ambil_perangkat()
+    # Siklus pertama langsung (prime counter + enforce jadwal/jeda segera,
+    # tanpa menunggu satu interval penuh).
+    try: siklus(args.interval, args.kbps_aktif)
+    except Exception as e:
+        if DEBUG: log(f"siklus awal error: {e}")
     try:
         while True:
             time.sleep(args.interval)

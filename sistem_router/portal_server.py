@@ -12,10 +12,10 @@ Konfigurasi via /etc/edgeguard.env:
   EG_PORTAL_PORT  (default: 8880)
   EG_TG_TOKEN     — bot token Telegram (opsional, untuk kirim langsung)
   EG_TG_CHAT      — chat/group ID Telegram (opsional)
-  EG_CLOUD_URL    — URL VPS untuk fallback (default: https://202.10.34.171)
+  EG_CLOUD_URL    — URL VPS untuk fallback (default: https://edgeguard.my.id)
 """
 import os, sys, json, ssl, threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 import urllib.request
 
 BASE        = os.path.dirname(os.path.abspath(__file__))
@@ -23,7 +23,7 @@ DOCROOT     = os.path.join(BASE, 'portal')
 
 PORTAL_HOST = os.environ.get('EG_PORTAL_HOST', '192.168.1.1')
 PORTAL_PORT = int(os.environ.get('EG_PORTAL_PORT', '8880'))
-CLOUD_URL   = os.environ.get('EG_CLOUD_URL', 'https://202.10.34.171').rstrip('/')
+CLOUD_URL   = os.environ.get('EG_CLOUD_URL', 'https://edgeguard.my.id').rstrip('/')
 TG_TOKEN    = os.environ.get('EG_TG_TOKEN', '')
 TG_CHAT     = os.environ.get('EG_TG_CHAT', '')
 DEBUG       = bool(int(os.environ.get('EG_DEBUG', '0')))
@@ -44,6 +44,13 @@ def _ssl_ctx():
 class PortalHandler(BaseHTTPRequestHandler):
     server_version = 'EdgeGuard-Portal/1.0'
     sys_version    = ''
+
+    def handle(self):
+        # Suppress traceback spam saat klien reset koneksi (umum di captive portal)
+        try:
+            super().handle()
+        except (ConnectionResetError, BrokenPipeError, TimeoutError):
+            pass
 
     def log_message(self, fmt, *args):
         if DEBUG:
@@ -83,53 +90,79 @@ class PortalHandler(BaseHTTPRequestHandler):
             return {}
 
     # ── Verbs ─────────────────────────────────────────────────────
-    # URL yang dicek OS untuk deteksi captive portal
+    # Host milik portal sendiri — request ke sini berarti akses langsung.
+    _PORTAL_HOSTS = {PORTAL_HOST, '192.168.1.1', '192.168.1.2',
+                     '127.0.0.1', 'localhost', ''}
+
+    # URL yang dipakai OS untuk deteksi captive portal. Saat perangkat diblokir
+    # (jadwal/jeda), URL ini ter-DNAT ke portal → kita 302-redirect → OS
+    # menampilkan popup "Masuk ke jaringan" otomatis (gaya wifi.id):
+    #   • Android : http://connectivitycheck.gstatic.com/generate_204
+    #   • iOS/Mac : http://captive.apple.com/hotspot-detect.html
+    #   • Windows : http://www.msftconnecttest.com/connecttest.txt
     _CAPTIVE_PATHS = {
-        '/generate_204',                     # Android / Chrome
-        '/hotspot-detect.html',              # iOS / macOS
-        '/library/test/success.html',        # iOS lama
-        '/connecttest.txt',                  # Windows
-        '/ncsi.txt',                         # Windows lama
-        '/success.txt',                      # macOS
-        '/canonical.html',                   # Ubuntu
+        '/generate_204', '/gen_204', '/hotspot-detect.html',
+        '/library/test/success.html', '/connecttest.txt', '/ncsi.txt',
+        '/success.txt', '/canonical.html', '/check_network_status.txt',
     }
 
     def do_GET(self):
         path = self.path.split('?')[0].rstrip('/')
+        host = (self.headers.get('Host') or '').split(':')[0].strip().lower()
+
+        # Endpoint status (dipakai index.html untuk tahu alasan blokir)
         if path == '/status':
             self._send_status()
-        elif path in self._CAPTIVE_PATHS or path == '':
-            # OS captive portal check → redirect ke portal agar notifikasi muncul
+            return
+
+        # URL cek-konektivitas OS (datang via DNAT, bukan akses langsung) →
+        # 302 redirect → memicu popup captive portal otomatis.
+        if path in self._CAPTIVE_PATHS and host not in self._PORTAL_HOSTS:
             self._redirect_portal()
-        else:
-            self._send_html()
+            return
+
+        # Selain itu → sajikan halaman portal. Untuk domain negatif (sinkhole),
+        # Host = domain asli tetap terbaca browser (location.hostname) sehingga
+        # alasan 'negatif' bisa dideteksi index.html.
+        self._send_html()
 
     def _redirect_portal(self):
-        """Redirect OS captive portal check ke halaman portal.
-        OS mendeteksi respons tidak sesuai → muncul notifikasi 'Login ke jaringan'."""
+        """302 redirect ke halaman portal — memicu deteksi captive portal OS."""
         target = f'http://{PORTAL_HOST}:{PORTAL_PORT}/'
+        body   = (f'<html><head><meta http-equiv="refresh" content="0;url={target}">'
+                  f'</head><body>Redirecting to <a href="{target}">portal</a></body></html>'
+                  ).encode()
         self.send_response(302)
         self.send_header('Location', target)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store')
-        self.send_header('Content-Length', '0')
         self.end_headers()
+        try: self.wfile.write(body)
+        except Exception: pass
 
     def _send_status(self):
-        """Kembalikan JSON alasan blokir untuk perangkat yang meminta."""
-        client_ip  = self.client_address[0]
-        host_header = (self.headers.get('Host') or '').split(':')[0].strip()
+        """Kembalikan JSON alasan blokir untuk perangkat yang meminta.
+        Domain diambil dari query param ?domain= (dikirim index.html dari
+        location.hostname) — lebih andal daripada Host header."""
+        from urllib.parse import urlparse, parse_qs
+        client_ip = self.client_address[0]
+        qs        = parse_qs(urlparse(self.path).query)
+        domain    = (qs.get('domain', [''])[0] or '').lower().strip()
+        if domain.startswith('www.'):
+            domain = domain[4:]
 
-        # Cek apakah Host header adalah domain sinkhole (bukan IP)
+        # Abaikan jika 'domain' ternyata IP (mis. browser di-redirect ke portal-IP).
         import re as _re
-        is_ip = bool(_re.match(r'^\d{1,3}(\.\d{1,3}){3}$', host_header))
-        domain = host_header if not is_ip else ''
+        if _re.match(r'^\d{1,3}(\.\d{1,3}){3}$', domain):
+            domain = ''
 
-        # Apakah domain ini ada di sinkhole? → negatif
-        alasan = 'negatif' if (domain and _domain_in_sinkhole(domain)) else 'kuota'
+        # 1) Domain ada di sinkhole → konten negatif.
+        alasan = 'negatif' if (domain and _domain_in_sinkhole(domain)) else ''
 
-        # Kalau bukan sinkhole, cek status perangkat dari VPS
-        if alasan != 'negatif':
-            mac = _hostname_dari_ip(client_ip)   # coba DHCP
+        # 2) Selain itu, tanya VPS status perangkat (jeda / jadwal / kuota).
+        if not alasan:
+            mac = _mac_dari_ip(client_ip)        # cari MAC dari ARP table
             alasan = _cek_alasan_vps(client_ip, mac) or 'kuota'
 
         self._send_json(200, {'alasan': alasan, 'domain': domain})
@@ -305,7 +338,13 @@ def _kirim_notif(domain: str, perangkat: str, client_ip: str):
 # MAIN
 # ═══════════════════════════════════════════════════════════════════
 if __name__ == '__main__':
-    server = HTTPServer((PORTAL_HOST, PORTAL_PORT), PortalHandler)
+    # ThreadingHTTPServer: tiap koneksi ditangani thread sendiri → captive portal
+    # tetap responsif walau banyak perangkat akses bersamaan. daemon_threads
+    # memastikan thread tidak menahan proses saat shutdown.
+    class _Server(ThreadingHTTPServer):
+        daemon_threads      = True
+        allow_reuse_address = True
+    server = _Server((PORTAL_HOST, PORTAL_PORT), PortalHandler)
     print(f"[EdgeGuard] Portal server aktif: http://{PORTAL_HOST}:{PORTAL_PORT}")
     print(f"[EdgeGuard] Telegram langsung : {'Ya' if TG_TOKEN else 'Tidak (fallback VPS)'}")
     try:

@@ -147,33 +147,24 @@ function mintaIzin() {
   });
 }
 
-// Deteksi alasan blokir
+// Deteksi alasan blokir — kirim domain (location.hostname) ke /status agar
+// portal bisa bedakan: negatif (sinkhole) vs jeda/jadwal/kuota (status VPS).
 function init() {
-  if (looksLikeSinkhole) {
-    // Kemungkinan sinkhole (negatif domain), tapi konfirmasi ke portal
-    fetch(PORTAL + '/status', {cache: 'no-store'})
-      .then(function(r){ return r.json(); })
-      .then(function(j){
-        var a = j.alasan || 'negatif';
-        if (a === 'jeda')         tampilJeda();
-        else if (a === 'jadwal')  tampilJadwal();
-        else if (a === 'kuota')   tampilKuota();
-        else                      tampilNegatif(j.domain || domain);
-      })
-      .catch(function(){ tampilNegatif(domain); });
-  } else {
-    // MAC-level block — cek VPS untuk alasan pasti
-    fetch(PORTAL + '/status', {cache: 'no-store'})
-      .then(function(r){ return r.json(); })
-      .then(function(j){
-        var a = j.alasan || 'kuota';
-        if (a === 'jeda')         tampilJeda();
-        else if (a === 'jadwal')  tampilJadwal();
-        else if (a === 'negatif') tampilNegatif(j.domain || domain);
-        else                      tampilKuota();
-      })
-      .catch(function(){ tampilKuota(); });
-  }
+  var url = PORTAL + '/status?domain=' + encodeURIComponent(domain || '');
+  fetch(url, {cache: 'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var a = j.alasan || (looksLikeSinkhole ? 'negatif' : 'kuota');
+      if      (a === 'jeda')    tampilJeda();
+      else if (a === 'jadwal')  tampilJadwal();
+      else if (a === 'kuota')   tampilKuota();
+      else                      tampilNegatif(j.domain || domain);
+    })
+    .catch(function(){
+      // Gagal hubungi portal → tebak dari bentuk hostname
+      if (looksLikeSinkhole) tampilNegatif(domain);
+      else                   tampilKuota();
+    });
 }
 
 init();

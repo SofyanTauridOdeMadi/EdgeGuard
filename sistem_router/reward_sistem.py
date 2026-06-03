@@ -52,6 +52,7 @@ def ambil_cfg() -> dict:
 _edu_prev   = defaultdict(lambda: 0)    # byte edukasi terakhir per MAC
 _edu_menit  = defaultdict(float)        # akumulasi menit belajar (belum dibonus)
 _mac_dev    = {}                        # mac → dev_id
+_primed     = set()                     # mac yg counter awalnya sudah dicatat
 _tanggal    = datetime.now().strftime('%Y-%m-%d')
 
 def log(msg):
@@ -119,9 +120,12 @@ def reset_harian_jika_perlu():
     td = datetime.now().strftime('%Y-%m-%d')
     if td != _tanggal:
         _tanggal = td
+        # Hanya reset progres menit belajar (menuju bonus berikutnya).
+        # _edu_prev TIDAK di-clear: counter nft kumulatif (tak reset tengah
+        # malam), jadi baseline byte harus tetap kontinu agar delta tetap akurat
+        # dan tidak memicu bonus palsu di siklus pertama hari baru.
         _edu_menit.clear()
-        _edu_prev.clear()
-        log("Hari baru — akumulasi belajar di-reset.")
+        log("Hari baru — progres menit belajar di-reset.")
 
 def siklus(interval: int):
     reset_harian_jika_perlu()
@@ -136,6 +140,12 @@ def siklus(interval: int):
         delta = max(0, curr - prev)
         if curr < prev: delta = 0
         _edu_prev[mac] = curr
+
+        # Prime pengamatan pertama → jangan hitung delta (cegah bonus salah
+        # saat reward_sistem restart sementara counter nft masih berisi byte lama).
+        if mac not in _primed:
+            _primed.add(mac)
+            continue
 
         if delta >= EDU_BYTES_AKTIF:
             _edu_menit[mac] += interval / 60.0

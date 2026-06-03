@@ -98,10 +98,13 @@ table $NFT_TABLE {
         ip saddr 192.168.1.0/24 ip daddr != 192.168.1.1 tcp dport 53 redirect
         # Negatif sinkhole (domain → $PORTAL_IP): HTTP → portal.
         ip daddr $PORTAL_IP tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
-        # Jadwal blokir: SEMUA HTTP → portal (informasikan jam istirahat).
+        # ── JADWAL/JEDA (blok total) ──────────────────────────────────────
+        # SEMUA HTTP → portal. Termasuk URL cek-konektivitas OS (gstatic/apple/
+        # msftconnect) → memicu popup "Masuk ke jaringan" otomatis (gaya wifi.id).
         ether saddr @jadwal_mac tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
-        # Kuota habis: semua HTTP → portal (agar notif OS muncul & portal tampil).
-        ether saddr @blok_mac tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
+        # ── KUOTA HIBURAN HABIS (blok hiburan saja) ───────────────────────
+        # Hanya HTTP ke situs HIBURAN → portal. Edukasi & netral tetap normal.
+        ether saddr @blok_mac ip daddr @hiburan_ip tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
     }
     chain input {
         type filter hook input priority filter; policy accept;
@@ -115,9 +118,10 @@ table $NFT_TABLE {
     }
     chain forward {
         type filter hook forward priority filter; policy accept;
-        # Jadwal blokir total: semua trafik dari MAC → drop.
+        # JADWAL/JEDA: blok total semua trafik dari MAC.
         ether saddr @jadwal_mac counter drop
-        # Kuota habis: blokir trafik ke IP hiburan (non-HTTP sudah kena di prerouting).
+        # KUOTA HABIS: hanya drop trafik ke IP hiburan (HTTPS hiburan → gagal,
+        # HTTP hiburan sudah di-DNAT ke portal di prerouting). Edukasi tetap jalan.
         ether saddr @blok_mac ip daddr @hiburan_ip counter drop
     }
 }

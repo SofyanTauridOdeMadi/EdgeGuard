@@ -3,7 +3,6 @@
 > **Smart Parental Control Berbasis Hybrid Edge-AI pada Router OpenWrt**
 
 [![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-edgeguard.my.id-2563EB?style=for-the-badge)](https://edgeguard.my.id)
-[![GitHub](https://img.shields.io/badge/GitHub-SofyanTauridOdeMadi-181717?style=for-the-badge&logo=github)](https://github.com/SofyanTauridOdeMadi)
 
 Edge Guard adalah sistem kontrol orang tua (*parental control*) cerdas yang menanamkan
 model AI **langsung di dalam router**. Klasifikasi konten dilakukan di sisi *edge*
@@ -115,15 +114,6 @@ EdgeGuard/
 
 ---
 
-## 🌐 Demo & Akses
-
-| | Link |
-|--|------|
-| **Dashboard** | [https://edgeguard.my.id](https://edgeguard.my.id) |
-| **GitHub** | [github.com/SofyanTauridOdeMadi](https://github.com/SofyanTauridOdeMadi) |
-
----
-
 ## 🚀 Menjalankan Dashboard (Pengembangan)
 
 ```bash
@@ -149,7 +139,7 @@ python3 api_dashboard.py
 
 ## 📈 Status Proyek
 
-> **v9.31** —  Pengujian Proyek
+> **v9.72** —  Pengujian Proyek
 
 ---
 
