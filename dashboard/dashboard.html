@@ -14,7 +14,7 @@ a{text-decoration:none;color:inherit}
 
 /* ── Topbar ── */
 .topbar{background:#2563EB;padding:14px 18px;display:flex;align-items:center;gap:10px;position:sticky;top:0;z-index:10;box-shadow:0 2px 12px rgba(37,99,235,.25)}
-#particle-canvas{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:0}
+#particle-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:0;border-radius:16px}
 .logo{width:36px;height:36px;background:rgba(255,255,255,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;border:1.5px solid rgba(255,255,255,.3)}
 .logo img{width:100%;height:100%;object-fit:contain}
 .bt h2{font-size:16px;font-weight:700;color:#fff;line-height:1.1}
@@ -234,8 +234,6 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
 </head>
 <body data-page="beranda">
 
-<canvas id="particle-canvas"></canvas>
-
 <div class="topbar">
   <div class="logo"><img src="/aset/logo.png" alt="Edge Guard"></div>
   <div class="bt"><h2>Edge Guard</h2><p>Parental Dashboard</p></div>
@@ -249,7 +247,8 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
   {% endwith %}
 
   <!-- ═══ KUOTA AGREGAT SEMUA PERANGKAT ═══ -->
-  <div class="card">
+  <div class="card" style="position:relative;overflow:hidden">
+    <canvas id="particle-canvas"></canvas>
     <div class="clabel">
       Sisa Kuota Harian
       <span style="font-size:10px;font-weight:500;background:#EFF6FF;color:#2563EB;padding:3px 8px;border-radius:8px">
@@ -290,21 +289,6 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
     </div>
 
     <p class="ring-cap">Total sisa kuota gabungan <strong>{{jml_perangkat}}</strong> perangkat hari ini.</p>
-
-    <!-- Per-device kuota chips -->
-    <div class="dev-kuota-row" id="dev-kuota-chips">
-      {% for dev in perangkat_list %}
-      {% set kT_d = dev.get('kuota_harian', 120) %}
-      {% set kU_d = dev.get('kuota_terpakai', 0) %}
-      {% set pct_d = ([kU_d, kT_d]|min / kT_d * 100)|int if kT_d else 0 %}
-      {% set ks_d = [kT_d - kU_d, 0]|max %}
-      <div class="dev-kuota-chip" id="chip-{{dev.id}}">
-        <div class="dn">{{dev.nama}}</div>
-        <div class="db"><div class="df" style="width:{{pct_d}}%;background:{{ '#EF4444' if pct_d > 80 else '#2563EB' }}"></div></div>
-        <div class="dm" id="chip-meta-{{dev.id}}">{{ks_d}}m sisa</div>
-      </div>
-      {% endfor %}
-    </div>
   </div>
 
   <!-- ═══ PERANGKAT ═══ -->
@@ -333,6 +317,9 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
         <div class="d-mini-fill" id="mini-bar-{{dev.id}}"
           style="width:{{pct_d}}%;background:{{ '#EF4444' if pct_d > 80 else '#2563EB' }}">
         </div>
+      </div>
+      <div id="chip-meta-{{dev.id}}" style="font-size:10px;color:{{ '#EF4444' if pct_d > 80 else '#9CA3AF' }};margin-top:3px">
+        {{([kT_d - kU_d, 0]|max)}}m sisa
       </div>
     </div>
     <span class="d-arr">›</span>
@@ -971,15 +958,15 @@ function clickSeg(kat) {
   // Toggle: klik segmen yang sama → reset ke semua tampil
   if (_activeSeg === kat) { _resetDonut(); return; }
   _activeSeg = kat;
-  // Sembunyikan semua segmen dulu
+  // Redup semua segmen (bukan disembunyikan, agar donut tetap terlihat utuh)
   _SEG_IDS.forEach(function(id){
     var el = document.getElementById(id);
-    if (el) { el.setAttribute('stroke-width','22'); el.style.opacity='0'; el.style.pointerEvents='none'; }
+    if (el) { el.setAttribute('stroke-width','22'); el.style.opacity='0.12'; el.style.pointerEvents='none'; }
   });
-  // Tampilkan hanya segmen yang dipilih
+  // Tonjolkan segmen yang dipilih
   var segEl = document.getElementById(segId);
-  if (segEl) { segEl.setAttribute('stroke-width','27'); segEl.style.opacity='1'; segEl.style.pointerEvents=''; }
-  // Center text
+  if (segEl) { segEl.setAttribute('stroke-width','28'); segEl.style.opacity='1'; segEl.style.pointerEvents=''; }
+  // Center text — tampilkan persen kategori yang diklik
   var key = kat==='edukasi'?'edu':kat==='hiburan'?'hib':kat==='negatif'?'neg':'net';
   var pctEl = document.getElementById('pct-'+key);
   document.getElementById('dc-pct').textContent = pctEl ? pctEl.textContent : '0%';
@@ -994,36 +981,39 @@ function clickSeg(kat) {
   var legEl = document.getElementById(legId); if (legEl) legEl.classList.add('active');
 }
 
-/* ── PARTIKEL TOPBAR ───────────────────────────────────── */
+/* ── PARTIKEL CARD KUOTA ───────────────────────────────── */
 (function(){
   var canvas = document.getElementById('particle-canvas');
   if (!canvas || !canvas.getContext) return;
   var ctx = canvas.getContext('2d');
   var W, H, pts = [], RAF;
+  var card = canvas.parentElement;
 
   function resize() {
-    W = window.innerWidth; H = window.innerHeight;
-    canvas.width = W; canvas.height = H;
+    W = card ? card.offsetWidth  : 320;
+    H = card ? card.offsetHeight : 200;
+    canvas.width  = W;
+    canvas.height = H;
   }
 
   function mkPt() {
     return {
       x  : Math.random() * W,
       y  : H + Math.random() * 10,
-      r  : Math.random() * 1.8 + 0.6,
-      vx : (Math.random() - 0.5) * 0.4,
-      vy : -(Math.random() * 0.6 + 0.25),
-      a  : Math.random() * 0.55 + 0.15
+      r  : Math.random() * 1.4 + 0.4,
+      vx : (Math.random() - 0.5) * 0.35,
+      vy : -(Math.random() * 0.5 + 0.2),
+      a  : Math.random() * 0.35 + 0.08
     };
   }
 
   function init() {
     resize();
     pts = [];
-    var N = Math.max(14, Math.round(W / 20));
+    var N = Math.max(10, Math.round(W / 24));
     for (var i = 0; i < N; i++) {
       var p = mkPt();
-      p.y = Math.random() * H; // scatter vertically on first load
+      p.y = Math.random() * H;
       pts.push(p);
     }
   }

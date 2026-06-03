@@ -316,13 +316,15 @@ def putuskan(domain: str, mac_src: str = '') -> dict:
     # putuskan() murni klasifikasi konten domain, sehingga aktivitas perangkat
     # yang dijeda tetap tercatat (untuk audit) tanpa meracuni blocklist global.
 
-    # 2) Whitelist domain
-    if d in cfg.get('daftar_putih', []):
+    # 2) Whitelist domain (cek exact match DAN subdomain)
+    putih = cfg.get('daftar_putih', [])
+    if any(d == e or d.endswith('.' + e) for e in putih if e):
         return {'domain': d, 'aksi':'izinkan', 'alasan':'whitelist',
                 'kategori':'edukasi', 'confidence':100}
 
-    # 3) Blacklist domain
-    if d in cfg.get('daftar_hitam', []):
+    # 3) Blacklist domain (cek exact match DAN subdomain)
+    hitam = cfg.get('daftar_hitam', [])
+    if any(d == e or d.endswith('.' + e) for e in hitam if e):
         return {'domain': d, 'aksi':'blokir', 'alasan':'blacklist',
                 'kategori':'negatif', 'confidence':100}
 

@@ -88,6 +88,9 @@ table $NFT_TABLE {
     set blok_mac {
         type ether_addr
     }
+    set jadwal_mac {
+        type ether_addr
+    }
     chain prerouting {
         type nat hook prerouting priority dstnat; policy accept;
         # Paksa semua DNS LAN lewat dnsmasq router (override DNS ISP/Kominfo/DoH).
@@ -95,8 +98,10 @@ table $NFT_TABLE {
         ip saddr 192.168.1.0/24 ip daddr != 192.168.1.1 tcp dport 53 redirect
         # Negatif sinkhole (domain → $PORTAL_IP): HTTP → portal.
         ip daddr $PORTAL_IP tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
-        # Hiburan diblokir utk MAC: HTTP → portal.
-        ether saddr @blok_mac ip daddr @hiburan_ip tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
+        # Jadwal blokir: SEMUA HTTP → portal (informasikan jam istirahat).
+        ether saddr @jadwal_mac tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
+        # Kuota habis: semua HTTP → portal (agar notif OS muncul & portal tampil).
+        ether saddr @blok_mac tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
     }
     chain input {
         type filter hook input priority filter; policy accept;
@@ -110,8 +115,9 @@ table $NFT_TABLE {
     }
     chain forward {
         type filter hook forward priority filter; policy accept;
-        # Hiburan diblokir utk MAC: semua trafik ke IP hiburan → drop senyap.
-        # (port 80 sudah di-DNAT di prerouting → daddr berubah → lolos ke portal)
+        # Jadwal blokir total: semua trafik dari MAC → drop.
+        ether saddr @jadwal_mac counter drop
+        # Kuota habis: blokir trafik ke IP hiburan (non-HTTP sudah kena di prerouting).
         ether saddr @blok_mac ip daddr @hiburan_ip counter drop
     }
 }
@@ -165,6 +171,19 @@ buka_hiburan() {
         && log "✅ hiburan $mac dibuka" || log "= $mac memang tidak dibatasi"
 }
 
+# ─── BLOK / BUKA JADWAL per MAC (blokir SEMUA internet) ────────────────────
+blok_jadwal() {
+    mac="$1"; [ -z "$mac" ] && { echo "Usage: blok-jadwal <MAC>"; return 1; }
+    nft list table $NFT_TABLE >/dev/null 2>&1 || pasang_nft
+    nft add element $NFT_TABLE jadwal_mac "{ $mac }" 2>/dev/null \
+        && log "🌙 jadwal $mac diblokir total" || log "= $mac sudah di-jadwal"
+}
+buka_jadwal() {
+    mac="$1"; [ -z "$mac" ] && { echo "Usage: buka-jadwal <MAC>"; return 1; }
+    nft delete element $NFT_TABLE jadwal_mac "{ $mac }" 2>/dev/null \
+        && log "☀️ jadwal $mac dibuka" || log "= $mac memang tidak di-jadwal"
+}
+
 # ─── DNSMASQ SINKHOLE (negatif global) ─────────────────────────────────────
 set_sinkhole() {
     mkdir -p "$SINKHOLE_DIR"
@@ -188,6 +207,7 @@ status() {
     echo -n "IP hiburan        : "; nft list set $NFT_TABLE hiburan_ip 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | wc -l
     echo -n "IP edukasi        : "; nft list set $NFT_TABLE edukasi_ip 2>/dev/null | grep -oE '([0-9]{1,3}\.){3}[0-9]{1,3}' | wc -l
     echo -n "MAC dibatasi      : "; nft list set $NFT_TABLE blok_mac 2>/dev/null | grep -oE '([0-9a-f]{2}:){5}[0-9a-f]{2}' | tr '\n' ' '; echo
+    echo -n "MAC jadwal blokir : "; nft list set $NFT_TABLE jadwal_mac 2>/dev/null | grep -oE '([0-9a-f]{2}:){5}[0-9a-f]{2}' | tr '\n' ' '; echo
     echo -n "sinkhole negatif  : "; [ -f "$SINKHOLE_CONF" ] && wc -l < "$SINKHOLE_CONF" || echo 0
 }
 
@@ -209,7 +229,9 @@ case "${1:-}" in
     read-measure)  read_measure ;;
     blok-hiburan)  blok_hiburan "$2" ;;
     buka-hiburan)  buka_hiburan "$2" ;;
+    blok-jadwal)   blok_jadwal "$2" ;;
+    buka-jadwal)   buka_jadwal "$2" ;;
     status)        status ;;
     teardown)      teardown ;;
-    *) echo "Usage: $0 {init|sinkhole|add-hiburan|add-edukasi|measure-mac|read-measure|blok-hiburan|buka-hiburan|status|teardown}"; exit 1 ;;
+    *) echo "Usage: $0 {init|sinkhole|add-hiburan|add-edukasi|measure-mac|read-measure|blok-hiburan|buka-hiburan|blok-jadwal|buka-jadwal|status|teardown}"; exit 1 ;;
 esac

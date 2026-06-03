@@ -83,8 +83,56 @@ class PortalHandler(BaseHTTPRequestHandler):
             return {}
 
     # ── Verbs ─────────────────────────────────────────────────────
+    # URL yang dicek OS untuk deteksi captive portal
+    _CAPTIVE_PATHS = {
+        '/generate_204',                     # Android / Chrome
+        '/hotspot-detect.html',              # iOS / macOS
+        '/library/test/success.html',        # iOS lama
+        '/connecttest.txt',                  # Windows
+        '/ncsi.txt',                         # Windows lama
+        '/success.txt',                      # macOS
+        '/canonical.html',                   # Ubuntu
+    }
+
     def do_GET(self):
-        self._send_html()
+        path = self.path.split('?')[0].rstrip('/')
+        if path == '/status':
+            self._send_status()
+        elif path in self._CAPTIVE_PATHS or path == '':
+            # OS captive portal check → redirect ke portal agar notifikasi muncul
+            self._redirect_portal()
+        else:
+            self._send_html()
+
+    def _redirect_portal(self):
+        """Redirect OS captive portal check ke halaman portal.
+        OS mendeteksi respons tidak sesuai → muncul notifikasi 'Login ke jaringan'."""
+        target = f'http://{PORTAL_HOST}:{PORTAL_PORT}/'
+        self.send_response(302)
+        self.send_header('Location', target)
+        self.send_header('Cache-Control', 'no-store')
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
+    def _send_status(self):
+        """Kembalikan JSON alasan blokir untuk perangkat yang meminta."""
+        client_ip  = self.client_address[0]
+        host_header = (self.headers.get('Host') or '').split(':')[0].strip()
+
+        # Cek apakah Host header adalah domain sinkhole (bukan IP)
+        import re as _re
+        is_ip = bool(_re.match(r'^\d{1,3}(\.\d{1,3}){3}$', host_header))
+        domain = host_header if not is_ip else ''
+
+        # Apakah domain ini ada di sinkhole? → negatif
+        alasan = 'negatif' if (domain and _domain_in_sinkhole(domain)) else 'kuota'
+
+        # Kalau bukan sinkhole, cek status perangkat dari VPS
+        if alasan != 'negatif':
+            mac = _hostname_dari_ip(client_ip)   # coba DHCP
+            alasan = _cek_alasan_vps(client_ip, mac) or 'kuota'
+
+        self._send_json(200, {'alasan': alasan, 'domain': domain})
 
     def do_OPTIONS(self):
         # CORS preflight — browser bisa POST dari "domain yang diblokir"
@@ -133,6 +181,62 @@ def _hostname_dari_ip(ip: str) -> str:
     except Exception:
         pass
     return ''
+
+def _mac_dari_ip(ip: str) -> str:
+    try:
+        with open('/proc/net/arp') as f:
+            for line in f.read().strip().split('\n')[1:]:
+                parts = line.split()
+                if len(parts) >= 4 and parts[0] == ip:
+                    mac = parts[3].upper()
+                    if mac != '00:00:00:00:00:00':
+                        return mac
+    except Exception:
+        pass
+    return ''
+
+def _domain_in_sinkhole(domain: str) -> bool:
+    import glob as _glob
+    paths = ['/tmp/dnsmasq.d/eg_sinkhole.conf']
+    paths += _glob.glob('/tmp/dnsmasq.*.d/eg_sinkhole.conf')
+    d = (domain or '').lower()
+    if d.startswith('www.'): d = d[4:]
+    for p in paths:
+        try:
+            with open(p) as f:
+                for line in f:
+                    if ('/' + d + '/') in line:
+                        return True
+        except Exception:
+            pass
+    return False
+
+def _cek_alasan_vps(client_ip: str, mac: str = '') -> str:
+    mac = mac or _mac_dari_ip(client_ip)
+    if not mac:
+        return 'kuota'
+    try:
+        ctx = _ssl_ctx()
+        req = urllib.request.Request(
+            CLOUD_URL + '/api/perangkat',
+            headers={'Accept': 'application/json'})
+        with urllib.request.urlopen(req, timeout=4, context=ctx) as r:
+            data = json.loads(r.read().decode())
+        for dev in data.get('perangkat', []):
+            if (dev.get('mac') or '').upper() == mac.upper():
+                if dev.get('jeda'):
+                    return 'jeda'
+                if dev.get('blokir_jadwal'):
+                    return 'jadwal'
+                kT = int(dev.get('kuota_harian', 120))
+                kU = int(dev.get('kuota_terpakai', 0))
+                bonus = int(dev.get('sisa_hiburan', 0))
+                if kU >= (kT + bonus):
+                    return 'kuota'
+                return 'kuota'
+    except Exception:
+        pass
+    return 'kuota'
 
 
 # ═══════════════════════════════════════════════════════════════════

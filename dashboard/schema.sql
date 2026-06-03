@@ -28,7 +28,7 @@ CREATE TABLE admin_orang_tua (
   nama            VARCHAR(100) NOT NULL,
   email           VARCHAR(100) NOT NULL UNIQUE,
   password_hash   VARCHAR(255) NOT NULL,
-  dibuat_pada     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  dibuat_pada     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   -- ── lockout + audit login (kept dari iterasi sebelumnya) ────────────
   gagal_login        TINYINT UNSIGNED NOT NULL DEFAULT 0,
@@ -56,7 +56,7 @@ CREATE TABLE pengguna_anak (
   mac_address     VARCHAR(17)  NOT NULL UNIQUE,
   device_name     VARCHAR(100) DEFAULT NULL,    -- "MacBook Air", "iPad Pro"
   status_aktif    BOOLEAN      NOT NULL DEFAULT FALSE,
-  dibuat_pada     TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  dibuat_pada     DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   -- ── kolom domain-spesifik EdgeGuard ────────────────────────────────
   nama            VARCHAR(120) NOT NULL,        -- nama anak: "Stom"
@@ -101,8 +101,7 @@ CREATE TABLE cache_domain (
   kategori          ENUM('edukasi','hiburan','negatif','netral')
                        NOT NULL DEFAULT 'netral',
   confidence_score  FLOAT        NOT NULL DEFAULT 0,
-  terakhir_diakses  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP
-                       ON UPDATE CURRENT_TIMESTAMP,
+  terakhir_diakses  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   jumlah_hit        INT UNSIGNED NOT NULL DEFAULT 1,
   INDEX idx_cache_kategori (kategori),
   INDEX idx_cache_diakses  (terakhir_diakses DESC)
@@ -123,7 +122,7 @@ CREATE TABLE log_akses (
   traffic_kbps  FLOAT        DEFAULT 0,
   perangkat_nama VARCHAR(120) DEFAULT '',
   mac           VARCHAR(17)  DEFAULT '',
-  waktu_akses   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  waktu_akses   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
   CONSTRAINT fk_log_user
     FOREIGN KEY (user_id) REFERENCES pengguna_anak(user_id)
@@ -144,7 +143,7 @@ CREATE TABLE kebijakan_router (
   kebijakan_id     INT          AUTO_INCREMENT PRIMARY KEY,
   admin_id         INT          NOT NULL,
   versi_kebijakan  VARCHAR(50)  NOT NULL DEFAULT '1.0',
-  terakhir_sinkron TIMESTAMP    NULL DEFAULT NULL,
+  terakhir_sinkron DATETIME     NULL DEFAULT NULL,
   status_sinkron   ENUM('menunggu','sukses','gagal') NOT NULL DEFAULT 'menunggu',
   catatan          VARCHAR(255) DEFAULT NULL,
   CONSTRAINT fk_keb_admin

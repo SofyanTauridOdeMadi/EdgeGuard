@@ -575,7 +575,7 @@ def bot_jadwal():
         groups.setdefault(key, []).append(HARI.get(r['hari'], r['hari']))
     lines = ["🌙 *JADWAL ISTIRAHAT INTERNET*", "━━━━━━━━━━━━━━━━━━━━"]
     for (nama, devname, jm, js, mode), hari in groups.items():
-        ikon = device_icon(devname)
+        ikon = device_emoji(devname)
         tag  = '⛔ Blokir' if mode == 'blokir' else '✅ Izinkan'
         lines.append(f"{ikon} *{nama}* — {tag}\n"
                      f"        🕐 `{jm}–{js}` · {', '.join(hari)}")
@@ -599,7 +599,7 @@ def bot_kuota():
         pct    = round(pakai / harian * 100) if harian else 0
         filled = min(10, round(pct / 10))
         bar    = '▰' * filled + '▱' * (10 - filled)
-        ikon   = device_icon(r['device_name'])
+        ikon   = device_emoji(r['device_name'])
         status = ' ⏸_dijeda_' if r['jeda'] else ''
         lines.append(f"{ikon} *{r['nama']}*{status}\n"
                      f"        {bar} {pct}%\n"
@@ -785,6 +785,23 @@ def device_icon(device_name: str) -> str:
         return _SVG_TABLET
     # Default → Ponsel
     return _SVG_PHONE
+
+def device_emoji(device_name: str) -> str:
+    """Map device_name → emoji (untuk Telegram, tidak support SVG)."""
+    n = (device_name or '').lower()
+    if any(k in n for k in ('playstation','ps5','ps4','ps3','xbox','nintendo',
+                            'switch','konsol','steam deck','game')):
+        return '🎮'
+    if any(k in n for k in ('smart tv','android tv','chromecast','firestick',
+                            'apple tv','roku','televisi','tv box','mi tv','xiaomi tv')):
+        return '📺'
+    if any(k in n for k in ('macbook','laptop','notebook','desktop','pc ',
+                            'imac','surface','chromebook','thinkpad','inspiron',
+                            'vivobook','zenbook','acer','lenovo','dell','komputer')):
+        return '💻'
+    if any(k in n for k in ('ipad','tablet','tab ','galaxy tab','mi pad','redmi pad')):
+        return '📱'
+    return '📱'
 
 def format_waktu_ramah(dt):
     """Format datetime jadi: '14:20' (hari ini), 'Kemarin 19:30', '23 Mei 14:20'."""
@@ -1356,6 +1373,7 @@ def jadwal():
     # Per-device bonus dari dompet_kuota
     bonus_rows = query(
         "SELECT p.user_id, p.nama, COALESCE(p.kuota_terpakai,0) AS kuota_terpakai, "
+        "       COALESCE(p.kuota_harian,120) AS kuota_harian, "
         "       COALESCE(d.total_edukasi,0) AS total_edukasi, "
         "       COALESCE(d.sisa_hiburan,0)  AS sisa_hiburan, "
         "       COALESCE(d.batas_harian,60) AS batas_harian "
@@ -1382,18 +1400,22 @@ def jadwal():
 
     chart_devs = [{'id': 'all', 'nama': 'Semua',
                    'hourly': all_hourly,
-                   'total_edu': sum(r['total_edukasi'] for r in bonus_rows),
-                   'total_hib': sum(r['kuota_terpakai'] for r in bonus_rows),
-                   'sisa_bonus': sum(r['sisa_hiburan'] for r in bonus_rows)}]
+                   'total_edu':   sum(r['total_edukasi'] for r in bonus_rows),
+                   'total_hib':   sum(r['kuota_terpakai'] for r in bonus_rows),
+                   'sisa_bonus':  sum(r['sisa_hiburan'] for r in bonus_rows),
+                   'kuota_umum':  sum(r['kuota_harian'] for r in bonus_rows),
+                   'kuota_terpakai': sum(r['kuota_terpakai'] for r in bonus_rows)}]
     for b in bonus_rows:
         uid = b['user_id']
         chart_devs.append({
             'id': uid,
             'nama': b['nama'],
             'hourly': dev_hourly.get(uid, {h: {'e':0,'h':0} for h in range(24)}),
-            'total_edu':  int(b['total_edukasi']),
-            'total_hib':  int(b['kuota_terpakai']),
-            'sisa_bonus': int(b['sisa_hiburan']),
+            'total_edu':     int(b['total_edukasi']),
+            'total_hib':     int(b['kuota_terpakai']),
+            'sisa_bonus':    int(b['sisa_hiburan']),
+            'kuota_umum':    int(b['kuota_harian']),
+            'kuota_terpakai':int(b['kuota_terpakai']),
         })
 
     return render_template('jadwal_akses.html',
@@ -2313,7 +2335,7 @@ if __name__ == '__main__':
     print("  🛡️  Edge Guard Dashboard")
     print(f"  DB     : {DB['host']}:{DB['port']}/{DB.get('database', DB.get('db','?'))}")
     print(f"  URL    : {_scheme}://0.0.0.0:{_port}")
-    print(f"  SSL    : {'✓ HTTPS (self-signed)' if _ssl_ctx else '✗ HTTP — jalankan ssl_setup.sh untuk HTTPS'}")
+    print(f"  SSL    : {'✓ HTTPS' if _ssl_ctx else '✗ HTTP'}")
     print(f"  bcrypt : {'ON' if _BCRYPT else '❌ OFF — WAJIB: pip install bcrypt'}")
     print(f"  Bot TG : {bot_status}")
     print("=" * 60)

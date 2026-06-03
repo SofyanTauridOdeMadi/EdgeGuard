@@ -311,21 +311,23 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer;height:4px}
       <div class="chart-inner" id="act-chart"></div>
     </div>
 
-    <!-- Stats -->
+    <!-- Stats: 3 kolom intuitif -->
     <div class="act-stats" id="act-stats">
       <div class="act-stat">
-        <span class="act-stat-val" style="color:#2563EB" id="stat-edu">0m</span>
-        <span class="act-stat-lbl">Edukasi</span>
-      </div>
-      <div class="act-stat">
-        <span class="act-stat-val" style="color:#D97706" id="stat-hib">0m</span>
-        <span class="act-stat-lbl">Hiburan</span>
+        <span class="act-stat-val" style="color:#6B7280" id="stat-kuota-umum">0m</span>
+        <span class="act-stat-lbl">Kuota Umum</span>
       </div>
       <div class="act-stat">
         <span class="act-stat-val" style="color:#16A34A" id="stat-bonus">0m</span>
-        <span class="act-stat-lbl">Sisa Bonus</span>
+        <span class="act-stat-lbl">Bonus Belajar</span>
+      </div>
+      <div class="act-stat">
+        <span class="act-stat-val" style="color:#EF4444" id="stat-hib">0m</span>
+        <span class="act-stat-lbl">Terpakai</span>
       </div>
     </div>
+    <!-- Edu hari ini disembunyikan, tetap di DOM untuk renderChart -->
+    <span id="stat-edu" style="display:none"></span>
   </div>
 
   <!-- ════════ Jadwal Istirahat Internet (jadwal_blokir) ════════ -->
@@ -521,9 +523,10 @@ function renderChart(idx) {
   chart.innerHTML = html;
 
   // Update stats
-  document.getElementById('stat-edu').textContent   = fmtMenit(dev.total_edu);
-  document.getElementById('stat-hib').textContent   = fmtMenit(dev.total_hib);
-  document.getElementById('stat-bonus').textContent = fmtMenit(dev.sisa_bonus);
+  document.getElementById('stat-edu').textContent        = fmtMenit(dev.total_edu);
+  document.getElementById('stat-hib').textContent        = fmtMenit(dev.kuota_terpakai || dev.total_hib);
+  document.getElementById('stat-bonus').textContent      = fmtMenit(dev.sisa_bonus);
+  document.getElementById('stat-kuota-umum').textContent = fmtMenit(dev.kuota_umum || 0);
 }
 
 function switchActDev(btn) {

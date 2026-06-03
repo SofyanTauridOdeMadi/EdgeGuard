@@ -5,7 +5,7 @@
 ║  Default sudah cocok untuk pengembangan lokal (Mac/Laptop dev).      ║
 ║  Override saat deploy ke router via /etc/edgeguard.env:               ║
 ║                                                                       ║
-║    export EG_CLOUD_URL='https://202.10.34.171'                        ║
+║    export EG_CLOUD_URL='https://edgeguard.my.id'                      ║
 ║    export EG_IFACE='br-lan'                                           ║
 ║    export EG_HEARTBEAT=60                                             ║
 ╚══════════════════════════════════════════════════════════════════════╝
@@ -15,7 +15,7 @@ import os
 import ssl as _ssl
 
 # ── Endpoint VPS Cloud Dashboard ──────────────────────────────────────────
-CLOUD_URL    = os.environ.get('EG_CLOUD_URL', 'https://202.10.34.171').rstrip('/')
+CLOUD_URL    = os.environ.get('EG_CLOUD_URL', 'https://edgeguard.my.id').rstrip('/')
 
 # ── Network interface yang akan disniff ───────────────────────────────────
 IFACE        = os.environ.get('EG_IFACE',     'br-lan')
@@ -32,12 +32,22 @@ KBPS_AKTIF    = float(os.environ.get('EG_KBPS_AKTIF',  '10'))
 # ── Debug ────────────────────────────────────────────────────────────────
 DEBUG         = bool(int(os.environ.get('EG_DEBUG',    '0')))
 
-# ── SSL context untuk HTTPS self-signed cert di VPS ──────────────────────
+# ── SSL context ───────────────────────────────────────────────────────────
 def mk_ssl_ctx():
-    """Return SSLContext unverified untuk self-signed cert, atau None jika HTTP."""
-    if CLOUD_URL.startswith('https://'):
+    """Return SSLContext yang sesuai:
+    - Domain resmi (edgeguard.my.id) → verifikasi penuh (Let's Encrypt valid)
+    - IP langsung (self-signed)       → skip verifikasi
+    - HTTP                            → None
+    """
+    if not CLOUD_URL.startswith('https://'):
+        return None
+    host = CLOUD_URL.replace('https://', '').split('/')[0].split(':')[0]
+    # Jika host adalah IP → self-signed, skip verify
+    import re as _re
+    if _re.match(r'^\d{1,3}(\.\d{1,3}){3}$', host):
         ctx = _ssl.create_default_context()
         ctx.check_hostname = False
         ctx.verify_mode    = _ssl.CERT_NONE
         return ctx
-    return None
+    # Domain → verifikasi sertifikat normal (Let's Encrypt)
+    return _ssl.create_default_context()
