@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Edge Guard — Smart Parental Control</title>
+
+<!-- ── SEO & Link Preview (WA / Telegram / Twitter) ── -->
+<meta name="description" content="Sistem kontrol internet anak berbasis AI untuk router rumah. Blokir konten negatif, atur jadwal, pantau aktivitas real-time lewat smartphone.">
+<meta property="og:type"        content="website">
+<meta property="og:url"         content="https://edgeguard.my.id">
+<meta property="og:title"       content="Edge Guard — Smart Parental Control">
+<meta property="og:description" content="Sistem kontrol internet anak berbasis AI. Blokir konten negatif, atur jadwal otomatis, dan pantau aktivitas anak secara real-time dari smartphone.">
+<meta property="og:image"       content="https://edgeguard.my.id/aset/logo.png">
+<meta property="og:image:width" content="512">
+<meta property="og:image:height" content="512">
+<meta property="og:site_name"   content="Edge Guard">
+<meta name="twitter:card"       content="summary">
+<meta name="twitter:title"      content="Edge Guard — Smart Parental Control">
+<meta name="twitter:description" content="Sistem kontrol internet anak berbasis AI untuk router rumah.">
+<meta name="twitter:image"      content="https://edgeguard.my.id/aset/logo.png">
+
+<link rel="icon" type="image/png" href="/aset/logo.png">
+<link rel="apple-touch-icon"       href="/aset/logo.png">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;background:#fff;color:#111827}
+
+/* ── NAVBAR ── */
+.nav{
+  position:sticky;top:0;z-index:50;
+  background:rgba(255,255,255,.88);backdrop-filter:blur(12px);
+  border-bottom:1px solid #E5E7EB;
+  padding:14px 24px;display:flex;align-items:center;gap:10px
+}
+.nav-logo{width:32px;height:32px;border-radius:9px;overflow:hidden;flex-shrink:0}
+.nav-logo img{width:100%;height:100%;object-fit:contain}
+.nav-brand{font-size:16px;font-weight:800;color:#111827}
+.nav-login{margin-left:auto;background:#2563EB;color:#fff;border:none;border-radius:10px;
+  padding:8px 18px;font-size:13px;font-weight:700;cursor:pointer;
+  font-family:inherit;text-decoration:none;transition:opacity .15s}
+.nav-login:hover{opacity:.88}
+
+/* ── HERO ── */
+.hero{
+  background:linear-gradient(160deg,#EFF6FF 0%,#DBEAFE 50%,#EFF6FF 100%);
+  padding:72px 24px 80px;text-align:center
+}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;
+  background:#DBEAFE;border:1px solid #BFDBFE;
+  color:#1D4ED8;font-size:12px;font-weight:700;
+  padding:5px 14px;border-radius:20px;letter-spacing:.04em;
+  margin-bottom:24px;text-transform:uppercase
+}
+.badge-dot{width:6px;height:6px;background:#2563EB;border-radius:50%;
+  animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+.logo-hero{
+  width:88px;height:88px;background:linear-gradient(135deg,#1D4ED8,#3B82F6);
+  border-radius:26px;display:flex;align-items:center;justify-content:center;
+  margin:0 auto 28px;box-shadow:0 12px 40px rgba(37,99,235,.3)
+}
+.logo-hero img{width:58px;height:58px;object-fit:contain;filter:brightness(0) invert(1)}
+
+h1{
+  font-size:clamp(30px,6vw,52px);font-weight:800;line-height:1.1;
+  letter-spacing:-.02em;color:#0F172A;margin-bottom:18px
+}
+h1 span{color:#2563EB}
+.sub{
+  font-size:clamp(15px,2.5vw,18px);color:#4B5563;line-height:1.7;
+  max-width:540px;margin:0 auto 36px
+}
+.btn-hero{
+  display:inline-flex;align-items:center;gap:8px;
+  background:#2563EB;color:#fff;border:none;border-radius:14px;
+  padding:15px 32px;font-size:15px;font-weight:700;
+  cursor:pointer;font-family:inherit;text-decoration:none;
+  box-shadow:0 4px 20px rgba(37,99,235,.35);
+  transition:transform .12s,box-shadow .12s
+}
+.btn-hero:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(37,99,235,.45)}
+
+/* ── STATS ── */
+.stats-row{
+  display:flex;justify-content:center;gap:12px;flex-wrap:wrap;
+  padding:36px 24px;border-bottom:1px solid #F3F4F6
+}
+.stat-card{
+  background:#F9FAFB;border:1px solid #E5E7EB;border-radius:14px;
+  padding:16px 24px;text-align:center;min-width:120px
+}
+.stat-v{font-size:22px;font-weight:800;color:#2563EB;display:block}
+.stat-l{font-size:11px;color:#6B7280;margin-top:3px;display:block;font-weight:500}
+
+/* ── FITUR ── */
+.section{max-width:880px;margin:0 auto;padding:64px 24px}
+.sec-title{font-size:clamp(22px,4vw,30px);font-weight:800;color:#111827;text-align:center;margin-bottom:8px}
+.sec-sub{color:#6B7280;text-align:center;font-size:15px;margin-bottom:40px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.feat{
+  background:#fff;border:1.5px solid #E5E7EB;border-radius:18px;
+  padding:22px;transition:border-color .2s,box-shadow .2s
+}
+.feat:hover{border-color:#BFDBFE;box-shadow:0 4px 20px rgba(37,99,235,.1)}
+.feat-ic{
+  width:46px;height:46px;border-radius:13px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;margin-bottom:14px
+}
+.ic-blue{background:#EFF6FF}
+.ic-green{background:#F0FDF4}
+.ic-amber{background:#FFFBEB}
+.ic-red{background:#FEF2F2}
+.ic-purple{background:#F5F3FF}
+.ic-cyan{background:#ECFEFF}
+.feat-t{font-size:15px;font-weight:700;color:#111827;margin-bottom:7px}
+.feat-d{font-size:13px;color:#6B7280;line-height:1.65}
+
+/* ── CARA KERJA ── */
+.how{background:#F9FAFB;border-radius:20px;padding:40px 32px}
+.how-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:24px}
+.how-step{text-align:center}
+.how-num{
+  width:38px;height:38px;background:#2563EB;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:15px;font-weight:800;color:#fff;margin:0 auto 12px
+}
+.how-t{font-size:14px;font-weight:700;color:#111827;margin-bottom:6px}
+.how-d{font-size:12.5px;color:#6B7280;line-height:1.6}
+
+/* ── FOOTER ── */
+footer{
+  background:#F9FAFB;border-top:1px solid #E5E7EB;
+  padding:28px 24px;text-align:center;color:#9CA3AF;font-size:13px
+}
+footer a{color:#2563EB;text-decoration:none}
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="nav">
+  <div class="nav-logo"><img src="/aset/logo.png" alt="Edge Guard"></div>
+  <span class="nav-brand">Edge Guard</span>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="badge"><span class="badge-dot"></span>AI-Powered · OpenWrt</div>
+  <div class="logo-hero"><img src="/aset/logo.png" alt="Edge Guard"></div>
+  <h1>Kontrol Internet Anak<br>dengan <span>Kecerdasan Buatan</span></h1>
+  <p class="sub">Sistem parental control cerdas yang berjalan langsung di router rumah. Blokir konten negatif, atur jadwal, dan pantau aktivitas anak secara real-time.</p>
+  <a href="/login" class="btn-hero">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+    Login Dashboard
+  </a>
+</section>
+
+<!-- STATS -->
+<div class="stats-row">
+  <div class="stat-card"><span class="stat-v">AI</span><span class="stat-l">Klasifikasi Domain</span></div>
+  <div class="stat-card"><span class="stat-v">Real-time</span><span class="stat-l">Pemantauan Trafik</span></div>
+  <div class="stat-card"><span class="stat-v">94.5%</span><span class="stat-l">Akurasi Model</span></div>
+  <div class="stat-card"><span class="stat-v">4 Kategori</span><span class="stat-l">Edu · Hiburan · Negatif · Netral</span></div>
+  <div class="stat-card"><span class="stat-v">Telegram</span><span class="stat-l">Notifikasi Instan</span></div>
+</div>
+
+<!-- FITUR -->
+<section class="section" id="fitur">
+  <h2 class="sec-title">Fitur Unggulan</h2>
+  <p class="sec-sub">Semua yang dibutuhkan untuk melindungi anak di era digital</p>
+  <div class="grid">
+    <div class="feat">
+      <div class="feat-ic ic-blue">🤖</div>
+      <div class="feat-t">Klasifikasi AI di Router</div>
+      <div class="feat-d">Naive Bayes berjalan langsung di router — tanpa cloud, real-time, akurat 94.5%.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-ic ic-red">🚫</div>
+      <div class="feat-t">Captive Portal</div>
+      <div class="feat-d">Domain negatif langsung dialihkan ke halaman blokir. Anak bisa minta izin ke orang tua.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-ic ic-green">🎓</div>
+      <div class="feat-t">Reward Belajar</div>
+      <div class="feat-d">Anak dapat bonus waktu hiburan setiap menyelesaikan sesi belajar — otomatis.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-ic ic-amber">⏰</div>
+      <div class="feat-t">Jadwal Otomatis</div>
+      <div class="feat-d">Atur jam istirahat internet — jam tidur, jam belajar, atau akhir pekan tanpa intervensi manual.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-ic ic-purple">📊</div>
+      <div class="feat-t">Dashboard Real-time</div>
+      <div class="feat-d">Pantau aktivitas internet anak dari smartphone kapan saja dan di mana saja.</div>
+    </div>
+    <div class="feat">
+      <div class="feat-ic ic-cyan">💬</div>
+      <div class="feat-t">Notifikasi Telegram</div>
+      <div class="feat-d">Notifikasi instan setiap ada situs negatif dicoba diakses atau anak meminta izin.</div>
+    </div>
+  </div>
+</section>
+
+<!-- CARA KERJA -->
+<section class="section" style="padding-top:0">
+  <h2 class="sec-title">Cara Kerja</h2>
+  <p class="sec-sub">Tiga langkah otomatis, tanpa intervensi harian</p>
+  <div class="how">
+    <div class="how-grid">
+      <div class="how-step">
+        <div class="how-num">1</div>
+        <div class="how-t">Router Sniff Trafik</div>
+        <div class="how-d">Router OpenWrt menangkap setiap domain yang diakses via SNI TLS secara real-time.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">2</div>
+        <div class="how-t">AI Klasifikasi</div>
+        <div class="how-d">Model Naive Bayes di router mengklasifikasi domain dalam milidetik tanpa internet ke cloud.</div>
+      </div>
+      <div class="how-step">
+        <div class="how-num">3</div>
+        <div class="how-t">Eksekusi & Laporan</div>
+        <div class="how-d">Domain negatif diblokir, kuota dihitung, reward diberikan, laporan dikirim ke dashboard & Telegram.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div style="margin-bottom:6px">
+    🛡️ <strong style="color:#374151">Edge Guard</strong> — Smart Parental Control
+  </div>
+  <div>
+    Dibuat oleh <a href="https://github.com/SofyanTauridOdeMadi">SofyanTauridOdeMadi</a> ·
+    Teknik Komputer, Universitas Negeri Makassar
+  </div>
+</footer>
+
+</body>
+</html>

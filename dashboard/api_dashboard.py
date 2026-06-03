@@ -948,7 +948,21 @@ def logout():
 # ══════════════════════════════════════════════════════════════════════════════
 # BERANDA
 # ══════════════════════════════════════════════════════════════════════════════
+@app.route('/landing')
+def landing():
+    """Halaman publik — tampil saat buka link edgeguard.my.id tanpa login."""
+    if session.get('user_id'):
+        return redirect(url_for('beranda'))
+    return render_template('halaman_landing.html')
+
 @app.route('/')
+def root():
+    """Root: landing page untuk tamu, dashboard untuk yang sudah login."""
+    if not session.get('user_id'):
+        return render_template('halaman_landing.html')
+    return redirect(url_for('beranda'))
+
+@app.route('/dashboard')
 @login_required
 def beranda():
     reset_kuota_jika_hari_baru()
