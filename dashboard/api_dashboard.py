@@ -814,6 +814,20 @@ def format_waktu_ramah(dt):
     if dt.date() == yesterday:  return f'Kemarin {hm}'
     return f'{dt.day} {BULAN_ID[dt.month]} {hm}'
 
+# Alias domain teknis → nama populer agar mudah dikenali orang tua di dashboard.
+# Hanya untuk TAMPILAN; data asli di DB tidak diubah. mis. trafik video YouTube
+# mengalir lewat googlevideo.com, bukan youtube.com (terutama di aplikasi HP).
+_DOMAIN_ALIAS = {
+    'googlevideo.com': 'youtube.com',
+    'ytimg.com':       'youtube.com',
+    'nflxvideo.net':   'netflix.com',
+    'fbcdn.net':       'facebook.com',
+    'cdninstagram.com':'instagram.com',
+}
+def domain_tampil(domain: str) -> str:
+    """Kembalikan nama domain ramah-baca untuk ditampilkan ke orang tua."""
+    return _DOMAIN_ALIAS.get((domain or '').lower(), domain)
+
 def normalize_log(row):
     """Adaptor agar template lama tetap baca .kategori_nama/.perangkat/.status/.waktu/.domain."""
     r = dict(row)
@@ -821,7 +835,7 @@ def normalize_log(row):
     r['kategori_nama'] = r.get('kategori', 'unknown')
     r['perangkat']     = r.get('perangkat_nama', '')
     r['status']        = 'diblokir' if r.get('aksi') == 'blokir' else 'diizinkan'
-    r['domain']        = r.get('domain_url', '')
+    r['domain']        = domain_tampil(r.get('domain_url', ''))
     if 'waktu_akses' in r and isinstance(r['waktu_akses'], datetime):
         r['waktu_str']    = format_waktu_ramah(r['waktu_akses'])
         r['waktu']        = r['waktu_akses'].strftime('%H:%M')
@@ -1005,10 +1019,11 @@ def beranda():
         "ORDER BY l.waktu_akses DESC LIMIT 15") or []
     riwayat = [normalize_log(r) for r in rows]
 
-    # Proporsi: log HARI INI
+    # Proporsi: log HARI INI — TANPA kategori netral (infra/CDN) agar pembagian
+    # persen edukasi/hiburan/diblokir lebih bermakna & tidak didominasi noise teknis.
     logs_today = query(
         "SELECT kategori FROM log_akses "
-        "WHERE DATE(waktu_akses) = CURDATE()") or []
+        "WHERE DATE(waktu_akses) = CURDATE() AND kategori <> 'netral'") or []
     pe, ph, pn, pnet = proporsi_dari_logs(logs_today)
     CIRC = 251.33
     prop_total       = pe + ph + pn + pnet
@@ -1733,26 +1748,38 @@ def kategori_list():
     if kat not in ('all','edukasi','hiburan','negatif','netral'): kat = 'all'
     if urut not in ('terbaru','populer','confidence'):              urut = 'terbaru'
 
+    # Paginasi: 30 per halaman
+    try:    page = max(1, int(request.args.get('page', 1) or 1))
+    except (TypeError, ValueError): page = 1
+    per = 30
+
     # Statistik per kategori
     stats = {r['kategori']: r['n'] for r in (query(
         "SELECT kategori, COUNT(*) AS n FROM cache_domain GROUP BY kategori") or [])}
     total = sum(stats.values()) or 0
 
     # Filter + search
-    sql  = "SELECT * FROM cache_domain"
     conds, args = [], []
     if kat != 'all':
         conds.append("kategori=%s"); args.append(kat)
     if q:
         conds.append("LOWER(domain_url) LIKE %s"); args.append(f"%{q}%")
-    if conds: sql += " WHERE " + " AND ".join(conds)
-    sql += {
+    where_sql = (" WHERE " + " AND ".join(conds)) if conds else ""
+
+    # Total baris sesuai filter (untuk hitung jumlah halaman)
+    total_filter = (query(f"SELECT COUNT(*) AS n FROM cache_domain{where_sql}",
+                          args, one=True) or {}).get('n', 0)
+    total_pages  = max(1, math.ceil(total_filter / per))
+    page         = min(page, total_pages)
+
+    order_sql = {
         'populer':    " ORDER BY jumlah_hit DESC, terakhir_diakses DESC",
         'confidence': " ORDER BY confidence_score DESC, terakhir_diakses DESC",
     }.get(urut, " ORDER BY terakhir_diakses DESC")
-    sql += " LIMIT 300"
 
-    rows = query(sql, args) or []
+    rows = query(
+        f"SELECT * FROM cache_domain{where_sql}{order_sql} LIMIT %s OFFSET %s",
+        args + [per, (page - 1) * per]) or []
     for r in rows:
         r['waktu_str'] = format_waktu_ramah(r.get('terakhir_diakses'))
 
@@ -1767,6 +1794,7 @@ def kategori_list():
             'total':   total,
         },
         q=q, kat=kat, urut=urut,
+        page=page, per=per, total_filter=total_filter, total_pages=total_pages,
         ai_aktif=bool(int(get_cfg('ai_aktif', '1'))))
 
 @app.route('/kategori/toggle-ai', methods=['POST'])
@@ -2064,11 +2092,11 @@ def api_log():
     confidence = float(data.get('confidence', 0) or 0)
     traffic    = float(data.get('traffic_kbps', 0) or 0)
 
-    # ── 1. Skip domain infrastruktur (CDN, sertifikat, telemetri) ─────────────
-    # Router menandai domain ini dengan alasan='infrastruktur'. Tidak perlu
-    # dicatat — hanya akan memenuhi riwayat dengan noise teknis.
-    if alasan_raw == 'infrastruktur':
-        return jsonify({"status": "ok", "skip": "infra"})
+    # ── 1. Domain infrastruktur (CDN, sertifikat, telemetri) ──────────────────
+    # Domain ini ditandai router dengan alasan='infrastruktur' & kategori 'netral'.
+    # Diproses NORMAL (cache_domain + log_akses) agar tercatat baik di halaman
+    # Kategori AI maupun Riwayat Aktivitas. Dedup 5 menit (langkah 4) mencegah
+    # banjir entri dari subdomain CDN yang sama.
 
     # ── 2. Normalisasi subdomain → root domain ─────────────────────────────────
     # tip.wetv.com, api.wetv.com, info.wetv.com → semua jadi wetv.com

@@ -102,9 +102,13 @@ table $NFT_TABLE {
         # SEMUA HTTP → portal. Termasuk URL cek-konektivitas OS (gstatic/apple/
         # msftconnect) → memicu popup "Masuk ke jaringan" otomatis (gaya wifi.id).
         ether saddr @jadwal_mac tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
-        # ── KUOTA HIBURAN HABIS (blok hiburan saja) ───────────────────────
-        # Hanya HTTP ke situs HIBURAN → portal. Edukasi & netral tetap normal.
-        ether saddr @blok_mac ip daddr @hiburan_ip tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
+        # ── KUOTA HIBURAN HABIS ───────────────────────────────────────────
+        # SEMUA HTTP (port 80) dari MAC → portal. Tujuannya agar URL deteksi
+        # captive OS (gstatic/apple/msftconnect) ikut dialihkan → popup "Masuk
+        # ke jaringan" otomatis muncul (gaya wifi.id). Konten edukasi/netral
+        # berbasis HTTPS tetap jalan karena chain forward hanya men-drop IP
+        # hiburan (lihat di bawah).
+        ether saddr @blok_mac tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
     }
     chain input {
         type filter hook input priority filter; policy accept;
@@ -118,6 +122,13 @@ table $NFT_TABLE {
     }
     chain forward {
         type filter hook forward priority filter; policy accept;
+        # ── BLOKIR QUIC (HTTP/3, UDP 443) ─────────────────────────────────
+        # Wajib: tanpa ini YouTube/Chrome memakai QUIC sehingga SNI berada di
+        # paket UDP yang TIDAK dibaca sniffer TCP → domain tak terklasifikasi,
+        # tak ter-log, dan tak dapat diblok. Memblokir UDP/443 memaksa fallback
+        # ke TCP/TLS sehingga SNI terlihat & seluruh pipeline (log + enforcement)
+        # berfungsi. Dampak performa minimal (TCP tetap cepat).
+        udp dport 443 counter drop
         # JADWAL/JEDA: blok total semua trafik dari MAC.
         ether saddr @jadwal_mac counter drop
         # KUOTA HABIS: hanya drop trafik ke IP hiburan (HTTPS hiburan → gagal,

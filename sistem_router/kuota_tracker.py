@@ -33,12 +33,13 @@ _state = {
     'devs':       [],
     'devs_ts':    0,
     'hib_prev':   defaultdict(lambda: 0),   # byte hiburan terakhir per MAC
+    'hib_akum':   defaultdict(float),       # akumulasi PECAHAN menit hiburan
     'blok_set':   set(),                    # MAC yg sedang diblok hiburannya
     'jadwal_set': set(),                    # MAC yg sedang diblok jadwal (full)
     'primed':     set(),                    # MAC yg counter awalnya sudah dicatat
     'lock':       threading.Lock(),
 }
-DEVS_TTL = 25
+DEVS_TTL = 12   # refresh status perangkat (jeda/jadwal) lebih cepat → portal responsif
 
 # ═══════════════════════════════════════════════════════════════════════════
 # AMBIL PERANGKAT
@@ -156,12 +157,19 @@ def siklus(interval: int, kbps_th: float):
 
         sudah_blok = mac in _state['blok_set']
         if not sudah_blok:
-            kbps = (delta * 8) / (interval * 1000)
+            kbps = (delta * 8) / (interval * 1000) if interval else 0
             if kbps >= kbps_th:
-                kU = min(budget if budget > 0 else kH, kU + max(1, round(interval/60)))
-                push_kuota(dev_id, kU)
-                if DEBUG:
-                    log(f"{nama}: +{round(interval/60)}m hiburan → {kU}/{budget}m ({kbps:.0f}Kbps)")
+                # Akumulasi waktu hiburan PROPORSIONAL terhadap interval (pecahan
+                # menit) supaya konsumsi kuota tidak bergantung besar interval.
+                # Hanya menit utuh yang dikirim ke VPS (kuota_terpakai = INT).
+                _state['hib_akum'][mac] += interval / 60.0
+                tambah = int(_state['hib_akum'][mac])
+                if tambah >= 1:
+                    _state['hib_akum'][mac] -= tambah
+                    kU = min(budget if budget > 0 else kH, kU + tambah)
+                    push_kuota(dev_id, kU)
+                    if DEBUG:
+                        log(f"{nama}: +{tambah}m hiburan → {kU}/{budget}m ({kbps:.0f}Kbps)")
 
         # ── Keputusan blok jadwal (full block internet) ────────────────────
         # jeda atau jadwal → blokir SEMUA trafik via jadwal_mac set

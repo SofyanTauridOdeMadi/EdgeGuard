@@ -46,7 +46,7 @@ start_service() {
   # ── kuota_tracker.py ────────────────────────────────────────────────
   procd_open_instance kuota
   procd_set_param command python3 "$BASE/kuota_tracker.py" \
-                      --interval "${EG_KUOTA_INTERVAL:-60}" \
+                      --interval "${EG_KUOTA_INTERVAL:-20}" \
                       --kbps-aktif "${EG_KBPS_AKTIF:-10}"
   procd_set_param env EG_CLOUD_URL="${EG_CLOUD_URL:-https://edgeguard.my.id}" \
                       EG_DEBUG="${EG_DEBUG:-0}"

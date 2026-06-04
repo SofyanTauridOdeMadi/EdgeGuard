@@ -24,8 +24,13 @@ from config import CLOUD_URL, HTTP_TIMEOUT, CONFIG_TTL, DEBUG, mk_ssl_ctx
 
 PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
 
-# Ambang byte edukasi yang dianggap "aktif belajar" per siklus (anti idle-ping).
-EDU_BYTES_AKTIF = 40_000          # ~40 KB / siklus
+# Ambang LAJU trafik edukasi yang dianggap "aktif belajar" (Kbps).
+# Memakai laju (bukan byte/siklus) supaya konsisten di interval berapa pun —
+# pada interval kecil (mis. 10 dtk) ambang byte/siklus jadi terlalu ketat,
+# sehingga app belajar ringan (Duolingo, baca materi) tidak terhitung. Default
+# 5 Kbps cukup rendah untuk menangkap aktivitas belajar ringan, namun tetap
+# menyaring keadaan idle (tab terbuka tanpa interaksi).
+EDU_KBPS_AKTIF = float(os.environ.get('EG_EDU_KBPS', '5'))
 
 DEFAULT_CFG = {
     'durasi_belajar_menit': 30,
@@ -147,8 +152,13 @@ def siklus(interval: int):
             _primed.add(mac)
             continue
 
-        if delta >= EDU_BYTES_AKTIF:
+        # Hitung laju (Kbps) trafik edukasi pada siklus ini.
+        kbps = (delta * 8) / (interval * 1000) if interval else 0
+        if kbps >= EDU_KBPS_AKTIF:
             _edu_menit[mac] += interval / 60.0
+            if DEBUG:
+                log(f"{mac}: +{interval/60:.2f}m belajar → "
+                    f"{_edu_menit[mac]:.1f}/{durasi}m ({kbps:.0f} Kbps)")
             if _edu_menit[mac] >= durasi:
                 _edu_menit[mac] -= durasi
                 res = beri_bonus(dev_id, durasi, bonus_m)
