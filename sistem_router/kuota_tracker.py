@@ -179,6 +179,7 @@ def siklus(interval: int, kbps_th: float):
         if perlu_jadwal and not in_jadwal_set:
             _state['jadwal_set'].add(mac)
             _portal('blok-jadwal', mac)
+            _portal('kick-wifi', mac)   # paksa reconnect → popup portal seketika
             sebab = 'dijeda orang tua' if jeda else 'jadwal istirahat'
             log(f"🌙 {nama}: internet diblokir penuh ({sebab})")
         elif not perlu_jadwal and in_jadwal_set:
@@ -195,6 +196,7 @@ def siklus(interval: int, kbps_th: float):
         if perlu_blok and not sudah_blok:
             _state['blok_set'].add(mac)
             _portal('blok-hiburan', mac)
+            _portal('kick-wifi', mac)   # paksa reconnect → popup portal seketika
             log(f"⛔ {nama}: hiburan dibatasi (kuota habis) — edukasi tetap jalan")
         elif not perlu_blok and sudah_blok:
             _state['blok_set'].discard(mac)

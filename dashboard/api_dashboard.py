@@ -1274,7 +1274,9 @@ def api_proporsi():
 def riwayat_detail():
     nama = request.args.get('nama', '')
     kat  = request.args.get('kat',  'all')
-    page = max(1, int(request.args.get('page', 1)))
+    q    = (request.args.get('q') or '').strip().lower()
+    try:    page = max(1, int(request.args.get('page', 1) or 1))
+    except (TypeError, ValueError): page = 1
     per  = 30
 
     conds, args = [], []
@@ -1284,6 +1286,11 @@ def riwayat_detail():
     elif kat == 'hiburan': conds.append("l.kategori = 'hiburan'")
     elif kat == 'negatif': conds.append("l.kategori = 'negatif'")
     elif kat == 'netral':  conds.append("l.kategori = 'netral'")
+    # Pencarian GLOBAL lintas halaman (server-side) — domain atau nama perangkat.
+    if q:
+        conds.append("(LOWER(l.domain_url) LIKE %s "
+                     "OR LOWER(COALESCE(p.nama, l.perangkat_nama)) LIKE %s)")
+        args.extend([f"%{q}%", f"%{q}%"])
 
     where = ("WHERE " + " AND ".join(conds)) if conds else ""
     total = query(
@@ -1314,7 +1321,7 @@ def riwayat_detail():
 
     return render_template('riwayat_detail.html',
         riwayat=items, total=total, page=page,
-        per=per, kat=kat, nama=nama,
+        per=per, kat=kat, nama=nama, q=q,
         total_pages=max(1, math.ceil(total / per)),
         perangkat_list=list(devs),
         stat_edu=kat_counts.get('edukasi', 0),

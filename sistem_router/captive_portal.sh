@@ -199,6 +199,23 @@ buka_jadwal() {
         && log "☀️ jadwal $mac dibuka" || log "= $mac memang tidak di-jadwal"
 }
 
+# ─── DEAUTH WiFi per MAC (paksa reconnect → picu popup captive portal OS) ───
+# Saat perangkat baru diblok, OS belum tahu (masih anggap internet OK) sehingga
+# popup "Masuk ke jaringan" tidak muncul sampai reconnect. Men-deauth klien via
+# hostapd memaksa perangkat menyambung ulang → OS menjalankan deteksi captive →
+# popup + halaman portal muncul SEKETIKA (seperti WiFi kafe/hotel).
+kick_wifi() {
+    mac="$1"; [ -z "$mac" ] && { echo "Usage: kick-wifi <MAC>"; return 1; }
+    n=0
+    for obj in $(ubus list 2>/dev/null | grep '^hostapd\.'); do
+        ubus call "$obj" del_client \
+            "{\"addr\":\"$mac\",\"reason\":5,\"deauth\":true,\"ban_time\":2000}" \
+            >/dev/null 2>&1 && n=$((n+1))
+    done
+    [ "$n" -gt 0 ] && log "📶 $mac di-deauth ($n radio) → reconnect → popup portal" \
+                   || log "= $mac: tak ada radio hostapd (kick dilewati)"
+}
+
 # ─── DNSMASQ SINKHOLE (negatif global) ─────────────────────────────────────
 set_sinkhole() {
     mkdir -p "$SINKHOLE_DIR"
@@ -246,7 +263,8 @@ case "${1:-}" in
     buka-hiburan)  buka_hiburan "$2" ;;
     blok-jadwal)   blok_jadwal "$2" ;;
     buka-jadwal)   buka_jadwal "$2" ;;
+    kick-wifi)     kick_wifi "$2" ;;
     status)        status ;;
     teardown)      teardown ;;
-    *) echo "Usage: $0 {init|sinkhole|add-hiburan|add-edukasi|measure-mac|read-measure|blok-hiburan|buka-hiburan|blok-jadwal|buka-jadwal|status|teardown}"; exit 1 ;;
+    *) echo "Usage: $0 {init|sinkhole|add-hiburan|add-edukasi|measure-mac|read-measure|blok-hiburan|buka-hiburan|blok-jadwal|buka-jadwal|kick-wifi|status|teardown}"; exit 1 ;;
 esac

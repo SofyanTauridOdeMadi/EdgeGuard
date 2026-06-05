@@ -84,6 +84,14 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer;height:4px}
 .jad-mode.izinkan{background:#F0FDF4;color:#15803D;border:1px solid #BBF7D0}
 .del-btn{background:none;border:none;color:#D1D5DB;cursor:pointer;padding:7px;transition:all .15s;flex-shrink:0;border-radius:8px;display:flex;align-items:center}
 .del-btn:hover{color:#EF4444;background:#FEF2F2}
+.edit-btn{background:#EFF6FF;border:none;color:#2563EB;cursor:pointer;padding:8px;transition:all .15s;flex-shrink:0;border-radius:9px;display:flex;align-items:center}
+.edit-btn:hover{background:#DBEAFE}
+/* Tombol tambah jadwal full-width di bawah daftar */
+.btn-add-bottom{width:100%;margin-top:12px;padding:14px;background:#2563EB;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 3px 12px rgba(37,99,235,.28);transition:opacity .15s}
+.btn-add-bottom:hover{opacity:.92}
+/* Tombol hapus di dalam popup kelola jadwal */
+.btn-hapus{width:100%;padding:14px;background:#EF4444;color:#fff;border:none;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;transition:opacity .15s}
+.btn-hapus:hover{opacity:.92}
 
 /* Empty state */
 .empty-jad{text-align:center;padding:40px 16px;color:#9CA3AF;font-size:13px;line-height:1.7;background:#fff;border-radius:18px;border:1.5px dashed #BFDBFE}
@@ -221,12 +229,12 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer;height:4px}
           <div class="card-title-sub">Waktu belajar sebelum dapat bonus</div>
         </div>
         <div class="ctr-mini">
-          <button type="button" class="ctr-mini-btn" onclick="adj('b',-5)">−</button>
+          <button type="button" class="ctr-mini-btn" onclick="adj('b',-1)">−</button>
           <div class="ctr-mini-center">
             <span class="ctr-mini-val" id="vb">{{cfg.durasi_belajar_menit}}</span>
             <span class="ctr-mini-unit">Menit</span>
           </div>
-          <button type="button" class="ctr-mini-btn" onclick="adj('b',5)">+</button>
+          <button type="button" class="ctr-mini-btn" onclick="adj('b',1)">+</button>
         </div>
       </div>
       <input type="hidden" name="durasi_belajar" id="ib" value="{{cfg.durasi_belajar_menit}}">
@@ -243,12 +251,12 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer;height:4px}
           <div class="card-title-sub">Bonus per sesi belajar selesai</div>
         </div>
         <div class="ctr-mini">
-          <button type="button" class="ctr-mini-btn" onclick="adj('o',-5)">−</button>
+          <button type="button" class="ctr-mini-btn" onclick="adj('o',-1)">−</button>
           <div class="ctr-mini-center">
             <span class="ctr-mini-val" id="vo">{{cfg.waktu_bonus_menit}}</span>
             <span class="ctr-mini-unit">Menit</span>
           </div>
-          <button type="button" class="ctr-mini-btn" onclick="adj('o',5)">+</button>
+          <button type="button" class="ctr-mini-btn" onclick="adj('o',1)">+</button>
         </div>
       </div>
       <input type="hidden" name="waktu_bonus" id="io" value="{{cfg.waktu_bonus_menit}}">
@@ -268,7 +276,7 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer;height:4px}
         </div>
         <span class="sl-val" id="sv">{{cfg.batas_bonus_harian_menit}} menit</span>
       </div>
-      <input type="range" name="batas_bonus" min="10" max="120" step="5"
+      <input type="range" name="batas_bonus" min="10" max="120" step="1"
              value="{{cfg.batas_bonus_harian_menit}}"
              oninput="document.getElementById('sv').textContent=this.value+' menit'">
       <div class="sl-labs"><span>10m</span><span>30m</span><span>1j</span><span>1.5j</span><span>2j</span></div>
@@ -333,9 +341,6 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer;height:4px}
   <!-- ════════ Jadwal Istirahat Internet (jadwal_blokir) ════════ -->
   <p class="sec-lbl" style="margin-top:24px">
     <span>Jadwal Istirahat Internet</span>
-    {% if perangkat_list %}
-    <button class="add-btn" onclick="bukaModalJadwal()">+ Tambah</button>
-    {% endif %}
   </p>
 
   {% if not perangkat_list %}
@@ -381,18 +386,47 @@ input[type=range]{width:100%;accent-color:#2563EB;cursor:pointer;height:4px}
             style="cursor:pointer;user-select:none">
         {% if g.mode == 'blokir' %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>{% else %}<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>{% endif %}
       </span>
-      <form method="POST" action="/jadwal/blokir/hapus-grup"
-            onsubmit="return confirm('Hapus jadwal {{ g.jam_mulai }}–{{ g.jam_selesai }} untuk {{ g.nama }}?');"
-            style="margin:0">
-        <input type="hidden" name="ids" value="{{ g.ids|join(',') }}">
-        <button type="submit" class="del-btn" title="Hapus jadwal"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg></button>
-      </form>
+      <button type="button" class="edit-btn" title="Kelola jadwal"
+              data-ids="{{ g.ids|join(',') }}"
+              data-nama="{{ g.nama }}"
+              data-jam="{{ g.jam_mulai }} – {{ g.jam_selesai }}"
+              data-mode="{{ g.mode }}"
+              onclick="bukaEditJadwal(this)">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+      </button>
     </div>
     {% endfor %}
   </div>
   {% endif %}
 
+  {% if perangkat_list %}
+  <button class="btn-add-bottom" onclick="bukaModalJadwal()">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    Tambah Jadwal Istirahat
+  </button>
+  {% endif %}
+
 </div>
+
+<!-- ════════ POPUP: Kelola/Edit Jadwal ════════ -->
+{% if perangkat_list %}
+<div class="overlay" id="modal-edit" onclick="if(event.target===this) tutupEdit()">
+  <div class="sheet" style="max-width:430px">
+    <div class="s-handle"></div>
+    <h3 class="s-title">⚙️ Kelola Jadwal</h3>
+    <div id="edit-info" style="text-align:center;font-size:14px;color:#374151;line-height:1.6;margin-bottom:18px"></div>
+    <form method="POST" action="/jadwal/blokir/hapus-grup" id="edit-del-form"
+          onsubmit="return confirm('Hapus jadwal ini?');" style="margin:0">
+      <input type="hidden" name="ids" id="edit-ids" value="">
+      <button type="submit" class="btn-hapus">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+        Hapus Jadwal
+      </button>
+    </form>
+    <button type="button" class="btn-c cancel" style="width:100%;margin-top:10px" onclick="tutupEdit()">Tutup</button>
+  </div>
+</div>
+{% endif %}
 
 <!-- ════════ MODAL: Tambah Jadwal ════════ -->
 {% if perangkat_list %}
@@ -542,7 +576,7 @@ document.addEventListener('DOMContentLoaded', function(){ renderChart(0); });
 /* ── Konfigurasi reward counter ────────────────────────── */
 var st = {b:{{cfg.durasi_belajar_menit}}, o:{{cfg.waktu_bonus_menit}}};
 function adj(k,d){
-  var mn=5, mx = k==='b' ? 120 : 60;
+  var mn=1, mx = k==='b' ? 120 : 60;
   st[k] = Math.max(mn, Math.min(mx, st[k]+d));
   document.getElementById('v'+k).textContent = st[k];
   document.getElementById('i'+k).value = st[k];
@@ -557,8 +591,24 @@ function bukaModalJadwal(){
 function tutupModalJadwal(){
   document.getElementById('modal-jadwal').classList.remove('show');
 }
+/* ── Popup Kelola/Edit Jadwal (berisi Hapus) ── */
+function bukaEditJadwal(btn){
+  var nama = btn.getAttribute('data-nama') || '';
+  var jam  = btn.getAttribute('data-jam')  || '';
+  var mode = btn.getAttribute('data-mode') || 'blokir';
+  document.getElementById('edit-ids').value = btn.getAttribute('data-ids') || '';
+  document.getElementById('edit-info').innerHTML =
+    '<strong style="font-size:15px">' + nama + '</strong><br>' +
+    '<span style="font-family:monospace;color:#2563EB;font-weight:700">' + jam + '</span><br>' +
+    '<span style="font-size:12px;color:#6B7280">Mode: ' +
+    (mode === 'blokir' ? '⛔ Matikan internet' : '✅ Izinkan internet') + '</span>';
+  document.getElementById('modal-edit').classList.add('show');
+}
+function tutupEdit(){
+  document.getElementById('modal-edit').classList.remove('show');
+}
 document.addEventListener('keydown', function(e){
-  if (e.key === 'Escape') tutupModalJadwal();
+  if (e.key === 'Escape') { tutupModalJadwal(); tutupEdit(); }
 });
 function pilihHari(preset){
   document.querySelectorAll('.hari-chip input[type=checkbox]').forEach(function(cb){

@@ -93,6 +93,31 @@ def _is_infra(domain: str) -> bool:
             return True
     return False
 
+# ─── KOREKSI KATEGORI MANUAL ───────────────────────────────────────────────
+# Lapisan domain-knowledge untuk domain populer yang sering keliru diklasifikasi
+# model. Mencegah konten hiburan lolos sebagai 'netral' (tak terhitung kuota)
+# dan situs sah salah dicap 'negatif'. Dicek SEBELUM inferensi AI.
+_OVERRIDE_KATEGORI = {
+    # Hiburan (sering salah → netral/negatif). WAJIB hiburan agar kena kuota.
+    'douyin.com':      'hiburan',
+    'xiaohongshu.com': 'hiburan',
+    'xhscdn.com':      'hiburan',
+    'bilibili.com':    'hiburan',
+    'iqiyi.com':       'hiburan',
+    'bigo.tv':         'hiburan',
+    'likee.video':     'hiburan',
+    # Donasi/sosial sah (sering salah → negatif). netral = diizinkan, tak dimeter.
+    'kitabisa.com':    'netral',
+    'benihbaik.com':   'netral',
+}
+def _override_kategori(domain: str):
+    """Kembalikan kategori paksa untuk domain populer yang sering salah, atau None."""
+    d = (domain or '').lower()
+    for suf, kat in _OVERRIDE_KATEGORI.items():
+        if d == suf or d.endswith('.' + suf):
+            return kat
+    return None
+
 # ─── Cache model & config ─────────────────────────────────────────────────
 _MODEL           = None
 _config_cache    = {}
@@ -336,6 +361,12 @@ def putuskan(domain: str, mac_src: str = '') -> dict:
         return {'domain': d, 'aksi':'izinkan', 'alasan':'infrastruktur',
                 'kategori':'netral', 'confidence':0}
 
+    # 3c) Koreksi kategori manual (domain populer yang sering salah model).
+    ov = _override_kategori(d)
+    if ov:
+        return {'domain': d, 'aksi':('blokir' if ov == 'negatif' else 'izinkan'),
+                'alasan':'override', 'kategori':ov, 'confidence':100}
+
     # 4) Klasifikasi AI
     if cfg.get('ai_aktif', True):
         try:
@@ -346,10 +377,12 @@ def putuskan(domain: str, mac_src: str = '') -> dict:
             if aksi == 'netral': aksi = 'izinkan'
 
             # Anti over-block: 'negatif' hanya diblokir bila yakin (>= ambang).
-            # Confidence rendah → AI ragu → jangan blokir.
+            # Confidence rendah → AI ragu → JANGAN blokir DAN jangan beri label
+            # 'negatif' (cegah inkonsistensi "negatif tapi diizinkan" di riwayat).
+            # Diperlakukan 'netral' agar konsisten dengan cache_domain.
             if aksi == 'blokir' and conf < BLOCK_THRESHOLD:
                 return {'domain': d, 'aksi':'izinkan', 'alasan':'confidence_rendah',
-                        'kategori':kat, 'confidence':conf}
+                        'kategori':'netral', 'confidence':conf}
 
             return {'domain': d, 'aksi':aksi, 'alasan':'klasifikasi_ai',
                     'kategori':kat, 'confidence':conf}

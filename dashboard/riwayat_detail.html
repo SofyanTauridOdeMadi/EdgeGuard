@@ -106,7 +106,7 @@ a{text-decoration:none;color:inherit}
   <!-- ── Kategori tiles (filter + stat) ── -->
   <div class="stat-row">
     <a class="stat-tile t-edu {{ 'active' if kat == 'edukasi' }}"
-       href="?nama={{nama}}&kat={{ 'all' if kat == 'edukasi' else 'edukasi' }}&page=1">
+       href="?nama={{nama}}&kat={{ 'all' if kat == 'edukasi' else 'edukasi' }}&q={{q}}&page=1">
       <div class="stat-emoji">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
       </div>
@@ -114,7 +114,7 @@ a{text-decoration:none;color:inherit}
       <div class="stat-lbl">Edukasi</div>
     </a>
     <a class="stat-tile t-hib {{ 'active' if kat == 'hiburan' }}"
-       href="?nama={{nama}}&kat={{ 'all' if kat == 'hiburan' else 'hiburan' }}&page=1">
+       href="?nama={{nama}}&kat={{ 'all' if kat == 'hiburan' else 'hiburan' }}&q={{q}}&page=1">
       <div class="stat-emoji">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#D97706" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="2" y1="7" x2="7" y2="7"/><line x1="2" y1="17" x2="7" y2="17"/><line x1="17" y1="17" x2="22" y2="17"/><line x1="17" y1="7" x2="22" y2="7"/></svg>
       </div>
@@ -122,7 +122,7 @@ a{text-decoration:none;color:inherit}
       <div class="stat-lbl">Hiburan</div>
     </a>
     <a class="stat-tile t-neg {{ 'active' if kat == 'negatif' }}"
-       href="?nama={{nama}}&kat={{ 'all' if kat == 'negatif' else 'negatif' }}&page=1">
+       href="?nama={{nama}}&kat={{ 'all' if kat == 'negatif' else 'negatif' }}&q={{q}}&page=1">
       <div class="stat-emoji">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
       </div>
@@ -130,7 +130,7 @@ a{text-decoration:none;color:inherit}
       <div class="stat-lbl">Negatif</div>
     </a>
     <a class="stat-tile t-net {{ 'active' if kat == 'netral' }}"
-       href="?nama={{nama}}&kat={{ 'all' if kat == 'netral' else 'netral' }}&page=1">
+       href="?nama={{nama}}&kat={{ 'all' if kat == 'netral' else 'netral' }}&q={{q}}&page=1">
       <div class="stat-emoji">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#6B7280" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
       </div>
@@ -142,27 +142,30 @@ a{text-decoration:none;color:inherit}
   <!-- ── Filter perangkat ── -->
   <div class="dev-chips">
     <a class="dchip all {{ 'active' if not nama }}"
-       href="?nama=&kat={{kat}}&page=1">
+       href="?nama=&kat={{kat}}&q={{q}}&page=1">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
       Semua
     </a>
     {% for dev in perangkat_list %}
     <a class="dchip {{ 'active' if nama == dev.nama }}"
-       href="?nama={{dev.nama}}&kat={{kat}}&page=1">
+       href="?nama={{dev.nama}}&kat={{kat}}&q={{q}}&page=1">
       {{dev.nama}}
     </a>
     {% endfor %}
   </div>
 
-  <!-- ── Search ── -->
-  <div class="toolbar">
+  <!-- ── Search (server-side, GLOBAL lintas halaman) ── -->
+  <form class="toolbar" method="GET" action="/riwayat" id="search-form">
+    <input type="hidden" name="nama" value="{{nama}}">
+    <input type="hidden" name="kat"  value="{{kat}}">
     <div class="toolbar-row">
       <div class="search-wrap">
         <span class="s-ic"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
-        <input type="text" id="search-inp" placeholder="Cari domain..." oninput="filterClient()" autocomplete="off">
+        <input type="text" name="q" id="search-inp" value="{{q}}" placeholder="Cari domain atau perangkat…" autocomplete="off">
+        {% if q %}<a href="?nama={{nama}}&kat={{kat}}&page=1" class="s-clear" title="Hapus pencarian" style="color:#9CA3AF;text-decoration:none;font-size:16px;padding:0 4px">✕</a>{% endif %}
       </div>
     </div>
-  </div>
+  </form>
 
   <!-- ── Section label ── -->
   <div class="sec-lbl">
@@ -244,7 +247,7 @@ a{text-decoration:none;color:inherit}
   {% if total_pages > 1 %}
   <div class="pagination">
     {% if page > 1 %}
-    <a class="pag-btn" href="?nama={{nama}}&kat={{kat}}&page={{page-1}}">
+    <a class="pag-btn" href="?nama={{nama}}&kat={{kat}}&q={{q}}&page={{page-1}}">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg> Sebelumnya
     </a>
     {% else %}
@@ -259,7 +262,7 @@ a{text-decoration:none;color:inherit}
     </div>
 
     {% if page < total_pages %}
-    <a class="pag-btn" href="?nama={{nama}}&kat={{kat}}&page={{page+1}}">
+    <a class="pag-btn" href="?nama={{nama}}&kat={{kat}}&q={{q}}&page={{page+1}}">
       Selanjutnya <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
     </a>
     {% else %}
@@ -273,31 +276,19 @@ a{text-decoration:none;color:inherit}
 </div><!-- /page -->
 
 <script>
-/* ── Client-side search (filter dalam halaman yang tampil) ── */
-function filterClient() {
-  var q     = document.getElementById('search-inp').value.toLowerCase();
-  var items = document.querySelectorAll('.act-full');
-  var visible = 0;
-  items.forEach(function(el) {
-    var domain = (el.dataset.domain || '').toLowerCase();
-    var show   = !q || domain.includes(q);
-    el.style.display = show ? '' : 'none';
-    if (show) visible++;
+/* ── Pencarian GLOBAL (server-side, debounced auto-submit) ── */
+(function(){
+  var inp = document.getElementById('search-inp');
+  var f   = document.getElementById('search-form');
+  if (!inp || !f) return;
+  var t = null;
+  inp.addEventListener('input', function(){
+    clearTimeout(t);
+    t = setTimeout(function(){ f.submit(); }, 450);
   });
-  // Sembunyikan separator tanggal yang tidak punya item visible
-  document.querySelectorAll('.date-separator').forEach(function(sep) {
-    var next = sep.nextElementSibling;
-    var hasVisible = false;
-    while (next && !next.classList.contains('date-separator')) {
-      if (next.classList.contains('act-full') && next.style.display !== 'none') hasVisible = true;
-      next = next.nextElementSibling;
-    }
-    sep.style.display = hasVisible ? '' : 'none';
-  });
-  // Sembunyikan pagination saat pencarian aktif
-  var pag = document.querySelector('.pagination');
-  if (pag) pag.style.display = q ? 'none' : '';
-}
+  // Enter langsung submit
+  inp.addEventListener('keydown', function(e){ if (e.key === 'Enter') { e.preventDefault(); f.submit(); } });
+})();
 </script>
 </body>
 </html>
