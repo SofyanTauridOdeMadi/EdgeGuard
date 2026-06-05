@@ -128,7 +128,10 @@
     border-radius: 20px !important;
     border-top: none !important;
     box-shadow: 0 8px 30px rgba(15,23,42,.20);
-    padding: 8px 10px env(safe-area-inset-bottom,8px) !important;
+    /* env(safe-area-inset-bottom) bernilai 0 di desktop (fallback diabaikan
+       karena env didukung) → dulu padding bawah jadi 0 & label mepet. Pakai
+       calc dgn basis 10px agar padding atas = bawah (simetris & bersih). */
+    padding: 10px 12px calc(10px + env(safe-area-inset-bottom,0px)) !important;
     column-gap: 6px;
   }
   .ni {

@@ -192,6 +192,19 @@ CREATE TABLE konfigurasi (
 ) ENGINE=InnoDB;
 
 -- ════════════════════════════════════════════════════════════════════════
+-- 11. KOREKSI_KATEGORI — koreksi manual orang tua atas hasil klasifikasi AI.
+--     Dibaca router via /api/config & dipakai sebagai override (tanpa edit
+--     kode), sekaligus menjadi data berlabel untuk retrain berkala.
+-- ════════════════════════════════════════════════════════════════════════
+CREATE TABLE koreksi_kategori (
+  domain_url  VARCHAR(255) PRIMARY KEY,
+  kategori    ENUM('edukasi','hiburan','negatif','netral') NOT NULL,
+  admin_id    INT          DEFAULT NULL,
+  dibuat_pada DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
+                              ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+-- ════════════════════════════════════════════════════════════════════════
 -- VIEW: statistik per pengguna_anak
 -- ════════════════════════════════════════════════════════════════════════
 CREATE VIEW v_statistik AS

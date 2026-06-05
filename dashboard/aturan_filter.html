@@ -53,9 +53,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;ba
 .list-hdr .cnt{background:#2563EB;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:0}
 
 /* ── Domain item ── */
-.domain-item{background:#fff;border-radius:16px;padding:13px 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px;box-shadow:0 1px 5px rgba(37,99,235,.08);border:1px solid #E8F0FE;transition:box-shadow .15s}
+.domain-item{background:#fff;border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;margin-bottom:7px;box-shadow:0 1px 5px rgba(37,99,235,.08);border:1px solid #E8F0FE;transition:box-shadow .15s}
 .domain-item:hover{box-shadow:0 3px 12px rgba(37,99,235,.12)}
-.d-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.d-icon{width:38px;height:38px;border-radius:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
 .d-info{flex:1;min-width:0}
 .d-info h5{font-size:14px;font-weight:700;margin-bottom:3px;color:#111827;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .d-info p{font-size:12px;color:#6B7280}
@@ -87,7 +87,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display',sans-serif;ba
 .btn-confirm:hover{opacity:.9}
 
 /* ── Bottom Nav ── */
-.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 env(safe-area-inset-bottom,10px);z-index:20}
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));z-index:20}
 .ni{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;color:#9CA3AF;text-decoration:none}
 .ni.active{color:#2563EB}
 .ni-ic{display:flex;align-items:center;justify-content:center}.ni-lbl{font-size:11px;font-weight:500}

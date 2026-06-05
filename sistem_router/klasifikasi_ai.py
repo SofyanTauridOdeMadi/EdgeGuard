@@ -118,6 +118,19 @@ def _override_kategori(domain: str):
             return kat
     return None
 
+def _match_koreksi(domain: str, koreksi: dict):
+    """Cocokkan domain dgn koreksi manual orang tua (dict {domain: kategori})
+    dari VPS — exact match atau subdomain. Kembalikan kategori atau None."""
+    d = (domain or '').lower()
+    if not koreksi:
+        return None
+    if d in koreksi:
+        return koreksi[d]
+    for dom, kat in koreksi.items():
+        if dom and d.endswith('.' + dom):
+            return kat
+    return None
+
 # ─── Cache model & config ─────────────────────────────────────────────────
 _MODEL           = None
 _config_cache    = {}
@@ -353,15 +366,19 @@ def putuskan(domain: str, mac_src: str = '') -> dict:
         return {'domain': d, 'aksi':'blokir', 'alasan':'blacklist',
                 'kategori':'negatif', 'confidence':100}
 
-    # 3b) Domain infrastruktur/CDN/sertifikat → selalu izinkan (safety net).
-    # Setelah model v2.1, model sendiri akan mengklasifikasi infra sebagai
-    # 'netral'. Pengecekan ini tetap ada sebagai lapisan perlindungan ganda
-    # untuk domain yang belum pernah ada di data latih.
+    # 3b) Koreksi MANUAL orang tua dari dashboard (override tertinggi atas
+    # kategori) — dibaca dari /api/config, tanpa perlu edit kode/retrain.
+    kk = _match_koreksi(d, cfg.get('koreksi_kategori', {}))
+    if kk:
+        return {'domain': d, 'aksi':('blokir' if kk == 'negatif' else 'izinkan'),
+                'alasan':'koreksi_manual', 'kategori':kk, 'confidence':100}
+
+    # 3c) Domain infrastruktur/CDN/sertifikat → selalu izinkan (safety net).
     if _is_infra(d):
         return {'domain': d, 'aksi':'izinkan', 'alasan':'infrastruktur',
                 'kategori':'netral', 'confidence':0}
 
-    # 3c) Koreksi kategori manual (domain populer yang sering salah model).
+    # 3d) Koreksi kategori bawaan (domain populer yang sering salah model).
     ov = _override_kategori(d)
     if ov:
         return {'domain': d, 'aksi':('blokir' if ov == 'negatif' else 'izinkan'),

@@ -108,7 +108,7 @@ a{text-decoration:none;color:inherit}
 .link-detail{display:block;text-align:center;color:#2563EB;font-size:13px;font-weight:600;padding:14px 0 2px;cursor:pointer;border:none;background:none;width:100%;font-family:inherit;letter-spacing:.01em}
 
 /* ── Bottom Nav ── */
-.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 env(safe-area-inset-bottom,10px);z-index:20}
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:430px;background:#fff;border-top:1px solid #E5E7EB;display:grid;grid-template-columns:1fr 1fr 1fr;padding:8px 0 calc(8px + env(safe-area-inset-bottom,0px));z-index:20}
 .ni{display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px;color:#9CA3AF;text-decoration:none}
 .ni.active{color:#2563EB}
 .ni-ic{display:flex;align-items:center;justify-content:center}.ni-lbl{font-size:11px;font-weight:500}
@@ -301,15 +301,18 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
   {% set jeda = dev.get('jeda', False) %}
   {% set kT_d = dev.get('kuota_harian', 120) %}
   {% set kU_d = dev.get('kuota_terpakai', 0) %}
-  {% set pct_d = ([kU_d, kT_d]|min / kT_d * 100)|int if kT_d else 0 %}
+  {% set bonus_d = dev.get('sisa_hiburan', 0) %}
+  {% set budget_d = (kT_d + bonus_d) or 1 %}
+  {% set sisa_umum = [kT_d - kU_d, 0]|max %}
+  {% set used_bonus = [kU_d - kT_d, 0]|max %}
+  {% set sisa_bonus = [bonus_d - used_bonus, 0]|max %}
+  {% set w_umum = (sisa_umum / budget_d * 100)|round(1) %}
+  {% set w_bonus = (sisa_bonus / budget_d * 100)|round(1) %}
+  {% set pct_used = (kU_d / kT_d * 100)|int if kT_d else 0 %}
   <button class="dev-card" onclick="openDevSheet({{loop.index0}})">
     <div class="d-ic" id="d-ic-{{dev.id}}"
-      style="background:{{ '#FEF2F2' if jeda else ('#DCFCE7' if dev.status == 'online' else '#F3F4F6') }}">
-      {% if jeda %}
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
-      {% else %}
-        {{ dev.ikon | safe }}
-      {% endif %}
+      style="background:{{ '#FEF2F2' if jeda else ('#DCFCE7' if dev.status == 'online' else '#F3F4F6') }};color:{{ '#EF4444' if jeda else '#374151' }}">
+      {{ dev.ikon | safe }}
     </div>
     <div class="d-info">
       <h4>{{dev.label}}</h4>
@@ -318,13 +321,14 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
         {% elif dev.status == 'online' %}<span class="s-online">● Online</span>&nbsp;• {{dev.model}}
         {% else %}<span class="s-off">● Offline</span>&nbsp;• {{dev.model}}{% endif %}
       </p>
-      <div class="d-mini-bar">
-        <div class="d-mini-fill" id="mini-bar-{{dev.id}}"
-          style="width:{{pct_d}}%;background:{{ '#DC2626' if pct_d >= 90 else ('#F97316' if pct_d >= 70 else '#2563EB') }}">
-        </div>
+      <!-- Satu bar gabungan: biru = sisa kuota umum, hijau = sisa bonus belajar -->
+      <div class="d-mini-bar" style="display:flex;height:5px">
+        <div style="width:{{w_umum}}%;height:100%;background:{{ '#DC2626' if pct_used >= 90 else ('#F97316' if pct_used >= 70 else '#2563EB') }}"></div>
+        <div style="width:{{w_bonus}}%;height:100%;background:#16A34A"></div>
       </div>
-      <div id="chip-meta-{{dev.id}}" style="font-size:10px;font-weight:600;color:{{ '#DC2626' if pct_d >= 90 else ('#F97316' if pct_d >= 70 else '#9CA3AF') }};margin-top:3px">
-        {{([kT_d - kU_d, 0]|max)}}m sisa
+      <div style="font-size:10px;font-weight:600;margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">
+        <span style="color:{{ '#DC2626' if sisa_umum == 0 else '#6B7280' }}">{{sisa_umum}}m sisa kuota umum</span>
+        <span style="color:#16A34A">{{sisa_bonus}}m sisa bonus belajar</span>
       </div>
     </div>
     <span class="d-arr">›</span>
@@ -358,80 +362,29 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
       </span>
     </div>
 
-    <div class="prop-wrap" id="prop-wrap">
-      <!-- Donut SVG 3 segmen: edu / hib / neg -->
-      <svg width="118" height="118" viewBox="0 0 118 118" style="flex-shrink:0">
-        <defs>
-          <linearGradient id="grad-edu" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#15803D"/>
-            <stop offset="100%" stop-color="#4ADE80"/>
-          </linearGradient>
-          <linearGradient id="grad-hib" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#B45309"/>
-            <stop offset="100%" stop-color="#FCD34D"/>
-          </linearGradient>
-          <linearGradient id="grad-neg" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#DC2626"/>
-            <stop offset="100%" stop-color="#FCA5A5"/>
-          </linearGradient>
-          <linearGradient id="grad-net" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#6B7280"/>
-            <stop offset="100%" stop-color="#D1D5DB"/>
-          </linearGradient>
-        </defs>
-        {% if prop_total == 0 %}
-          <!-- Empty state: ring abu-abu full -->
-          <circle cx="59" cy="59" r="40" fill="none"
-            stroke="#E5E7EB" stroke-width="22"/>
-        {% else %}
-          <!-- Negatif (background penuh — sisa busur setelah edu+hib) -->
-          <circle class="donut-seg" id="seg-neg"
-            cx="59" cy="59" r="40" fill="none"
-            stroke="url(#grad-neg)" stroke-width="22"
-            stroke-dasharray="251.33 251.33"
-            transform="rotate(-90 59 59)"
-            onclick="clickSeg('negatif')"/>
-          <!-- Hiburan (overlay edu+hib) -->
-          <circle class="donut-seg" id="seg-hib"
-            cx="59" cy="59" r="40" fill="none"
-            stroke="url(#grad-hib)" stroke-width="22"
-            stroke-dasharray="{{ prop_dash_ehib }} 251.33"
-            transform="rotate(-90 59 59)"
-            onclick="clickSeg('hiburan')"/>
-          <!-- Edukasi (overlay edu only) -->
-          <circle class="donut-seg" id="seg-edu"
-            cx="59" cy="59" r="40" fill="none"
-            stroke="url(#grad-edu)" stroke-width="22"
-            stroke-dasharray="{{ prop_dash_edu }} 251.33"
-            transform="rotate(-90 59 59)"
-            onclick="clickSeg('edukasi')"/>
-        {% endif %}
-        <circle cx="59" cy="59" r="27" fill="#fff"/>
-        <text id="dc-pct" x="59" y="55" text-anchor="middle"
-          style="font-size:17px;font-weight:700;fill:{{ '#9CA3AF' if prop_total == 0 else '#111827' }};font-family:-apple-system,sans-serif">
-          {% if prop_total == 0 %}0%{% else %}{{pct_edu}}%{% endif %}</text>
-        <text id="dc-lbl" x="59" y="67" text-anchor="middle"
-          style="font-size:10px;fill:#9CA3AF;font-family:-apple-system,sans-serif">
-          {% if prop_total == 0 %}—{% else %}Edukasi{% endif %}</text>
-      </svg>
+    <!-- Bar proporsi horizontal (edukasi / hiburan / diblokir) -->
+    {% if prop_total == 0 %}
+    <div style="height:16px;border-radius:8px;background:#F3F4F6;margin-bottom:14px"></div>
+    {% else %}
+    <div style="display:flex;height:16px;border-radius:8px;overflow:hidden;background:#F3F4F6;margin-bottom:14px">
+      {% if pct_edu > 0 %}<div style="width:{{pct_edu}}%;background:#16A34A" title="Edukasi {{pct_edu}}%"></div>{% endif %}
+      {% if pct_hib > 0 %}<div style="width:{{pct_hib}}%;background:#D97706" title="Hiburan {{pct_hib}}%"></div>{% endif %}
+      {% if pct_neg > 0 %}<div style="width:{{pct_neg}}%;background:#EF4444" title="Diblokir {{pct_neg}}%"></div>{% endif %}
+    </div>
+    {% endif %}
 
-      <div class="legend">
-        <div class="leg-item {% if prop_total > 0 %}active{% endif %}" id="leg-edu"
-             onclick="clickSeg('edukasi')" style="margin-bottom:6px">
-          <div class="ldot" style="background:#16A34A"></div>
-          <span style="font-size:13px">Edukasi</span>
-          <span class="lpct" id="pct-edu" style="color:#16A34A">{{pct_edu}}%</span>
-        </div>
-        <div class="leg-item" id="leg-hib" onclick="clickSeg('hiburan')" style="margin-bottom:6px">
-          <div class="ldot" style="background:#D97706"></div>
-          <span style="font-size:13px">Hiburan</span>
-          <span class="lpct" id="pct-hib" style="color:#D97706">{{pct_hib}}%</span>
-        </div>
-        <div class="leg-item" id="leg-neg" onclick="clickSeg('negatif')">
-          <div class="ldot" style="background:#EF4444"></div>
-          <span style="font-size:13px">Diblokir</span>
-          <span class="lpct" id="pct-neg" style="color:#EF4444">{{pct_neg}}%</span>
-        </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:2px">
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px">
+        <span style="width:10px;height:10px;border-radius:50%;background:#16A34A;display:inline-block;flex-shrink:0"></span>
+        Edukasi&nbsp;<strong style="color:#16A34A">{{pct_edu}}%</strong>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px">
+        <span style="width:10px;height:10px;border-radius:50%;background:#D97706;display:inline-block;flex-shrink:0"></span>
+        Hiburan&nbsp;<strong style="color:#D97706">{{pct_hib}}%</strong>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px">
+        <span style="width:10px;height:10px;border-radius:50%;background:#EF4444;display:inline-block;flex-shrink:0"></span>
+        Diblokir&nbsp;<strong style="color:#EF4444">{{pct_neg}}%</strong>
       </div>
     </div>
 
@@ -444,7 +397,6 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
     <!-- Riwayat -->
     <div class="sec-header">
       <span class="sec-label">Riwayat Aktivitas Terbaru</span>
-      <a href="/riwayat" style="font-size:12px;font-weight:600;color:#2563EB">Lihat semua</a>
     </div>
 
     <div id="rwyt-list">
@@ -598,21 +550,9 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
     <span id="sh-status" style="font-size:12px;font-weight:600;margin-left:4px">—</span>
   </div>
   <div class="sh-kuota">
-    <div class="mini-ring">
-      <svg viewBox="0 0 72 72" width="72" height="72">
-        <circle cx="36" cy="36" r="26" fill="none" stroke="#F3F4F6" stroke-width="7"/>
-        <circle id="sh-ring" cx="36" cy="36" r="26" fill="none" stroke="#2563EB"
-          stroke-width="7" stroke-linecap="round"
-          stroke-dasharray="0 163.36" transform="rotate(-90 36 36)"/>
-      </svg>
-      <div class="mini-center">
-        <span class="mini-pct" id="sh-pct">0%</span>
-        <span class="mini-lbl">terpakai</span>
-      </div>
-    </div>
-    <div class="kuota-info">
+    <div class="kuota-info" style="flex:1">
       <h4>Sisa Kuota Hari Ini</h4>
-      <div class="kbar-bg"><div class="kbar-fill" id="sh-bar" style="width:0%;background:#2563EB"></div></div>
+      <div class="kbar-bg" style="height:8px"><div class="kbar-fill" id="sh-bar" style="width:100%;background:#2563EB"></div></div>
       <div class="kbar-meta" id="sh-kuota-meta">—</div>
     </div>
   </div>
@@ -855,13 +795,14 @@ function openDevSheet(idx) {
   var kT  = d.kuota_harian || 120;
   var kU  = d.kuota_terpakai || 0;
   var kS  = Math.max(0, kT - kU);
-  var pct = Math.round(kU / kT * 100);
-  var circ = 163.36;
-  var dash = ((1 - pct/100) * circ).toFixed(1);
+  var pct = Math.round(kU / kT * 100);        // % terpakai
+  var sisaPct = Math.max(0, 100 - pct);        // % sisa (untuk bar menyusut)
 
-  var _IC_PHONE_OFF= '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>';
-  document.getElementById('sh-ic').innerHTML    = d.jeda ? _IC_PHONE_OFF : (d.ikon || '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>');
+  // Ikon selalu sesuai jenis perangkat (tidak diganti ikon pause saat dijeda);
+  // status "dijeda" cukup ditandai warna latar merah.
+  document.getElementById('sh-ic').innerHTML    = d.ikon || '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>';
   document.getElementById('sh-ic').style.background = d.jeda ? '#FEF2F2' : '#DCFCE7';
+  document.getElementById('sh-ic').style.color = d.jeda ? '#EF4444' : '#374151';
   document.getElementById('sh-nama').textContent  = d.label || d.nama;
   document.getElementById('sh-model').textContent = d.model;
   document.getElementById('sh-mac').textContent   = d.mac;
@@ -869,11 +810,10 @@ function openDevSheet(idx) {
   if (d.jeda)             { sb.style.color='#EF4444'; sb.textContent='● Dijeda'; }
   else if (d.status==='online') { sb.style.color='#22C55E'; sb.textContent='● Online'; }
   else                    { sb.style.color='#9CA3AF'; sb.textContent='● Offline'; }
-  document.getElementById('sh-ring').setAttribute('stroke-dasharray', dash+' '+circ);
-  document.getElementById('sh-pct').textContent       = pct+'%';
-  document.getElementById('sh-bar').style.width       = pct+'%';
-  document.getElementById('sh-bar').style.background  = pct > 80 ? '#EF4444' : '#2563EB';
-  document.getElementById('sh-kuota-meta').textContent = kU+'m terpakai dari '+kT+'m';
+  // Bar menyusut: penuh saat sisa banyak, kosong saat habis (warna bertingkat)
+  document.getElementById('sh-bar').style.width       = sisaPct+'%';
+  document.getElementById('sh-bar').style.background  = pct >= 90 ? '#DC2626' : (pct >= 70 ? '#F97316' : '#2563EB');
+  document.getElementById('sh-kuota-meta').textContent = 'Sisa '+kS+'m dari '+kT+'m · digunakan '+kU+'m';
   document.getElementById('sh-kuota-hari').textContent = kT+'m';
   document.getElementById('sh-total').textContent   = d._log_count   || 0;
   document.getElementById('sh-blokir').textContent  = d._blokir_count || 0;
@@ -923,57 +863,7 @@ function openTWForDev() {
   }, 200);
 })();
 
-/* ── DONUT KLIK ────────────────────────────────────────── */
-var segColors = {edukasi:'#16A34A', hiburan:'#D97706', negatif:'#EF4444'};
-var _activeSeg = null;
-var _SEG_IDS   = ['seg-edu','seg-hib','seg-neg'];
-
-function _resetDonut() {
-  _activeSeg = null;
-  _SEG_IDS.forEach(function(id){
-    var el = document.getElementById(id);
-    if (el) { el.setAttribute('stroke-width','22'); el.style.opacity='1'; el.style.pointerEvents=''; }
-  });
-  ['leg-edu','leg-hib','leg-neg'].forEach(function(id){
-    var el = document.getElementById(id); if (el) el.classList.remove('active');
-  });
-  var eduPct = document.getElementById('pct-edu');
-  if (eduPct) {
-    document.getElementById('dc-pct').textContent = eduPct.textContent;
-    document.getElementById('dc-pct').style.fill   = '#111827';
-    document.getElementById('dc-lbl').textContent  = 'Edukasi';
-    var legEdu = document.getElementById('leg-edu');
-    if (legEdu) legEdu.classList.add('active');
-  }
-}
-
-function clickSeg(kat) {
-  var segId = kat==='edukasi'?'seg-edu':kat==='hiburan'?'seg-hib':'seg-neg';
-  // Toggle: klik segmen yang sama → reset ke semua tampil
-  if (_activeSeg === kat) { _resetDonut(); return; }
-  _activeSeg = kat;
-  // Redup semua segmen (bukan disembunyikan, agar donut tetap terlihat utuh)
-  _SEG_IDS.forEach(function(id){
-    var el = document.getElementById(id);
-    if (el) { el.setAttribute('stroke-width','22'); el.style.opacity='0.12'; el.style.pointerEvents='none'; }
-  });
-  // Tonjolkan segmen yang dipilih
-  var segEl = document.getElementById(segId);
-  if (segEl) { segEl.setAttribute('stroke-width','28'); segEl.style.opacity='1'; segEl.style.pointerEvents=''; }
-  // Center text — tampilkan persen kategori yang diklik
-  var key = kat==='edukasi'?'edu':kat==='hiburan'?'hib':'neg';
-  var pctEl = document.getElementById('pct-'+key);
-  document.getElementById('dc-pct').textContent = pctEl ? pctEl.textContent : '0%';
-  document.getElementById('dc-pct').style.fill  = segColors[kat]||'#6B7280';
-  var lbl = {edukasi:'Edukasi',hiburan:'Hiburan',negatif:'Diblokir'};
-  document.getElementById('dc-lbl').textContent = lbl[kat]||kat;
-  // Legend active
-  ['leg-edu','leg-hib','leg-neg'].forEach(function(id){
-    var el = document.getElementById(id); if (el) el.classList.remove('active');
-  });
-  var legId = kat==='edukasi'?'leg-edu':kat==='hiburan'?'leg-hib':'leg-neg';
-  var legEl = document.getElementById(legId); if (legEl) legEl.classList.add('active');
-}
+/* (Proporsi kini berupa bar statis — tidak ada interaksi donut.) */
 
 /* ── PARTIKEL CARD KUOTA ───────────────────────────────── */
 (function(){

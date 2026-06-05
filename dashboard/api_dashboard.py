@@ -985,9 +985,11 @@ def beranda():
     devs = query(
         "SELECT p.*, "
         "  COALESCE(s.total_akses, 0)  AS _log_count, "
-        "  COALESCE(s.total_blokir, 0) AS _blokir_count "
+        "  COALESCE(s.total_blokir, 0) AS _blokir_count, "
+        "  COALESCE(d.sisa_hiburan, 0) AS sisa_hiburan "
         "FROM pengguna_anak p "
         "LEFT JOIN v_statistik s ON s.user_id = p.user_id "
+        "LEFT JOIN dompet_kuota d ON d.user_id = p.user_id "
         "WHERE p.admin_id = %s "
         "ORDER BY p.nama", (current_admin_id(),)) or []
     for d in devs:
@@ -1015,8 +1017,8 @@ def beranda():
         "       COALESCE(p.nama, l.perangkat_nama) AS perangkat_nama "
         "FROM log_akses l "
         "LEFT JOIN pengguna_anak p ON p.user_id = l.user_id "
-        "WHERE DATE(l.waktu_akses) = CURDATE() "
-        "ORDER BY l.waktu_akses DESC LIMIT 15") or []
+        "WHERE DATE(l.waktu_akses) = CURDATE() AND l.kategori <> 'netral' "
+        "ORDER BY l.waktu_akses DESC LIMIT 10") or []
     riwayat = [normalize_log(r) for r in rows]
 
     # Proporsi: log HARI INI — TANPA kategori netral (infra/CDN) agar pembagian
@@ -1582,6 +1584,63 @@ def jadwal_blokir_hapus_grup():
     return redirect(url_for('jadwal'))
 
 
+@app.route('/jadwal/blokir/edit', methods=['POST'])
+@login_required
+def jadwal_blokir_edit():
+    """Edit grup jadwal: hapus id lama lalu buat ulang dgn hari/jam/mode baru."""
+    raw_ids = request.form.get('ids', '')
+    ids = [int(x) for x in raw_ids.split(',') if x.strip().isdigit()]
+    try:
+        user_id = int(request.form.get('user_id', 0))
+    except (TypeError, ValueError):
+        user_id = 0
+
+    dev = query("SELECT user_id, nama FROM pengguna_anak "
+                "WHERE user_id=%s AND admin_id=%s",
+                (user_id, current_admin_id()), one=True)
+    if not dev:
+        flash('Perangkat tidak valid atau bukan milik Anda.', 'error')
+        return redirect(url_for('jadwal'))
+
+    hari_arr    = request.form.getlist('hari')
+    jam_mulai   = (request.form.get('jam_mulai')   or '').strip()
+    jam_selesai = (request.form.get('jam_selesai') or '').strip()
+    mode        = request.form.get('mode', 'blokir')
+    if mode not in ('blokir', 'izinkan'): mode = 'blokir'
+    if not hari_arr:
+        flash('Pilih minimal 1 hari.', 'error'); return redirect(url_for('jadwal'))
+    if not re.match(r'^\d{2}:\d{2}$', jam_mulai) or \
+       not re.match(r'^\d{2}:\d{2}$', jam_selesai):
+        flash('Format jam tidak valid (HH:MM).', 'error'); return redirect(url_for('jadwal'))
+    if jam_mulai == jam_selesai:
+        flash('Jam mulai dan selesai tidak boleh sama.', 'error'); return redirect(url_for('jadwal'))
+
+    # Hapus jadwal lama (verifikasi kepemilikan)
+    if ids:
+        ph  = ','.join(['%s'] * len(ids))
+        own = query(f"SELECT j.jadwal_id FROM jadwal_blokir j "
+                    f"JOIN pengguna_anak p ON p.user_id=j.user_id "
+                    f"WHERE j.jadwal_id IN ({ph}) AND p.admin_id=%s",
+                    ids + [current_admin_id()]) or []
+        valid = [r['jadwal_id'] for r in own]
+        if valid:
+            ph2 = ','.join(['%s'] * len(valid))
+            query(f"DELETE FROM jadwal_blokir WHERE jadwal_id IN ({ph2})", valid)
+
+    # Buat ulang dgn nilai baru
+    inserted = 0
+    for h in hari_arr:
+        if h not in HARI_LIST: continue
+        dup = query("SELECT jadwal_id FROM jadwal_blokir WHERE user_id=%s AND hari=%s "
+                    "AND jam_mulai=%s AND jam_selesai=%s AND mode=%s",
+                    (user_id, h, jam_mulai, jam_selesai, mode), one=True)
+        if dup: continue
+        query("INSERT INTO jadwal_blokir (user_id, hari, jam_mulai, jam_selesai, mode) "
+              "VALUES (%s,%s,%s,%s,%s)", (user_id, h, jam_mulai, jam_selesai, mode))
+        inserted += 1
+    flash(f'Jadwal untuk {dev["nama"]} diperbarui ({inserted} hari aktif).', 'success')
+    return redirect(url_for('jadwal'))
+
 @app.route('/api/jadwal/toggle-mode', methods=['POST'])
 @login_required
 def jadwal_toggle_mode():
@@ -1812,6 +1871,30 @@ def toggle_ai():
     flash(f"AI {'diaktifkan' if not curr else 'dinonaktifkan'}.", 'success')
     return redirect(url_for('kategori_list'))
 
+@app.route('/kategori/koreksi', methods=['POST'])
+@login_required
+def kategori_koreksi():
+    """Orang tua mengoreksi kategori sebuah domain. Disimpan ke koreksi_kategori
+    (override yang dibaca router via /api/config) sekaligus memperbarui cache_domain
+    agar dashboard langsung sinkron. Menjadi data berlabel untuk retrain berkala."""
+    data    = request.get_json(silent=True) or {}
+    domain  = (data.get('domain')   or '').strip().lower()
+    if domain.startswith('www.'): domain = domain[4:]
+    kategori = (data.get('kategori') or '').strip().lower()
+    if not domain or kategori not in ('edukasi', 'hiburan', 'negatif', 'netral'):
+        return jsonify({"status": "error", "msg": "domain/kategori tidak valid"}), 400
+    # Simpan koreksi (override)
+    query("INSERT INTO koreksi_kategori (domain_url, kategori, admin_id) "
+          "VALUES (%s,%s,%s) ON DUPLICATE KEY UPDATE kategori=VALUES(kategori), "
+          "admin_id=VALUES(admin_id)",
+          (domain, kategori, current_admin_id()))
+    # Sinkronkan cache_domain agar tampilan & confidence langsung berubah
+    query("INSERT INTO cache_domain (domain_url, kategori, confidence_score, jumlah_hit) "
+          "VALUES (%s,%s,100,1) ON DUPLICATE KEY UPDATE kategori=VALUES(kategori), "
+          "confidence_score=100, terakhir_diakses=CURRENT_TIMESTAMP",
+          (domain, kategori))
+    return jsonify({"status": "ok", "domain": domain, "kategori": kategori})
+
 # ══════════════════════════════════════════════════════════════════════════════
 # KELOLA PERANGKAT
 # ══════════════════════════════════════════════════════════════════════════════
@@ -1979,11 +2062,19 @@ def api_config():
     putih  = query("SELECT domain_url FROM daftar_filter WHERE tipe='putih'") or []
     hitam  = query("SELECT domain_url FROM daftar_filter WHERE tipe='hitam'") or []
     dijeda = query("SELECT mac_address FROM pengguna_anak WHERE jeda=1") or []
+    # Koreksi kategori manual (override AI) — dict {domain: kategori}
+    try:
+        koreksi = {r['domain_url']: r['kategori']
+                   for r in (query("SELECT domain_url, kategori "
+                                   "FROM koreksi_kategori") or [])}
+    except Exception:
+        koreksi = {}   # tabel belum dibuat di DB lama → abaikan
     return jsonify({
         "ai_aktif":             bool(int(get_cfg('ai_aktif', '1'))),
         "daftar_putih":         [r['domain_url']  for r in putih],
         "daftar_hitam":         [r['domain_url']  for r in hitam],
         "perangkat_jeda":       [r['mac_address'] for r in dijeda],
+        "koreksi_kategori":     koreksi,
         "kategori_ai":          [
             {"nama":"edukasi","aksi":"izinkan"},
             {"nama":"hiburan","aksi":"netral"},   # aksi=netral → izinkan/kontrol kuota

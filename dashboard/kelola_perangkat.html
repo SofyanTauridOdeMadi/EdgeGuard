@@ -65,12 +65,12 @@ a{text-decoration:none;color:inherit}
 /* modal konfirmasi hapus */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:100;opacity:0;pointer-events:none;transition:opacity .2s}
 .overlay.show{opacity:1;pointer-events:all}
-.sheet{background:#fff;border-radius:20px 20px 0 0;padding:20px 20px 36px;width:100%;max-width:430px;transform:translateY(100%);transition:transform .25s ease}
+.sheet{background:#fff;border-radius:20px 20px 0 0;padding:20px 20px max(40px,calc(env(safe-area-inset-bottom,0px) + 32px));width:100%;max-width:430px;transform:translateY(100%);transition:transform .25s ease}
 .overlay.show .sheet{transform:translateY(0)}
 .handle{width:40px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 18px}
 .sheet h3{font-size:16px;font-weight:700;margin-bottom:8px;text-align:center}
 .sheet p{font-size:13px;color:#6B7280;text-align:center;margin-bottom:20px}
-.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
 .btn-cancel{padding:13px;background:#F3F4F6;border:none;border-radius:12px;font-size:14px;font-weight:600;color:#4B5563;cursor:pointer;font-family:inherit}
 .btn-hapus{padding:13px;background:#EF4444;border:none;border-radius:12px;font-size:14px;font-weight:600;color:#fff;cursor:pointer;font-family:inherit}
 </style>
