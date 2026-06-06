@@ -34,6 +34,29 @@ label{font-size:13px;font-weight:600;display:block;margin-bottom:8px;color:#1118
 .btn-login:hover{opacity:.88}
 .btn-login:disabled{opacity:.5;cursor:not-allowed}
 footer{font-size:12px;color:#9CA3AF;margin-top:20px;text-align:center;line-height:1.5}
+
+/* ── Tablet: kartu lebih besar ── */
+@media (min-width:768px){
+  .card{max-width:448px;padding:40px 38px;border-radius:24px}
+  .banner{height:190px;margin-bottom:26px}
+  .brand{margin-bottom:26px}
+  .brand-logo{width:46px;height:46px}
+  .brand-name{font-size:22px}
+  h2{font-size:23px}
+  .sub{font-size:14px;margin-bottom:26px}
+  label{font-size:14px}
+  .inp-wrap{padding:14px 16px}
+  .inp-wrap input{font-size:16px}
+  .btn-login{font-size:16px;padding:16px}
+  footer{font-size:13px}
+}
+/* ── Laptop/Desktop: lebih besar lagi ── */
+@media (min-width:1024px){
+  .card{max-width:500px;padding:48px 46px}
+  .banner{height:220px}
+  h2{font-size:26px}
+  .sub{font-size:15px}
+}
 </style>
 </head>
 <body>
@@ -48,7 +71,7 @@ footer{font-size:12px;color:#9CA3AF;margin-top:20px;text-align:center;line-heigh
   </div>
 
   <h2>Akses Admin</h2>
-  <p class="sub">Manage your home's parental control settings</p>
+  <p class="sub">Kelola pengaturan kontrol orang tua di rumah Anda.</p>
 
   {% if lock_detik and lock_detik > 0 %}
     <div class="lock">

@@ -11,67 +11,43 @@
 .act-ic svg         { display:block }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   TABLET (≥ 640px) — topbar full-width, konten di-center
+   TABLET & UP (≥ 768px) — manfaatkan lebar layar penuh.
+   Mencakup iPad 11"/12.9" (portrait & landscape): kontainer dipaksa lebar
+   penuh, "kolom hp" 430px dihilangkan, margin samping dipangkas wajar.
    ═══════════════════════════════════════════════════════════════════════ */
-@media (min-width: 640px) {
-  /* Body tidak dibatasi lagi — biarkan topbar melebar penuh */
+@media (min-width: 768px) {
   body {
     max-width: 100% !important;
     background: #E0EAFF !important;
   }
 
-  /* Topbar melebar penuh ke viewport, padding menyesuaikan */
   .topbar {
     width: 100% !important;
     max-width: 100% !important;
-    padding-left: max(24px, calc((100vw - 680px) / 2 + 18px)) !important;
-    padding-right: max(24px, calc((100vw - 680px) / 2 + 18px)) !important;
+    padding-left:  clamp(20px, 4vw, 48px) !important;
+    padding-right: clamp(20px, 4vw, 48px) !important;
   }
 
-  /* Konten tetap di tengah ≤ 680px */
+  /* Konten memenuhi lebar layar (bukan lagi dibatasi 680px) */
   .page {
-    max-width: 680px;
+    width: 100% !important;
+    max-width: 100% !important;
     margin: 0 auto;
-    padding: 20px 20px 110px !important;
+    padding: 22px clamp(20px, 4vw, 48px) 120px !important;
   }
 
-  /* Bottom nav floating pill */
-  .bnav {
-    max-width: 600px !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
-  }
+  .bnav { left: 50% !important; transform: translateX(-50%) !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   DESKTOP (≥ 1024px) — multi-kolom, topbar masih full-width
+   DESKTOP / LAPTOP & TABLET LANDSCAPE (≥ 1024px) — grid multi-kolom + nav pill
    ═══════════════════════════════════════════════════════════════════════ */
 @media (min-width: 1024px) {
+  body { background: #DBEAFE !important; }
 
-  body {
-    max-width: 100% !important;
-    background: #DBEAFE !important;
-  }
+  .card, .dev-card, .domain-item, .kat-card, .ai-card { border-radius: 16px; }
 
-  .topbar {
-    width: 100% !important;
-    max-width: 100% !important;
-    padding-left: max(32px, calc((100vw - 1000px) / 2 + 24px)) !important;
-    padding-right: max(32px, calc((100vw - 1000px) / 2 + 24px)) !important;
-  }
-
-  .page {
-    max-width: 1000px;
-    margin: 0 auto;
-    padding: 24px 32px 110px !important;
-  }
-
-  /* Bayangan & radius card lebih halus untuk layar besar */
-  .card, .dev-card, .domain-item, .kat-card, .ai-card {
-    border-radius: 16px;
-  }
-
-  /* ─── KELOLA PERANGKAT: CSS Grid 2-3 kolom ─ */
+  /* ─── KELOLA PERANGKAT: grid 2 kolom ─── */
   body[data-page="kelola"] .page {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -80,15 +56,10 @@
     align-items: start;
   }
   body[data-page="kelola"] .page > .flash,
-  body[data-page="kelola"] .page > .empty {
-    grid-column: 1 / -1;
-  }
-  body[data-page="kelola"] .page > .dev-card {
-    width: 100%;
-    margin: 0;
-  }
+  body[data-page="kelola"] .page > .empty { grid-column: 1 / -1; }
+  body[data-page="kelola"] .page > .dev-card { width: 100%; margin: 0; }
 
-  /* ─── ATURAN FILTER: domain items grid 2 kolom ─────────────────── */
+  /* ─── ATURAN FILTER: domain items grid 2 kolom ─── */
   body[data-page="aturan"] #list-putih,
   body[data-page="aturan"] #list-hitam {
     display: grid;
@@ -97,26 +68,12 @@
     row-gap: 0;
   }
   body[data-page="aturan"] .list-hdr,
-  body[data-page="aturan"] .empty {
-    grid-column: 1 / -1;
-  }
+  body[data-page="aturan"] .empty { grid-column: 1 / -1; }
 
-  /* ─── KATEGORI AI: 3 kategori sebaris ─────────────────────────── */
-  body[data-page="kategori"] #pane-kat {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    column-gap: 10px;
-  }
-  body[data-page="kategori"] #pane-kat .sec-label {
-    grid-column: 1 / -1;
-  }
+  /* ─── RIWAYAT: item lebih luas ─── */
+  body[data-page="riwayat"] .act-item { padding: 12px 16px; }
 
-  /* ─── RIWAYAT: kolom item lebih luas ── */
-  body[data-page="riwayat"] .act-item {
-    padding: 12px 16px;
-  }
-
-  /* ─── Bottom Nav: floating pill ─────────── */
+  /* ─── Bottom Nav: floating pill ─── */
   .bnav {
     position: fixed !important;
     bottom: 20px !important;
@@ -128,9 +85,8 @@
     border-radius: 20px !important;
     border-top: none !important;
     box-shadow: 0 8px 30px rgba(15,23,42,.20);
-    /* env(safe-area-inset-bottom) bernilai 0 di desktop (fallback diabaikan
-       karena env didukung) → dulu padding bawah jadi 0 & label mepet. Pakai
-       calc dgn basis 10px agar padding atas = bawah (simetris & bersih). */
+    /* env(safe-area-inset-bottom) = 0 di desktop (fallback diabaikan karena env
+       didukung). Pakai calc basis 10px agar padding atas = bawah (simetris). */
     padding: 10px 12px calc(10px + env(safe-area-inset-bottom,0px)) !important;
     column-gap: 6px;
   }
@@ -139,23 +95,30 @@
     border-radius: 12px;
     transition: background .15s, color .15s;
   }
-  .ni:hover   { background: #EFF6FF; }
-  .ni.active  { background: #DBEAFE; }
+  .ni:hover  { background: #EFF6FF; }
+  .ni.active { background: #DBEAFE; }
 
-  /* ─── Sheet / modal ────────────────────── */
-  .sheet {
-    max-width: 500px !important;
-    border-radius: 24px !important;
+  /* ─── Sheet / modal ─── */
+  .sheet, .sheet-hapus, .sheet-koreksi {
+    max-width: 520px !important;
     box-shadow: 0 24px 60px rgba(15,23,42,.25);
   }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
-   LAYAR LEBAR (≥ 1400px)
+   LAYAR BESAR / DESKTOP 15"+ (≥ 1440px) — batasi lebar & center
    ═══════════════════════════════════════════════════════════════════════ */
-@media (min-width: 1400px) {
-  .page { max-width: 1100px; }
-
+@media (min-width: 1440px) {
+  .topbar {
+    padding-left:  max(40px, calc((100vw - 1440px) / 2 + 32px)) !important;
+    padding-right: max(40px, calc((100vw - 1440px) / 2 + 32px)) !important;
+  }
+  .page {
+    max-width: 1440px !important;
+    margin: 0 auto;
+    padding: 28px 40px 130px !important;
+  }
+  /* KELOLA PERANGKAT: 3 kolom di layar besar */
   body[data-page="kelola"] .page {
     grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
   }

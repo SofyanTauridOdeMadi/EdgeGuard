@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Edge Guard — Smart Parental Control</title>
+
+<!-- ── SEO & Link Preview (WA / Telegram) ── -->
+<meta name="description" content="Kontrol internet anak berbasis AI, langsung di router rumah. Blokir konten negatif, atur jadwal, pantau real-time.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://edgeguard.my.id">
+<meta property="og:title" content="Edge Guard — Smart Parental Control">
+<meta property="og:description" content="Kontrol internet anak berbasis AI, langsung di router rumah.">
+<meta property="og:image" content="https://edgeguard.my.id/aset/logo.png">
+<meta name="twitter:card" content="summary">
+<link rel="icon" type="image/png" href="/aset/logo.png">
+<link rel="apple-touch-icon" href="/aset/logo.png">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;
+  background:#0F172A;color:#fff;overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+}
+.wrap{
+  position:relative;width:100%;height:100vh;height:100dvh;
+  background:radial-gradient(ellipse 90% 60% at 50% 10%,#2563EB 0%,#1D4ED8 45%,#0F172A 100%);
+  overflow:hidden;
+}
+
+/* ══ SPLASH (animasi pembuka) ══ */
+#splash{
+  position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:18px;
+  background:radial-gradient(ellipse 90% 60% at 50% 35%,#2563EB 0%,#1D4ED8 50%,#0F172A 100%);
+  transition:opacity .6s ease, visibility .6s;
+}
+#splash.hide{opacity:0;visibility:hidden}
+.splash-logo{
+  width:clamp(104px,16vw,184px);height:clamp(104px,16vw,184px);
+  border-radius:clamp(30px,4vw,46px);
+  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 60px rgba(96,165,250,.5);
+  animation:logoIn .9s cubic-bezier(.2,.8,.2,1) both;
+}
+.splash-logo img{width:60%;height:60%;object-fit:contain;filter:brightness(0) invert(1)}
+.splash-name{font-size:clamp(26px,5vw,46px);font-weight:800;letter-spacing:.5px;
+  animation:fadeUp .7s ease .35s both}
+.splash-tag{font-size:clamp(13px,2.2vw,20px);color:#BFDBFE;font-weight:500;
+  animation:fadeUp .7s ease .5s both}
+.splash-load{position:absolute;bottom:46px;width:120px;height:4px;border-radius:4px;
+  background:rgba(255,255,255,.2);overflow:hidden;animation:fadeUp .6s ease .6s both}
+.splash-load i{display:block;height:100%;width:40%;border-radius:4px;background:#fff;
+  animation:load 1.4s ease-in-out infinite}
+
+@keyframes logoIn{0%{opacity:0;transform:scale(.6) translateY(10px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes fadeUp{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes load{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+
+/* ══ ONBOARDING ══ */
+.onboard{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;
+  opacity:0;transition:opacity .5s ease .1s}
+.onboard.show{opacity:1}
+.skip{position:absolute;top:max(16px,env(safe-area-inset-top,0px));right:18px;z-index:12;
+  background:rgba(255,255,255,.14);border:none;color:#fff;font-family:inherit;
+  font-size:13px;font-weight:600;padding:8px 16px;border-radius:20px;cursor:pointer;
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);transition:background .15s}
+.skip:hover{background:rgba(255,255,255,.24)}
+
+.viewport{flex:1;overflow:hidden;display:flex}
+.slides{display:flex;height:100%;width:100%;
+  transition:transform .45s cubic-bezier(.4,0,.2,1);will-change:transform}
+.slide{flex:0 0 100%;height:100%;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;
+  padding:32px clamp(24px,7vw,64px)}
+.slide-inner{max-width:460px;display:flex;flex-direction:column;align-items:center}
+.slide-ic{width:clamp(96px,26vw,140px);height:clamp(96px,26vw,140px);border-radius:36px;
+  display:flex;align-items:center;justify-content:center;color:#fff;
+  margin-bottom:28px;box-shadow:0 20px 50px rgba(0,0,0,.35)}
+.slide-ic svg{width:48%;height:48%}
+.slide-ic.s0{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25)}
+.slide-ic.s0 img{width:58%;height:58%;object-fit:contain;filter:brightness(0) invert(1)}
+.slide-ic.s1{background:linear-gradient(135deg,#2563EB,#60A5FA)}
+.slide-ic.s2{background:linear-gradient(135deg,#16A34A,#4ADE80)}
+.slide-ic.s3{background:linear-gradient(135deg,#D97706,#FBBF24)}
+.slide h1{font-size:clamp(24px,6vw,34px);font-weight:800;line-height:1.15;margin-bottom:14px}
+.slide p{font-size:clamp(14px,3.6vw,17px);color:#C7D7F5;line-height:1.65;max-width:24em}
+
+/* animasi konten saat slide aktif */
+.slide.active .slide-ic{animation:fadeUp .55s ease .05s both}
+.slide.active h1{animation:fadeUp .55s ease .15s both}
+.slide.active p{animation:fadeUp .55s ease .25s both}
+
+/* ── Footer: dots + tombol ── */
+.foot{padding:18px clamp(24px,7vw,64px) max(28px,calc(env(safe-area-inset-bottom,0px) + 22px));
+  display:flex;flex-direction:column;align-items:center;gap:18px}
+.dots{display:flex;gap:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3);
+  transition:all .3s;cursor:pointer}
+.dot.active{width:24px;border-radius:5px;background:#fff}
+.cta{width:100%;max-width:420px;padding:16px;border:none;border-radius:16px;
+  background:#fff;color:#1D4ED8;font-size:16px;font-weight:800;cursor:pointer;
+  font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;
+  box-shadow:0 10px 30px rgba(0,0,0,.25);transition:transform .12s,opacity .12s}
+.cta:active{transform:scale(.98)}
+.cta:hover{opacity:.94}
+
+/* Full-screen di SEMUA ukuran (HP, tablet, desktop) — tanpa kartu sempit.
+   Konten tiap slide tetap dibatasi .slide-inner (≤460px) & ter-center. */
+@media (min-width:1024px){
+  .slide-inner{max-width:560px}
+  .slide h1{font-size:clamp(28px,4vw,40px)}
+  .slide p{font-size:clamp(15px,1.5vw,19px)}
+  .slide-ic{width:clamp(120px,12vw,160px);height:clamp(120px,12vw,160px)}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ══ SPLASH ══ -->
+  <div id="splash">
+    <div class="splash-logo"><img src="/aset/logo.png" alt="Edge Guard"></div>
+    <div class="splash-name">Edge Guard</div>
+    <div class="splash-tag">Smart Parental Control</div>
+    <div class="splash-load"><i></i></div>
+  </div>
+
+  <!-- ══ ONBOARDING ══ -->
+  <div class="onboard" id="onboard">
+    <button class="skip" onclick="selesai()">Lewati</button>
+
+    <div class="viewport" id="viewport">
+      <div class="slides" id="slides">
+
+        <section class="slide active">
+          <div class="slide-inner">
+            <div class="slide-ic s0"><img src="/aset/logo.png" alt=""></div>
+            <h1>Selamat Datang di<br>Edge Guard</h1>
+            <p>Kontrol internet anak yang cerdas, berjalan langsung di router rumah Anda.</p>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="slide-ic s1">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+            </div>
+            <h1>Klasifikasi AI Real-time</h1>
+            <p>Konten negatif otomatis terdeteksi &amp; diblokir oleh AI di router — tanpa bergantung cloud.</p>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="slide-ic s2">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+            </div>
+            <h1>Belajar Dapat Hadiah</h1>
+            <p>Setiap sesi belajar menambah bonus waktu hiburan, mendorong kebiasaan digital yang sehat.</p>
+          </div>
+        </section>
+
+        <section class="slide">
+          <div class="slide-inner">
+            <div class="slide-ic s3">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+            </div>
+            <h1>Pantau dari Mana Saja</h1>
+            <p>Jadwal istirahat otomatis &amp; notifikasi Telegram real-time, langsung ke ponsel orang tua.</p>
+          </div>
+        </section>
+
+      </div>
+    </div>
+
+    <div class="foot">
+      <div class="dots" id="dots"></div>
+      <button class="cta" id="cta" onclick="next()">
+        <span id="cta-txt">Lanjut</span>
+        <svg id="cta-arrow" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  var params    = new URLSearchParams(location.search);
+  var force     = params.has('intro');                  // ?intro → paksa lihat slide lagi
+  var LOGGED_IN = {{ 'true' if logged_in else 'false' }}; // status sesi dari server
+
+  var slidesEl = document.getElementById('slides');
+  var slides   = document.querySelectorAll('.slide');
+  var total    = slides.length;
+  var idx      = 0;
+  var ctaTxt   = document.getElementById('cta-txt');
+  var ctaArrow = document.getElementById('cta-arrow');
+
+  // Bangun indikator titik
+  var dotsEl = document.getElementById('dots');
+  for (var i=0;i<total;i++){
+    var d = document.createElement('span');
+    d.className = 'dot' + (i===0?' active':'');
+    (function(k){ d.onclick = function(){ goTo(k); }; })(i);
+    dotsEl.appendChild(d);
+  }
+  var dots = document.querySelectorAll('.dot');
+
+  function render(){
+    slidesEl.style.transform = 'translateX(' + (-idx*100) + '%)';
+    slides.forEach(function(s,i){ s.classList.toggle('active', i===idx); });
+    dots.forEach(function(d,i){ d.classList.toggle('active', i===idx); });
+    var last = idx === total-1;
+    ctaTxt.textContent = last ? 'Masuk Dashboard' : 'Lanjut';
+    ctaArrow.style.display = last ? 'none' : '';
+  }
+  function goTo(i){ idx = Math.max(0, Math.min(total-1, i)); render(); }
+  window.next = function(){ if (idx >= total-1) selesai(); else goTo(idx+1); };
+  window.selesai = function(){
+    try { localStorage.setItem('eg_onboarded','1'); } catch(e){}
+    location.href = '/login';
+  };
+
+  // ── Swipe (sentuh) ──
+  var x0 = null;
+  var vp = document.getElementById('viewport');
+  vp.addEventListener('touchstart', function(e){ x0 = e.touches[0].clientX; }, {passive:true});
+  vp.addEventListener('touchend', function(e){
+    if (x0===null) return;
+    var dx = e.changedTouches[0].clientX - x0;
+    if (Math.abs(dx) > 40){ dx < 0 ? next() : goTo(idx-1); }
+    x0 = null;
+  }, {passive:true});
+
+  // ── Geser mouse (desktop) ──
+  var mx = null;
+  vp.addEventListener('mousedown', function(e){ mx = e.clientX; });
+  window.addEventListener('mouseup', function(e){
+    if (mx===null) return;
+    var dx = e.clientX - mx;
+    if (Math.abs(dx) > 50){ dx < 0 ? next() : goTo(idx-1); }
+    mx = null;
+  });
+
+  // ── Keyboard (desktop) ──
+  document.addEventListener('keydown', function(e){
+    if (e.key==='ArrowRight' || e.key==='Enter') next();
+    else if (e.key==='ArrowLeft') goTo(idx-1);
+  });
+
+  // ── Splash SELALU tampil dulu, lalu tentukan tujuan ──
+  render();
+  setTimeout(function(){
+    // 1) Sesi aktif → langsung dashboard
+    if (LOGGED_IN) { location.replace('/dashboard'); return; }
+    // 2) Sudah pernah onboarding (& tidak dipaksa) → ke login
+    if (!force && localStorage.getItem('eg_onboarded') === '1') {
+      location.replace('/login'); return;
+    }
+    // 3) Belum onboarding → tampilkan slide perkenalan
+    document.getElementById('splash').classList.add('hide');
+    document.getElementById('onboard').classList.add('show');
+  }, 2500);
+})();
+</script>
+</body>
+</html>

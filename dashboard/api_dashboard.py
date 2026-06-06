@@ -885,7 +885,7 @@ def login():
     if request.method == 'POST':
         username = (request.form.get('username') or '').strip().lower()
         if not username:
-            return render_template('halaman_login.html',
+            return render_template('autentikasi.html',
                 err='Username dan password wajib diisi.',
                 sisa_percobaan=None, lock_detik=0)
         pw       = request.form.get('password', '')
@@ -946,7 +946,7 @@ def login():
         elif err is None:
             err = 'Username atau password salah.'
 
-    return render_template('halaman_login.html', err=err,
+    return render_template('autentikasi.html', err=err,
                            sisa_percobaan=sisa_percobaan,
                            lock_detik=lock_detik)
 
@@ -957,24 +957,24 @@ def logout():
         query("UPDATE admin_orang_tua SET session_token=NULL, session_expired_at=NULL "
               "WHERE admin_id=%s", (uid,))
     session.clear()
-    return redirect(url_for('login'))
+    # Setelah logout → ke pintu masuk (splash) lalu lanjut ke /login.
+    return redirect(url_for('root'))
 
 # ══════════════════════════════════════════════════════════════════════════════
 # BERANDA
 # ══════════════════════════════════════════════════════════════════════════════
 @app.route('/landing')
 def landing():
-    """Halaman publik — tampil saat buka link edgeguard.my.id tanpa login."""
-    if session.get('user_id'):
-        return redirect(url_for('beranda'))
-    return render_template('halaman_landing.html')
+    """Alias splash/onboarding."""
+    return render_template('landing.html', logged_in=bool(session.get('user_id')))
 
 @app.route('/')
 def root():
-    """Root: landing page untuk tamu, dashboard untuk yang sudah login."""
-    if not session.get('user_id'):
-        return render_template('halaman_landing.html')
-    return redirect(url_for('beranda'))
+    """Pintu masuk: SELALU tampilkan splash (landing.html). Sisi klien menentukan
+    tujuan setelah animasi: sesi aktif → /dashboard, sudah onboarding → /login,
+    belum onboarding → slide perkenalan → /login. Navigasi dalam aplikasi memakai
+    /dashboard agar tidak memicu splash berulang."""
+    return render_template('landing.html', logged_in=bool(session.get('user_id')))
 
 @app.route('/dashboard')
 @login_required
@@ -2409,7 +2409,7 @@ def err_404(e):
        request.accept_mimetypes.best == 'application/json':
         return jsonify({"status":"error","code":404,
                         "msg":"Endpoint tidak ditemukan","path":request.path}), 404
-    return render_template('halaman_404.html',
+    return render_template('error_page.html',
         kode=404, judul='Halaman Tidak Ditemukan',
         pesan='Halaman yang kamu cari tidak ada di server ini.',
         path=request.path, login_user=bool(session.get('user_id'))), 404
@@ -2418,14 +2418,14 @@ def err_404(e):
 def err_500(e):
     if request.path.startswith('/api/'):
         return jsonify({"status":"error","code":500,"msg":"Kesalahan server"}), 500
-    return render_template('halaman_404.html',
+    return render_template('error_page.html',
         kode=500, judul='Kesalahan Server',
         pesan='Terjadi kesalahan di sisi server. Silakan coba lagi.',
         path=request.path, login_user=bool(session.get('user_id'))), 500
 
 @app.errorhandler(403)
 def err_403(e):
-    return render_template('halaman_404.html',
+    return render_template('error_page.html',
         kode=403, judul='Akses Ditolak',
         pesan='Kamu tidak punya izin untuk membuka halaman ini.',
         path=request.path, login_user=bool(session.get('user_id'))), 403
