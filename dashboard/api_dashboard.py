@@ -26,8 +26,9 @@ except ImportError:
 # ── Normalisasi domain ke root (eTLD+1) ───────────────────────────────────────
 # SLD 2-level yang diperlakukan sebagai satu TLD (mis. .co.id, .ac.id)
 _SLD_2LV = {
-    # Indonesia
+    # Indonesia (lengkap sesuai Public Suffix List PANDI)
     'co.id','ac.id','go.id','or.id','sch.id','net.id','mil.id','web.id',
+    'my.id','biz.id','desa.id','ponpes.id','asia.id',
     # UK
     'co.uk','ac.uk','gov.uk','org.uk','me.uk','net.uk','ltd.uk','plc.uk',
     # Japan
@@ -105,7 +106,35 @@ app.config.update(
     SESSION_COOKIE_SAMESITE = 'Lax',
     SESSION_COOKIE_SECURE   = bool(int(os.environ.get('COOKIE_SECURE', '0'))),
     PERMANENT_SESSION_LIFETIME = timedelta(hours=8),
+    # Cache aset statis (logo/bg/css) 30 hari → muat ulang halaman jauh lebih cepat.
+    SEND_FILE_MAX_AGE_DEFAULT = timedelta(days=30),
 )
+
+# ── Kompresi gzip respons teks (HTML/CSS/JS/JSON) untuk klien yang mendukung ──
+import gzip as _gzip
+_COMPRESS_TYPES = ('text/html', 'text/css', 'application/javascript',
+                   'application/json', 'image/svg+xml', 'text/plain')
+@app.after_request
+def _gzip_response(resp):
+    try:
+        if 'gzip' not in (request.headers.get('Accept-Encoding') or '').lower():
+            return resp
+        if resp.direct_passthrough or resp.headers.get('Content-Encoding'):
+            return resp
+        ctype = (resp.content_type or '').split(';')[0].strip()
+        if ctype not in _COMPRESS_TYPES:
+            return resp
+        data = resp.get_data()
+        if len(data) < 600:           # tak perlu kompres respons mungil
+            return resp
+        comp = _gzip.compress(data, 6)
+        resp.set_data(comp)
+        resp.headers['Content-Encoding'] = 'gzip'
+        resp.headers['Content-Length']   = str(len(comp))
+        resp.headers.setdefault('Vary', 'Accept-Encoding')
+    except Exception:
+        pass
+    return resp
 
 DB = {
     'host':        '127.0.0.1',
@@ -461,34 +490,51 @@ def _notif_baru_saja(domain: str, perangkat: str) -> bool:
     return False
 
 # Wrapper friendly notif (panggil dari event handler dashboard)
+def _label_perangkat(perangkat: str = '', mac: str = '') -> str:
+    """Penanda perangkat untuk notif: nama anak TERDAFTAR (dicari via MAC) bila
+    ada, jika tidak pakai hostname yang dikirim. TANPA alamat MAC."""
+    nama = ''
+    mac  = (mac or '').upper()
+    if mac:
+        d = query("SELECT nama FROM pengguna_anak WHERE UPPER(mac_address)=%s",
+                  (mac,), one=True)
+        nama = (d['nama'] if d else '') or ''
+    if not nama:
+        nama = (perangkat or '').strip()
+    return nama or 'Perangkat tidak dikenal'
+
+_ALASAN_IZIN = {
+    'jeda':   'Internet dijeda — ingin diaktifkan kembali',
+    'jadwal': 'Memasuki jam istirahat — ingin diaktifkan kembali',
+    'kuota':  'Waktu/kuota internet habis — ingin diaktifkan kembali',
+}
+
 def notif_telegram(kind: str, **kwargs):
-    """Kirim notif Telegram sesuai jenis event. Silent-fail.
-    Hanya 3 kejadian yang dinotifikasi:
-      • 'blokir'     — anak membuka situs blacklist ATAU web baru yang
-                       diklasifikasi AI router sebagai negatif.
-      • 'minta_izin' — durasi/kuota anak habis dan anak meminta izin akses.
+    """Kirim notif Telegram. Silent-fail. Perangkat = nama anak / hostname.
+      • 'blokir'     — situs negatif/blacklist (OTOMATIS): domain + alasan.
+      • 'minta_izin' — anak menekan tombol minta izin (jeda/jadwal/kuota): alasan.
     """
     if not tg_aktif(): return False
     if kind == 'blokir':
-        # Anti-spam: lewati notif domain+perangkat yang sama bila baru saja
-        # dikirim (<NOTIF_COOLDOWN detik) — cegah banjir pesan.
-        if _notif_baru_saja(kwargs.get('domain',''), kwargs.get('perangkat','')):
+        # Anti-spam per (domain, mac/perangkat).
+        if _notif_baru_saja(kwargs.get('domain',''),
+                            kwargs.get('mac','') or kwargs.get('perangkat','')):
             return False
         text = (
             f"🚫 *SITUS DIBLOKIR*\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
+            f"📱 Perangkat  : {_label_perangkat(kwargs.get('perangkat'), kwargs.get('mac'))}\n"
             f"🌐 Domain     : `{kwargs.get('domain','')}`\n"
-            f"📱 Perangkat  : {kwargs.get('perangkat') or 'Tidak diketahui'}\n"
-            f"📂 Kategori   : {kwargs.get('kategori','negatif').capitalize()}\n"
-            f"🎯 Keyakinan  : {float(kwargs.get('confidence',0)):.0f}%\n"
-            f"⚙️ Alasan     : {_alasan_ramah(kwargs.get('alasan',''), kwargs.get('kategori',''), kwargs.get('confidence',0))}"
+            f"✉️ Alasan     : {kwargs.get('alasan_txt') or 'Dikategorikan negatif oleh AI'}"
         )
     elif kind == 'minta_izin':
+        baris = _ALASAN_IZIN.get((kwargs.get('alasan') or '').lower(),
+                                 'Ingin mengakses internet')
         text = (
             f"🙋 *PERMINTAAN IZIN AKSES*\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
-            f"🌐 Domain     : `{kwargs.get('domain','?')}`\n"
-            f"📱 Perangkat  : {kwargs.get('perangkat','?')}\n"
+            f"📱 Perangkat  : {_label_perangkat(kwargs.get('perangkat'), kwargs.get('mac'))}\n"
+            f"✉️ Alasan     : {baris}\n"
             f"━━━━━━━━━━━━━━━━━━━━\n"
             f"_Buka dashboard untuk memberikan izin._"
         )
@@ -986,7 +1032,9 @@ def beranda():
         "SELECT p.*, "
         "  COALESCE(s.total_akses, 0)  AS _log_count, "
         "  COALESCE(s.total_blokir, 0) AS _blokir_count, "
-        "  COALESCE(d.sisa_hiburan, 0) AS sisa_hiburan "
+        "  COALESCE(d.sisa_hiburan, 0) AS sisa_hiburan, "
+        "  COALESCE(d.batas_harian, 60) AS batas_harian, "
+        "  COALESCE(d.total_edukasi, 0) AS total_edukasi "
         "FROM pengguna_anak p "
         "LEFT JOIN v_statistik s ON s.user_id = p.user_id "
         "LEFT JOIN dompet_kuota d ON d.user_id = p.user_id "
@@ -1726,9 +1774,11 @@ def aturan():
         "ORDER BY filter_id DESC",
         (current_admin_id(),)) or []
     ai = bool(int(get_cfg('ai_aktif', '1')))
+    tg = bool(int(get_cfg('telegram_aktif', '1')))
     return render_template('aturan_filter.html',
         cfg={'ai_aktif':ai}, tab=tab,
-        daftar_putih=list(putih), daftar_hitam=list(hitam), ai_aktif=ai)
+        daftar_putih=list(putih), daftar_hitam=list(hitam),
+        ai_aktif=ai, telegram_aktif=tg)
 
 @app.route('/aturan/tambah', methods=['POST'])
 @login_required
@@ -1849,8 +1899,11 @@ def kategori_list():
     for r in rows:
         r['waktu_str'] = format_waktu_ramah(r.get('terakhir_diakses'))
 
+    _last = query("SELECT MAX(waktu_akses) AS t FROM log_akses", one=True)
+    ai_terakhir = (format_waktu_ramah(_last['t']) if _last and _last.get('t') else '—')
     return render_template('kategori_ai.html',
         cache_list=list(rows),
+        ai_terakhir=ai_terakhir,
         stats={
             'edukasi': stats.get('edukasi', 0),
             'hiburan': stats.get('hiburan', 0),
@@ -1870,6 +1923,25 @@ def toggle_ai():
     set_cfg('ai_aktif', '0' if curr else '1')
     flash(f"AI {'diaktifkan' if not curr else 'dinonaktifkan'}.", 'success')
     return redirect(url_for('kategori_list'))
+
+@app.route('/telegram/toggle', methods=['POST'])
+@login_required
+def toggle_telegram():
+    """Aktif/nonaktifkan notifikasi Telegram. Dipakai badge toggle (AJAX) di
+    halaman Aturan & Pengaturan Telegram. Balas JSON untuk update realtime."""
+    curr = int(get_cfg('telegram_aktif', '1'))
+    baru = 0 if curr else 1
+    set_cfg('telegram_aktif', str(baru))
+    return jsonify({"status": "ok", "aktif": bool(baru)})
+
+@app.route('/api/status-flags')
+@login_required
+def api_status_flags():
+    """Status ringkas untuk badge realtime (AI & Telegram) di dashboard."""
+    return jsonify({
+        "ai_aktif":       bool(int(get_cfg('ai_aktif', '1'))),
+        "telegram_aktif": bool(int(get_cfg('telegram_aktif', '1'))),
+    })
 
 @app.route('/kategori/koreksi', methods=['POST'])
 @login_required
@@ -2042,16 +2114,13 @@ def domain_terakhir(perangkat: str = '', device_id: str = '') -> str:
 @app.route('/minta-izin', methods=['POST'])
 def minta_izin():
     data      = request.get_json(silent=True) or request.form
-    domain    = (data.get('domain', '') or '').strip()
     perangkat = data.get('perangkat', '')
     device_id = data.get('device_id', '')
-    # Kalau captive portal tidak membawa domain (kasus kuota habis),
-    # ambil domain terakhir yang diakses perangkat dari log.
-    if not domain or domain in ('situs ini', '-', '—'):
-        domain = domain_terakhir(perangkat, device_id) or domain
+    mac       = (data.get('mac', '') or '').upper()
+    alasan    = (data.get('alasan', '') or '').lower()   # jeda / jadwal / kuota
     ok = notif_telegram('minta_izin',
-                        domain=domain or '(tidak diketahui)',
-                        perangkat=perangkat or device_id)
+                        perangkat=perangkat or device_id,
+                        mac=mac, alasan=alasan)
     return jsonify({"status": "ok" if ok else "queued"})
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -2161,6 +2230,21 @@ def api_perangkat():
         out.append(d)
     return jsonify({"perangkat": out})
 
+@app.route('/api/perangkat-status')
+@login_required
+def api_perangkat_status():
+    """Status online/offline + jeda per perangkat (admin saat ini) untuk
+    pembaruan kartu dashboard secara realtime tanpa reload."""
+    refresh_status_online()
+    devs = query(
+        "SELECT user_id AS id, "
+        "  (CASE WHEN status_aktif THEN 'online' ELSE 'offline' END) AS status, "
+        "  COALESCE(jeda,0) AS jeda "
+        "FROM pengguna_anak WHERE admin_id=%s", (current_admin_id(),)) or []
+    for d in devs:
+        d['jeda'] = bool(d['jeda'])
+    return jsonify({"perangkat": devs})
+
 @app.route('/api/heartbeat', methods=['POST'])
 def api_heartbeat():
     data = request.get_json(silent=True) or {}
@@ -2201,6 +2285,20 @@ def api_log():
     domain = root_domain((data.get('domain') or '').strip().lower())
     if not domain:
         return jsonify({"status": "ok", "skip": "no_domain"})
+
+    # ── 2b. Koreksi manual orang tua = SUMBER KEBENARAN kategori ───────────────
+    # Jika domain ini sudah pernah dikoreksi dari dashboard, paksa kategorinya
+    # agar TIDAK ditimpa klasifikasi router (mis. cache /api/config router belum
+    # refresh, atau domain ada di whitelist yg dilabeli 'edukasi'). Inilah yang
+    # mencegah koreksi (whatsapp.com → netral) "balik lagi" ke edukasi.
+    try:
+        kk = query("SELECT kategori FROM koreksi_kategori WHERE domain_url=%s",
+                   (domain,), one=True)
+        if kk and kk.get('kategori'):
+            kat  = kk['kategori']
+            aksi = 'blokir' if kat == 'negatif' else 'izinkan'
+    except Exception:
+        pass
 
     dev = query("SELECT user_id, nama FROM pengguna_anak WHERE UPPER(mac_address)=%s",
                 (mac,), one=True) if mac else None
@@ -2250,10 +2348,21 @@ def api_log():
 
     # ── 7. Notif Telegram jika diblokir karena negatif ────────────────────────
     if aksi == 'blokir' and kat == 'negatif':
+        # Alasan: dari blacklist manual → pakai alasan yang diisi orang tua;
+        # dari klasifikasi AI → "Dikategorikan negatif oleh AI".
+        if alasan_raw == 'blacklist':
+            row = query(
+                "SELECT alasan FROM daftar_filter "
+                "WHERE tipe='hitam' AND (%s = domain_url OR %s LIKE CONCAT('%%.', domain_url)) "
+                "ORDER BY LENGTH(domain_url) DESC LIMIT 1",
+                (domain, domain), one=True)
+            alasan_txt = (row and (row.get('alasan') or '').strip()) \
+                         or 'Masuk daftar blokir (blacklist)'
+        else:
+            alasan_txt = 'Dikategorikan negatif oleh AI'
         notif_telegram('blokir',
-                       domain=domain, alasan=alasan_raw,
-                       kategori=kat, perangkat=perangkat,
-                       confidence=confidence)
+                       domain=domain, perangkat=perangkat,
+                       mac=mac, alasan_txt=alasan_txt)
     return jsonify({"status": "ok"})
 
 @app.route('/api/kuota-update', methods=['POST'])
@@ -2327,9 +2436,11 @@ def telegram_settings():
     if request.method == 'POST':
         # Token bot TETAP (hardcode) → tidak disimpan/diubah dari form.
         chat  = (request.form.get('chat_id') or '').strip()
-        aktif = '1' if request.form.get('aktif') == 'on' else '0'
         set_cfg('telegram_chat_id', chat)
-        set_cfg('telegram_aktif',   aktif)
+        # Status aktif dikendalikan badge toggle (/telegram/toggle), jadi simpan
+        # chat_id TIDAK mengubahnya kecuali field 'aktif' memang dikirim.
+        if 'aktif' in request.form:
+            set_cfg('telegram_aktif', '1' if request.form.get('aktif') == 'on' else '0')
         # Nyalakan bot dua-arah begitu kredensial valid (kalau belum jalan).
         if tg_aktif():
             mulai_bot_telegram()

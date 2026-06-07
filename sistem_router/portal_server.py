@@ -14,7 +14,7 @@ Konfigurasi via /etc/edgeguard.env:
   EG_TG_CHAT      — chat/group ID Telegram (opsional)
   EG_CLOUD_URL    — URL VPS untuk fallback (default: https://edgeguard.my.id)
 """
-import os, sys, json, ssl, threading
+import os, sys, json, ssl, time, threading
 from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 import urllib.request
 
@@ -89,6 +89,41 @@ class PortalHandler(BaseHTTPRequestHandler):
         except Exception:
             return {}
 
+    def _send_static(self, fname, ctype):
+        """Sajikan file statik dari DOCROOT (mis. ikon PWA)."""
+        try:
+            with open(os.path.join(DOCROOT, fname), 'rb') as f:
+                data = f.read()
+            self.send_response(200)
+            self.send_header('Content-Type', ctype)
+            self.send_header('Content-Length', str(len(data)))
+            self.send_header('Cache-Control', 'public, max-age=86400')
+            self.end_headers()
+            self.wfile.write(data)
+        except Exception:
+            self.send_error(404)
+
+    def _send_manifest(self):
+        """Web App Manifest agar halaman bisa 'Add to Home Screen' (PWA shortcut)."""
+        manifest = {
+            "name": "Edge Guard", "short_name": "Edge Guard",
+            "description": "Kontrol orang tua — Edge Guard",
+            "start_url": "/", "scope": "/",
+            "display": "standalone", "orientation": "portrait",
+            "background_color": "#0B1220", "theme_color": "#1E3A8A",
+            "icons": [
+                {"src": "/eg-icon.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+                {"src": "/eg-icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
+            ],
+        }
+        data = json.dumps(manifest).encode()
+        self.send_response(200)
+        self.send_header('Content-Type', 'application/manifest+json')
+        self.send_header('Content-Length', str(len(data)))
+        self.send_header('Cache-Control', 'public, max-age=86400')
+        self.end_headers()
+        self.wfile.write(data)
+
     # ── Verbs ─────────────────────────────────────────────────────
     # Host milik portal sendiri — request ke sini berarti akses langsung.
     _PORTAL_HOSTS = {PORTAL_HOST, '192.168.1.1', '192.168.1.2',
@@ -113,6 +148,15 @@ class PortalHandler(BaseHTTPRequestHandler):
         # Endpoint status (dipakai index.html untuk tahu alasan blokir)
         if path == '/status':
             self._send_status()
+            return
+
+        # Aset PWA (Add to Home Screen) — manifest & ikon
+        if path == '/manifest.webmanifest':
+            self._send_manifest()
+            return
+        if path in ('/eg-icon.png', '/apple-touch-icon.png',
+                    '/icon-192.png', '/icon-512.png'):
+            self._send_static('eg-icon.png', 'image/png')
             return
 
         # URL cek-konektivitas OS (datang via DNAT, bukan akses langsung) →
@@ -157,14 +201,18 @@ class PortalHandler(BaseHTTPRequestHandler):
         if _re.match(r'^\d{1,3}(\.\d{1,3}){3}$', domain):
             domain = ''
 
+        mac = _mac_dari_ip(client_ip)            # cari MAC dari ARP table
+
         # 1) Domain ada di sinkhole → konten negatif.
         alasan = 'negatif' if (domain and _domain_in_sinkhole(domain)) else ''
 
         # 2) Selain itu, tanya VPS status perangkat (jeda / jadwal / kuota).
         if not alasan:
-            mac = _mac_dari_ip(client_ip)        # cari MAC dari ARP table
             alasan = _cek_alasan_vps(client_ip, mac) or 'kuota'
 
+        # Catatan: jeda/jadwal/kuota TIDAK auto-notif. Notif Telegram hanya
+        # dikirim saat anak menekan "Minta Izin" (lihat /minta-izin). Konten
+        # negatif tetap auto-notif via VPS /api/log.
         self._send_json(200, {'alasan': alasan, 'domain': domain})
 
     def do_OPTIONS(self):
@@ -181,6 +229,7 @@ class PortalHandler(BaseHTTPRequestHandler):
             data      = self._read_body()
             domain    = (data.get('domain') or 'tidak diketahui').strip()
             perangkat = data.get('perangkat', '')
+            alasan    = (data.get('alasan') or '').strip()    # jeda/jadwal/kuota
             client_ip = self.client_address[0]
 
             # Cari nama perangkat dari DHCP jika belum diisi portal
@@ -189,7 +238,7 @@ class PortalHandler(BaseHTTPRequestHandler):
 
             threading.Thread(
                 target=_kirim_notif,
-                args=(domain, perangkat, client_ip),
+                args=(domain, perangkat, client_ip, alasan),
                 daemon=True
             ).start()
 
@@ -245,9 +294,11 @@ def _domain_in_sinkhole(domain: str) -> bool:
     return False
 
 def _cek_alasan_vps(client_ip: str, mac: str = '') -> str:
+    # Default 'home' (beranda) — bukan 'kuota'. Hanya kembalikan alasan blokir
+    # bila perangkat MEMANG sedang dijeda / jam istirahat / kuota habis.
     mac = mac or _mac_dari_ip(client_ip)
     if not mac:
-        return 'kuota'
+        return 'home'
     try:
         ctx = _ssl_ctx()
         req = urllib.request.Request(
@@ -266,48 +317,51 @@ def _cek_alasan_vps(client_ip: str, mac: str = '') -> str:
                 bonus = int(dev.get('sisa_hiburan', 0))
                 if kU >= (kT + bonus):
                     return 'kuota'
-                return 'kuota'
+                return 'home'          # terdaftar tapi tidak diblokir
     except Exception:
         pass
-    return 'kuota'
+    return 'home'
 
 
 # ═══════════════════════════════════════════════════════════════════
 # NOTIFIKASI
 # ═══════════════════════════════════════════════════════════════════
-def _kirim_notif(domain: str, perangkat: str, client_ip: str):
-    """
-    Urutan pengiriman:
+_ALASAN_IZIN_TXT = {
+    'jeda':   'Internet dijeda — ingin diaktifkan kembali',
+    'jadwal': 'Memasuki jam istirahat — ingin diaktifkan kembali',
+    'kuota':  'Waktu/kuota internet habis — ingin diaktifkan kembali',
+}
+
+def _kirim_notif(domain: str, perangkat: str, client_ip: str, alasan: str = ''):
+    """Kirim notifikasi 'minta izin' (saat anak menekan tombol di portal).
     1. Langsung ke Telegram (jika EG_TG_TOKEN & EG_TG_CHAT diset di env router)
-    2. Teruskan ke VPS /minta-izin sebagai fallback (server-to-server, tanpa CORS)
-    3. Log lokal jika keduanya gagal
+    2. Teruskan ke VPS /minta-izin (VPS menyusun pesan lengkap: nama anak + alasan)
     """
     if DEBUG:
-        print(f"[portal] minta-izin: domain={domain} perangkat={perangkat} ip={client_ip}")
+        print(f"[portal] minta-izin: alasan={alasan} perangkat={perangkat} ip={client_ip}")
 
-    # ── 1. Telegram langsung ──────────────────────────────────────
+    mac = _mac_dari_ip(client_ip)
+
+    # ── 1. Telegram langsung (fallback bila token diset di router) ──
     if TG_TOKEN and TG_CHAT:
         try:
+            baris = _ALASAN_IZIN_TXT.get(alasan, 'Ingin mengakses internet')
             pesan = (
-                f"🙋 <b>Permintaan Izin Akses</b>\n\n"
-                f"👤 Perangkat : {perangkat}\n"
-                f"🌐 Domain    : <code>{domain}</code>\n\n"
-                f"Anak meminta izin mengakses situs yang diblokir.\n"
-                f"Buka dashboard Edge Guard untuk merespons."
+                f"🙋 <b>PERMINTAAN IZIN AKSES</b>\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"📱 Perangkat : {perangkat}\n"
+                f"✉️ Alasan : {baris}\n"
+                f"━━━━━━━━━━━━━━━━━━━━\n"
+                f"Buka dashboard untuk memberikan izin."
             )
             payload = json.dumps({
-                'chat_id':    TG_CHAT,
-                'text':       pesan,
-                'parse_mode': 'HTML'
+                'chat_id': TG_CHAT, 'text': pesan, 'parse_mode': 'HTML'
             }).encode()
             req = urllib.request.Request(
                 f'https://api.telegram.org/bot{TG_TOKEN}/sendMessage',
-                data=payload,
-                headers={'Content-Type': 'application/json'},
-                method='POST'
-            )
+                data=payload, headers={'Content-Type': 'application/json'}, method='POST')
             urllib.request.urlopen(req, timeout=10)
-            if DEBUG: print(f"[portal] Telegram terkirim ✓")
+            if DEBUG: print("[portal] Telegram terkirim ✓")
             return
         except Exception as e:
             if DEBUG: print(f"[portal] Telegram langsung gagal: {e}")
@@ -316,22 +370,20 @@ def _kirim_notif(domain: str, perangkat: str, client_ip: str):
     try:
         payload = json.dumps({
             'domain':    domain,
-            'perangkat': perangkat
+            'perangkat': perangkat,
+            'mac':       mac,
+            'alasan':    alasan,
         }).encode()
         req = urllib.request.Request(
-            CLOUD_URL + '/minta-izin',
-            data=payload,
-            headers={'Content-Type': 'application/json'},
-            method='POST'
-        )
+            CLOUD_URL + '/minta-izin', data=payload,
+            headers={'Content-Type': 'application/json'}, method='POST')
         urllib.request.urlopen(req, timeout=6, context=_ssl_ctx())
-        if DEBUG: print(f"[portal] Diteruskan ke VPS ✓")
+        if DEBUG: print("[portal] Diteruskan ke VPS ✓")
         return
     except Exception as e:
         if DEBUG: print(f"[portal] VPS fallback gagal: {e}")
 
-    # ── 3. Log lokal ──────────────────────────────────────────────
-    print(f"[portal] Permintaan izin DICATAT LOKAL — {domain} dari {perangkat} ({client_ip})")
+    print(f"[portal] Permintaan izin DICATAT LOKAL — {perangkat} ({client_ip}) alasan={alasan}")
 
 
 # ═══════════════════════════════════════════════════════════════════

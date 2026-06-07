@@ -13,7 +13,7 @@
 <meta property="og:description" content="Kontrol internet anak berbasis AI, langsung di router rumah.">
 <meta property="og:image" content="https://edgeguard.my.id/aset/logo.png">
 <meta name="twitter:card" content="summary">
-<link rel="icon" type="image/png" href="/aset/logo.png">
+<link rel="icon" type="image/avif" href="/aset/logo.avif"><link rel="icon" type="image/png" href="/aset/logo.png">
 <link rel="apple-touch-icon" href="/aset/logo.png">
 
 <style>
@@ -30,35 +30,69 @@ body{
   overflow:hidden;
 }
 
-/* ══ SPLASH (animasi pembuka) ══ */
+/* ══ SPLASH (animasi pembuka — elegan) ══ */
 #splash{
   position:absolute;inset:0;z-index:30;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:18px;
-  background:radial-gradient(ellipse 90% 60% at 50% 35%,#2563EB 0%,#1D4ED8 50%,#0F172A 100%);
+  align-items:center;justify-content:center;gap:clamp(18px,3vw,26px);
+  overflow:hidden;
+  background:radial-gradient(125% 125% at 50% 0%,#1E40AF 0%,#1E3A8A 40%,#0B1220 100%);
   transition:opacity .6s ease, visibility .6s;
 }
 #splash.hide{opacity:0;visibility:hidden}
-.splash-logo{
-  width:clamp(104px,16vw,184px);height:clamp(104px,16vw,184px);
-  border-radius:clamp(30px,4vw,46px);
-  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.25);
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 0 60px rgba(96,165,250,.5);
-  animation:logoIn .9s cubic-bezier(.2,.8,.2,1) both;
+/* halo cahaya berdenyut */
+#splash::before{
+  content:"";position:absolute;width:140vmax;height:140vmax;left:50%;top:40%;
+  transform:translate(-50%,-50%);pointer-events:none;
+  background:radial-gradient(circle,rgba(96,165,250,.30) 0%,rgba(96,165,250,0) 55%);
+  animation:haloPulse 4.5s ease-in-out infinite;
 }
-.splash-logo img{width:60%;height:60%;object-fit:contain;filter:brightness(0) invert(1)}
-.splash-name{font-size:clamp(26px,5vw,46px);font-weight:800;letter-spacing:.5px;
-  animation:fadeUp .7s ease .35s both}
-.splash-tag{font-size:clamp(13px,2.2vw,20px);color:#BFDBFE;font-weight:500;
+/* grid teknis halus, memudar ke tepi */
+#splash::after{
+  content:"";position:absolute;inset:0;opacity:.45;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+  background-size:44px 44px;
+  -webkit-mask-image:radial-gradient(circle at 50% 42%,#000 28%,transparent 72%);
+          mask-image:radial-gradient(circle at 50% 42%,#000 28%,transparent 72%);
+}
+.splash-logo-wrap{position:relative;z-index:2;display:flex;align-items:center;justify-content:center;
+  width:clamp(104px,16vw,184px);height:clamp(104px,16vw,184px)}
+.splash-logo-wrap .ring{position:absolute;inset:0;border-radius:50%;
+  border:1.5px solid rgba(147,197,253,.45);animation:ringOut 2.8s cubic-bezier(.2,.7,.3,1) infinite}
+.splash-logo-wrap .ring:nth-child(2){animation-delay:.95s}
+.splash-logo-wrap .ring:nth-child(3){animation-delay:1.9s}
+.splash-logo{
+  position:relative;z-index:2;width:100%;height:100%;
+  border-radius:clamp(30px,4vw,46px);
+  background:linear-gradient(145deg,rgba(255,255,255,.24),rgba(255,255,255,.06));
+  border:1px solid rgba(255,255,255,.38);
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 22px 60px rgba(8,15,40,.55),0 0 70px rgba(96,165,250,.45),inset 0 1px 0 rgba(255,255,255,.5);
+  animation:logoIn 1s cubic-bezier(.2,.8,.2,1) both, logoFloat 4s ease-in-out 1.1s infinite;
+}
+.splash-logo img{width:58%;height:58%;object-fit:contain;
+  filter:brightness(0) invert(1) drop-shadow(0 4px 10px rgba(0,0,0,.3))}
+.splash-name{position:relative;z-index:2;font-size:clamp(26px,5vw,46px);font-weight:800;letter-spacing:.5px;
+  background:linear-gradient(100deg,#fff 28%,#93C5FD 45%,#fff 62%);background-size:240% 100%;
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:#fff;
+  animation:fadeUp .7s ease .35s both, shimmer 3.2s linear 1.2s infinite}
+.splash-tag{position:relative;z-index:2;font-size:clamp(13px,2.2vw,20px);color:#BFDBFE;font-weight:500;letter-spacing:.4px;
   animation:fadeUp .7s ease .5s both}
-.splash-load{position:absolute;bottom:46px;width:120px;height:4px;border-radius:4px;
-  background:rgba(255,255,255,.2);overflow:hidden;animation:fadeUp .6s ease .6s both}
-.splash-load i{display:block;height:100%;width:40%;border-radius:4px;background:#fff;
-  animation:load 1.4s ease-in-out infinite}
+.splash-load{position:absolute;bottom:clamp(40px,8vh,64px);z-index:2;display:flex;gap:9px;
+  animation:fadeUp .6s ease .7s both}
+.splash-load span{width:9px;height:9px;border-radius:50%;background:rgba(255,255,255,.9);
+  box-shadow:0 0 10px rgba(147,197,253,.7);animation:dotBounce 1.25s ease-in-out infinite}
+.splash-load span:nth-child(2){animation-delay:.18s}
+.splash-load span:nth-child(3){animation-delay:.36s}
 
-@keyframes logoIn{0%{opacity:0;transform:scale(.6) translateY(10px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes logoIn{0%{opacity:0;transform:scale(.6) translateY(12px)}100%{opacity:1;transform:scale(1) translateY(0)}}
+@keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
 @keyframes fadeUp{0%{opacity:0;transform:translateY(14px)}100%{opacity:1;transform:translateY(0)}}
-@keyframes load{0%{transform:translateX(-120%)}100%{transform:translateX(320%)}}
+@keyframes shimmer{0%{background-position:130% 0}100%{background-position:-130% 0}}
+@keyframes haloPulse{0%,100%{opacity:.55;transform:translate(-50%,-50%) scale(1)}50%{opacity:1;transform:translate(-50%,-50%) scale(1.12)}}
+@keyframes ringOut{0%{transform:scale(.5);opacity:0}22%{opacity:.7}100%{transform:scale(2.15);opacity:0}}
+@keyframes dotBounce{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-8px);opacity:1}}
 
 /* ══ ONBOARDING ══ */
 .onboard{position:absolute;inset:0;z-index:10;display:flex;flex-direction:column;
@@ -123,10 +157,13 @@ body{
 
   <!-- ══ SPLASH ══ -->
   <div id="splash">
-    <div class="splash-logo"><img src="/aset/logo.png" alt="Edge Guard"></div>
+    <div class="splash-logo-wrap">
+      <span class="ring"></span><span class="ring"></span><span class="ring"></span>
+      <div class="splash-logo"><img src="/aset/logo.avif" alt="Edge Guard"></div>
+    </div>
     <div class="splash-name">Edge Guard</div>
     <div class="splash-tag">Smart Parental Control</div>
-    <div class="splash-load"><i></i></div>
+    <div class="splash-load"><span></span><span></span><span></span></div>
   </div>
 
   <!-- ══ ONBOARDING ══ -->
@@ -138,7 +175,7 @@ body{
 
         <section class="slide active">
           <div class="slide-inner">
-            <div class="slide-ic s0"><img src="/aset/logo.png" alt=""></div>
+            <div class="slide-ic s0"><img src="/aset/logo.avif" alt=""></div>
             <h1>Selamat Datang di<br>Edge Guard</h1>
             <p>Kontrol internet anak yang cerdas, berjalan langsung di router rumah Anda.</p>
           </div>

@@ -2,171 +2,343 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
 <title>Edge Guard</title>
+<!-- PWA: bisa "Add to Home Screen" seperti aplikasi -->
+<meta name="theme-color" content="#1E3A8A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Edge Guard">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/eg-icon.png">
+<link rel="manifest" href="/manifest.webmanifest">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
+:root{--ac:#93C5FD;--glow:rgba(96,165,250,.5)}
+/* aksen warna per mode (diset via class pada <body>) */
+body.mode-negatif{--ac:#F87171;--glow:rgba(248,113,113,.5)}
+body.mode-kuota  {--ac:#FBBF24;--glow:rgba(251,191,36,.5)}
+body.mode-jadwal {--ac:#A5B4FC;--glow:rgba(165,180,252,.5)}
+body.mode-jeda   {--ac:#FB923C;--glow:rgba(251,146,60,.5)}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-  background:linear-gradient(160deg,#1e3a8a 0%,#1e40af 55%,#3730a3 100%);
-  color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
-.card{background:rgba(255,255,255,.07);backdrop-filter:blur(12px);
-  border:1px solid rgba(255,255,255,.15);border-radius:24px;
-  max-width:420px;width:100%;padding:36px 28px;text-align:center;
-  box-shadow:0 20px 60px rgba(0,0,0,.35)}
-.ico{font-size:64px;margin-bottom:14px;line-height:1}
-h1{font-size:22px;font-weight:700;margin-bottom:8px}
-.sub{font-size:14px;color:#c7d2fe;line-height:1.55;margin-bottom:22px}
-.dom{background:rgba(0,0,0,.25);border-radius:12px;padding:12px 16px;
-  font-family:'SF Mono',Menlo,monospace;font-size:15px;font-weight:600;
-  word-break:break-all;margin-bottom:8px;border:1px solid rgba(255,255,255,.1)}
-.tag{display:inline-block;font-size:11px;font-weight:700;
-  padding:4px 12px;border-radius:20px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:22px}
-.tag-merah{background:#ef4444;color:#fff}
-.tag-kuning{background:#f59e0b;color:#fff}
-.tag-hijau{background:#10b981;color:#fff}
-.btn{display:block;width:100%;padding:15px;border:none;border-radius:14px;
-  font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:10px;
-  transition:transform .12s,opacity .12s}
+  color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;
+  padding:22px;overflow:hidden;position:relative;
+  background:radial-gradient(125% 125% at 50% 0%,#1E40AF 0%,#1E3A8A 42%,#0B1220 100%)}
+/* halo cahaya berdenyut (warna mengikuti mode) */
+body::before{content:"";position:absolute;width:140vmax;height:140vmax;left:50%;top:36%;
+  transform:translate(-50%,-50%);pointer-events:none;
+  background:radial-gradient(circle,var(--glow) 0%,transparent 55%);
+  opacity:.5;animation:halo 4.5s ease-in-out infinite}
+/* grid teknis halus */
+body::after{content:"";position:absolute;inset:0;opacity:.4;pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);
+  background-size:44px 44px;
+  -webkit-mask-image:radial-gradient(circle at 50% 38%,#000 26%,transparent 72%);
+          mask-image:radial-gradient(circle at 50% 38%,#000 26%,transparent 72%)}
+
+.card{position:relative;z-index:2;max-width:430px;width:100%;
+  background:rgba(255,255,255,.06);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,.15);border-radius:26px;
+  padding:34px 26px 28px;text-align:center;
+  box-shadow:0 24px 70px rgba(0,0,0,.45);
+  animation:cardIn .6s cubic-bezier(.2,.8,.2,1) both}
+
+.brand{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:700;
+  letter-spacing:.4px;color:#BFDBFE;margin-bottom:22px;opacity:.9}
+.brand svg{width:17px;height:17px}
+
+/* cincin riak memancar di BELAKANG kartu (full-screen) */
+.ripples{position:fixed;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;pointer-events:none}
+/* bentuk mengikuti kartu (rounded-rect potret), bukan lingkaran */
+.ripples .ring{position:absolute;width:min(86vw,400px);height:min(128vw,540px);border-radius:34px;
+  border:1.5px solid var(--ac);opacity:0;animation:ringOut 5.4s cubic-bezier(.2,.7,.3,1) infinite}
+.ripples .ring:nth-child(2){animation-delay:1.8s}
+.ripples .ring:nth-child(3){animation-delay:3.6s}
+
+/* logo-tile bergaya splash */
+.logo-wrap{position:relative;width:104px;height:104px;margin:0 auto 18px;
+  display:flex;align-items:center;justify-content:center}
+.logo-tile{position:relative;z-index:2;width:100%;height:100%;border-radius:30px;color:var(--ac);
+  background:linear-gradient(145deg,rgba(255,255,255,.2),rgba(255,255,255,.05));
+  border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;
+  box-shadow:0 18px 50px rgba(8,15,40,.5),0 0 58px var(--glow),inset 0 1px 0 rgba(255,255,255,.45);
+  animation:tileIn .7s cubic-bezier(.2,.8,.2,1) both,float 4s ease-in-out 1s infinite}
+.logo-tile svg{width:50px;height:50px}
+
+.tag{display:inline-block;font-size:11px;font-weight:800;padding:4px 13px;border-radius:30px;
+  text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;
+  background:var(--ac);color:#0B1220}
+h1{font-size:23px;font-weight:800;margin-bottom:9px;letter-spacing:.2px}
+.sub{font-size:14px;color:#C7D2FE;line-height:1.6;margin-bottom:20px}
+.dom{background:rgba(0,0,0,.28);border-radius:13px;padding:12px 16px;
+  font-family:'SF Mono',Menlo,monospace;font-size:14px;font-weight:600;color:#fff;
+  word-break:break-all;margin-bottom:20px;border:1px solid rgba(255,255,255,.12)}
+.info-box{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);
+  border-radius:15px;padding:14px 16px;margin-bottom:20px;font-size:13px;line-height:1.8;
+  color:#E0E7FF;text-align:left}
+.info-box strong{color:#fff;display:block;margin-bottom:4px}
+.info-box .it{display:flex;align-items:center;gap:9px}
+.info-box .it svg{width:16px;height:16px;color:var(--ac);flex-shrink:0}
+
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;
+  padding:15px;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;
+  font-family:inherit;margin-top:10px;text-decoration:none;transition:transform .12s,opacity .12s}
+.btn svg{width:18px;height:18px}
 .btn:active{transform:scale(.98)}
-.btn-primary{background:#fff;color:#1e40af}
+.btn-primary{background:#fff;color:#1E40AF}
 .btn-primary:hover{opacity:.92}
-.btn-ghost{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.25)}
-.msg{font-size:13px;margin-top:16px;min-height:18px;font-weight:500}
-.msg.ok{color:#86efac}
-.msg.err{color:#fca5a5}
-.foot{margin-top:26px;font-size:12px;color:#a5b4fc;line-height:1.5}
-.foot b{color:#e0e7ff}
-.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);
-  border-top-color:#fff;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
+.btn-primary:disabled{opacity:.6;cursor:default}
+.btn-ghost{background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.22)}
+.msg{font-size:13px;margin-top:15px;min-height:18px;font-weight:600}
+.msg.ok{color:#86EFAC}
+.msg.err{color:#FCA5A5}
+.foot{margin-top:24px;font-size:11.5px;color:#94A3B8;letter-spacing:.2px}
+.foot b{color:#CBD5E1}
+.spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,0,0,.25);
+  border-top-color:#1E40AF;border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
+
 @keyframes s{to{transform:rotate(360deg)}}
-.info-box{background:rgba(255,255,255,.1);border-radius:14px;padding:14px 16px;
-  margin-bottom:18px;font-size:13px;line-height:1.6;color:#e0e7ff;text-align:left}
-.info-box strong{color:#fff}
+@keyframes halo{0%,100%{opacity:.45;transform:translate(-50%,-50%) scale(1)}50%{opacity:.85;transform:translate(-50%,-50%) scale(1.12)}}
+@keyframes ringOut{0%{transform:scale(.45);opacity:0}20%{opacity:.55}100%{transform:scale(2.8);opacity:0}}
+@keyframes cardIn{0%{opacity:0;transform:translateY(16px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes tileIn{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+
+/* ── Layar peralihan (intro) ── */
+#intro{position:fixed;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  background:radial-gradient(125% 125% at 50% 0%,#1E40AF 0%,#1E3A8A 42%,#0B1220 100%);
+  transition:opacity .5s ease,visibility .5s}
+#intro.hide{opacity:0;visibility:hidden}
+.intro-logo{width:96px;height:96px;border-radius:28px;display:flex;align-items:center;justify-content:center;color:#93C5FD;
+  background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.34);
+  box-shadow:0 18px 50px rgba(8,15,40,.5),0 0 58px rgba(96,165,250,.45),inset 0 1px 0 rgba(255,255,255,.45);
+  animation:introPop .8s cubic-bezier(.2,.8,.2,1) both, float 4s ease-in-out 1s infinite}
+.intro-logo svg{width:46px;height:46px}
+.intro-name{font-size:28px;font-weight:800;color:#fff;letter-spacing:.5px;animation:introUp .6s ease .25s both}
+.intro-tag{font-size:13px;color:#BFDBFE;animation:introUp .6s ease .4s both}
+.intro-load{display:flex;gap:8px;position:absolute;bottom:54px;animation:introUp .6s ease .5s both}
+.intro-load span{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.88);animation:dotB 1.2s ease-in-out infinite}
+.intro-load span:nth-child(2){animation-delay:.18s}
+.intro-load span:nth-child(3){animation-delay:.36s}
+@keyframes introPop{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
+@keyframes introUp{0%{opacity:0;transform:translateY(12px)}100%{opacity:1;transform:translateY(0)}}
+@keyframes dotB{0%,100%{transform:translateY(0);opacity:.5}50%{transform:translateY(-7px);opacity:1}}
+
+/* ── Beranda / Home Portal (search engine) ── */
+#home{position:relative;z-index:2;width:100%;max-width:560px;text-align:center;
+  animation:cardIn .6s cubic-bezier(.2,.8,.2,1) both}
+.home-logo{width:84px;height:84px;margin:0 auto 16px;border-radius:24px;display:flex;align-items:center;justify-content:center;color:#BFDBFE;
+  background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.35);
+  box-shadow:0 18px 50px rgba(8,15,40,.5),0 0 58px rgba(96,165,250,.45);animation:tileIn .7s cubic-bezier(.2,.8,.2,1) both,float 4s ease-in-out 1s infinite}
+.home-logo svg{width:42px;height:42px}
+.home-title{font-size:30px;font-weight:800;color:#fff;letter-spacing:.5px}
+.home-sub{font-size:14px;color:#BFDBFE;margin-top:4px;margin-bottom:24px}
+.home-search{display:flex;align-items:center;gap:8px;background:#fff;border-radius:30px;padding:7px 7px 7px 18px;
+  box-shadow:0 16px 40px rgba(8,15,40,.42);max-width:520px;margin:0 auto}
+.home-search .s-ic{color:#9CA3AF;flex-shrink:0;display:flex}
+.home-search input{flex:1;border:none;outline:none;font-size:16px;font-family:inherit;color:#111827;background:transparent;min-width:0}
+.home-search button{flex-shrink:0;background:#2563EB;color:#fff;border:none;border-radius:24px;padding:11px 20px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.home-search button:active{transform:scale(.97)}
+.home-links{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;margin-top:22px}
+.home-links a{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#E0E7FF;text-decoration:none;
+  padding:9px 15px;border-radius:14px;font-size:13px;font-weight:600;transition:background .15s}
+.home-links a:active{background:rgba(255,255,255,.22)}
+.home-foot{margin-top:26px;font-size:11.5px;color:#94A3B8}
+.home-foot b{color:#CBD5E1}
+
+@media (min-width:520px){.card{max-width:460px;padding:42px 34px 32px}h1{font-size:25px}.logo-wrap{width:116px;height:116px}.logo-tile svg{width:56px;height:56px}}
 </style>
 </head>
 <body>
+  <!-- Layar peralihan (intro) sebelum halaman peringatan -->
+  <div id="intro">
+    <div class="intro-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3.1 7.7-7 9-3.9-1.3-7-4.4-7-9V6l7-3z"/></svg></div>
+    <div class="intro-name">Edge Guard</div>
+    <div class="intro-tag">Memeriksa koneksi…</div>
+    <div class="intro-load"><span></span><span></span><span></span></div>
+  </div>
+
+  <!-- cincin riak memancar di belakang kartu -->
+  <div class="ripples"><span class="ring"></span><span class="ring"></span><span class="ring"></span></div>
+
   <div class="card" id="card">
-    <div class="ico" id="ico">⏳</div>
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3.1 7.7-7 9-3.9-1.3-7-4.4-7-9V6l7-3z"/></svg>
+      Edge Guard
+    </div>
+    <div class="logo-wrap">
+      <div class="logo-tile" id="tile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/></svg></div>
+    </div>
+    <span class="tag" id="tag" style="display:none"></span>
     <h1 id="judul">Memuat…</h1>
     <p class="sub" id="sub">Memeriksa status koneksi…</p>
     <div class="dom" id="domain" style="display:none"></div>
-    <span class="tag tag-merah" id="tag" style="display:none"></span>
     <div class="info-box" id="info-box" style="display:none"></div>
     <div id="btns"></div>
     <div class="msg" id="msg"></div>
-    <div class="foot">Dilindungi oleh <b>Edge Guard</b> · Parental Control</div>
+    <div class="foot">Dilindungi oleh <b onclick="location.reload()" style="cursor:pointer" title="Ketuk untuk muat ulang">Edge Guard</b> · Parental Control</div>
+  </div>
+
+  <!-- Beranda / Home Portal (default saat perangkat TIDAK diblokir) -->
+  <div id="home" style="display:none">
+    <div class="home-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3.1 7.7-7 9-3.9-1.3-7-4.4-7-9V6l7-3z"/></svg></div>
+    <div class="home-title">Edge Guard</div>
+    <div class="home-sub">Jelajah internet dengan aman</div>
+    <form class="home-search" onsubmit="return doSearch(event)">
+      <span class="s-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
+      <input id="q" type="text" placeholder="Cari di internet…" autocomplete="off">
+      <button type="submit">Cari</button>
+    </form>
+    <div class="home-links">
+      <a href="https://www.google.com">Google</a>
+      <a href="https://www.youtube.com">YouTube</a>
+      <a href="https://id.wikipedia.org">Wikipedia</a>
+      <a href="https://www.ruangguru.com">Ruangguru</a>
+      <a href="https://www.detik.com">Berita</a>
+    </div>
+    <div class="home-foot">Dilindungi oleh <b onclick="location.reload()" style="cursor:pointer" title="Ketuk untuk muat ulang">Edge Guard</b> · Parental Control</div>
   </div>
 
 <script>
 var PORTAL = 'http://192.168.1.1:8880';
 var domain = location.hostname || '';
 if (domain.indexOf('www.') === 0) domain = domain.slice(4);
-
-// Apakah ini sinkhole redirect? Domain di address bar bukan IP router/portal
-function isIP(h) { return /^\d{1,3}(\.\d{1,3}){3}$/.test(h); }
+function isIP(h){ return /^\d{1,3}(\.\d{1,3}){3}$/.test(h); }
 var looksLikeSinkhole = domain && !isIP(domain);
 
-function tampilNegatif(dom) {
-  document.getElementById('ico').textContent = '🚫';
-  document.getElementById('judul').textContent = 'Situs Diblokir';
-  document.getElementById('sub').textContent =
-    'Situs ini mengandung konten yang tidak diizinkan oleh orang tua kamu.';
-  var domEl = document.getElementById('domain');
-  domEl.textContent = dom || domain;
-  domEl.style.display = '';
-  var tag = document.getElementById('tag');
-  tag.textContent = '⛔ Konten Negatif'; tag.className = 'tag tag-merah';
-  tag.style.display = '';
-  document.getElementById('btns').innerHTML =
-    '<button class="btn btn-primary" onclick="mintaIzin()">🙋 Minta Izin ke Orang Tua</button>' +
-    '<a class="btn btn-ghost" href="https://www.google.com">← Kembali ke Halaman Aman</a>';
+/* ── Ikon SVG per mode ── */
+var IC = {
+  negatif:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="5.6" y1="5.6" x2="18.4" y2="18.4"/></svg>',
+  kuota:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 22h14M5 2h14M17 22v-4.17a2 2 0 0 0-.59-1.41L12 12 7.59 16.42A2 2 0 0 0 7 17.83V22M7 2v4.17a2 2 0 0 0 .59 1.41L12 12l4.41-4.42A2 2 0 0 0 17 6.17V2"/></svg>',
+  jadwal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>',
+  jeda:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="5" width="4" height="14" rx="1.3"/><rect x="14" y="5" width="4" height="14" rx="1.3"/></svg>'
+};
+var curMode = '';
+function setMode(mode){
+  curMode = mode;
+  document.body.className = 'mode-' + mode;
+  document.getElementById('tile').innerHTML = IC[mode] || IC.negatif;
+}
+function el(id){ return document.getElementById(id); }
+function tampilTag(t){ var x=el('tag'); x.textContent=t; x.style.display=''; }
+
+function tampilNegatif(dom){
+  setMode('negatif'); tampilTag('Konten Negatif');
+  el('judul').textContent='Situs Diblokir';
+  el('sub').textContent='Situs ini mengandung konten yang tidak diizinkan oleh orang tua kamu.';
+  var d=el('domain'); d.textContent=dom||domain; d.style.display='';
+  // Situs negatif: TANPA tombol minta izin (notif sudah otomatis terkirim).
+  el('btns').innerHTML=
+    '<a class="btn btn-primary" href="https://www.google.com"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg> Kembali ke Halaman Aman</a>';
+}
+function tampilKuota(){
+  setMode('kuota'); tampilTag('Kuota Habis');
+  el('judul').textContent='Waktu Hiburan Habis';
+  el('sub').textContent='Jatah waktu hiburan kamu hari ini sudah habis. Belajar dulu untuk dapat bonus waktu, atau minta izin orang tua.';
+  el('btns').innerHTML=
+    '<button class="btn btn-primary" onclick="mintaIzin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6M22 6l-3-3"/></svg> Minta Tambah Waktu</button>'+
+    '<a class="btn btn-ghost" href="https://www.google.com"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> Buka Situs Edukasi</a>';
+}
+function tampilJadwal(){
+  setMode('jadwal'); tampilTag('Jam Istirahat');
+  el('judul').textContent='Jam Istirahat Internet';
+  el('sub').textContent='Sekarang adalah jam istirahat internet yang diatur orang tua kamu.';
+  var box=el('info-box');
+  box.innerHTML='<strong>Apa yang bisa kamu lakukan?</strong>'+
+    '<div class="it"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg> Kerjakan tugas atau PR</div>'+
+    '<div class="it"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg> Membaca buku</div>'+
+    '<div class="it"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg> Istirahat &amp; bersantai</div>';
+  box.style.display='';
+  el('btns').innerHTML=
+    '<button class="btn btn-primary" onclick="mintaIzin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg> Minta Izin ke Orang Tua</button>';
+}
+function tampilJeda(){
+  setMode('jeda'); tampilTag('Dijeda');
+  el('judul').textContent='Internet Dijeda';
+  el('sub').textContent='Orang tua kamu sedang menjeda akses internet perangkat ini. Hubungi mereka jika ada keperluan penting.';
+  el('btns').innerHTML=
+    '<button class="btn btn-primary" onclick="mintaIzin()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg> Minta Dibuka ke Orang Tua</button>';
 }
 
-function tampilKuota() {
-  document.getElementById('ico').textContent = '⏳';
-  document.getElementById('judul').textContent = 'Kuota Hiburan Habis';
-  document.getElementById('sub').textContent =
-    'Jatah waktu hiburan kamu hari ini sudah habis. Belajar dulu untuk dapat bonus waktu, atau minta izin orang tua.';
-  var tag = document.getElementById('tag');
-  tag.textContent = '⏳ Kuota Habis'; tag.className = 'tag tag-kuning';
-  tag.style.display = '';
-  document.getElementById('btns').innerHTML =
-    '<button class="btn btn-primary" onclick="mintaIzin()">🙋 Minta Tambah Waktu ke Orang Tua</button>' +
-    '<a class="btn btn-ghost" href="https://www.google.com">← Buka Situs Edukasi</a>';
+/* Beranda / home portal (default saat tidak diblokir) */
+function tampilHome(){
+  document.body.className = 'mode-home';
+  var c = document.getElementById('card'); if (c) c.style.display = 'none';
+  var h = document.getElementById('home'); if (h) h.style.display = '';
+  var q = document.getElementById('q');
+  if (q) setTimeout(function(){ try { q.focus(); } catch(e){} }, 120);
+}
+function doSearch(e){
+  e.preventDefault();
+  var v = (document.getElementById('q').value || '').trim();
+  if (!v) return false;
+  window.location.href = 'https://www.google.com/search?q=' + encodeURIComponent(v) + '&safe=active';
+  return false;
 }
 
-function tampilJadwal() {
-  document.getElementById('ico').textContent = '🌙';
-  document.getElementById('judul').textContent = 'Jam Istirahat Internet';
-  document.getElementById('sub').textContent =
-    'Sekarang adalah jam istirahat internet. Orang tua telah mengatur jadwal ini untuk kamu.';
-  var tag = document.getElementById('tag');
-  tag.textContent = '🌙 Jadwal Istirahat'; tag.className = 'tag tag-hijau';
-  tag.style.display = '';
-  var box = document.getElementById('info-box');
-  box.innerHTML = '<strong>Apa yang bisa kamu lakukan?</strong><br>✏️ Kerjakan tugas atau PR<br>📚 Baca buku<br>🎵 Istirahat & relax';
-  box.style.display = '';
-  document.getElementById('btns').innerHTML =
-    '<button class="btn btn-primary" onclick="mintaIzin()">🙋 Minta Izin ke Orang Tua</button>';
-}
-
-function tampilJeda() {
-  document.getElementById('ico').textContent = '⏸';
-  document.getElementById('judul').textContent = 'Internet Dijeda';
-  document.getElementById('sub').textContent =
-    'Orang tua kamu sedang menjeda akses internet perangkat ini. Hubungi mereka jika ada keperluan penting.';
-  var tag = document.getElementById('tag');
-  tag.textContent = '⏸ Dijeda Orang Tua'; tag.className = 'tag tag-kuning';
-  tag.style.display = '';
-  document.getElementById('btns').innerHTML =
-    '<button class="btn btn-primary" onclick="mintaIzin()">🙋 Minta Dibuka ke Orang Tua</button>';
-}
-
-function mintaIzin() {
-  var btn = document.querySelector('#btns .btn-primary');
-  var msg = document.getElementById('msg');
-  if (btn) btn.disabled = true;
-  msg.className = 'msg';
-  msg.innerHTML = '<span class="spin"></span>Mengirim permintaan…';
-
-  fetch(PORTAL + '/minta-izin', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({domain: domain || location.hostname, perangkat: ''})
-  })
-  .then(function(r){ return r.json().catch(function(){ return {}; }); })
+function mintaIzin(){
+  var btn=document.querySelector('#btns .btn-primary');
+  var msg=el('msg');
+  if(btn) btn.disabled=true;
+  msg.className='msg'; msg.innerHTML='<span class="spin"></span>Mengirim permintaan…';
+  fetch(PORTAL+'/minta-izin',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({domain:domain||location.hostname,perangkat:'',alasan:curMode})})
+  .then(function(r){ return r.json().catch(function(){return {};}); })
   .then(function(j){
-    msg.className = 'msg ok';
-    msg.textContent = '✅ ' + (j.pesan || 'Permintaan terkirim! Tunggu persetujuan orang tua.');
-    if (btn) btn.textContent = '✅ Permintaan Terkirim';
+    msg.className='msg ok';
+    msg.textContent='✓ '+(j.pesan||'Permintaan terkirim! Tunggu persetujuan orang tua.');
+    if(btn) btn.textContent='✓ Permintaan Terkirim';
   })
   .catch(function(){
-    msg.className = 'msg ok';
-    msg.textContent = '✅ Permintaan dikirim ke orang tua.';
-    if (btn) btn.textContent = '✅ Permintaan Terkirim';
+    msg.className='msg ok';
+    msg.textContent='✓ Permintaan dikirim ke orang tua.';
+    if(btn) btn.textContent='✓ Permintaan Terkirim';
   });
 }
 
-// Deteksi alasan blokir — kirim domain (location.hostname) ke /status agar
-// portal bisa bedakan: negatif (sinkhole) vs jeda/jadwal/kuota (status VPS).
-function init() {
-  var url = PORTAL + '/status?domain=' + encodeURIComponent(domain || '');
-  fetch(url, {cache: 'no-store'})
-    .then(function(r){ return r.json(); })
-    .then(function(j){
-      var a = j.alasan || (looksLikeSinkhole ? 'negatif' : 'kuota');
-      if      (a === 'jeda')    tampilJeda();
-      else if (a === 'jadwal')  tampilJadwal();
-      else if (a === 'kuota')   tampilKuota();
-      else                      tampilNegatif(j.domain || domain);
-    })
-    .catch(function(){
-      // Gagal hubungi portal → tebak dari bentuk hostname
-      if (looksLikeSinkhole) tampilNegatif(domain);
-      else                   tampilKuota();
-    });
+/* Layar peralihan (intro) tampil dulu, lalu reveal halaman peringatan. */
+var introStart = Date.now();
+function hideIntro(){
+  var wait = Math.max(0, 1500 - (Date.now() - introStart));   // minimal tampil
+  setTimeout(function(){
+    var i = document.getElementById('intro');
+    if (i) i.classList.add('hide');
+  }, wait);
 }
 
+/* Deteksi alasan blokir via /status (kirim domain agar bisa bedakan negatif). */
+function init(){
+  // ── Mode PREVIEW/uji: ?mode=home|jeda|jadwal|kuota|negatif (&domain=...) ──
+  var qs = new URLSearchParams(location.search);
+  var pm = (qs.get('mode') || '').toLowerCase();
+  if (pm){
+    var dpv = qs.get('domain') || 'contoh-situs.com';
+    if      (pm==='home')   tampilHome();
+    else if (pm==='jeda')   tampilJeda();
+    else if (pm==='jadwal') tampilJadwal();
+    else if (pm==='kuota')  tampilKuota();
+    else                    tampilNegatif(dpv);
+    hideIntro();
+    return;
+  }
+  fetch(PORTAL+'/status?domain='+encodeURIComponent(domain||''),{cache:'no-store'})
+  .then(function(r){ return r.json(); })
+  .then(function(j){
+    var a=j.alasan||(looksLikeSinkhole?'negatif':'home');
+    if(a==='jeda') tampilJeda();
+    else if(a==='jadwal') tampilJadwal();
+    else if(a==='kuota') tampilKuota();
+    else if(a==='home') tampilHome();
+    else tampilNegatif(j.domain||domain);
+    hideIntro();
+  })
+  .catch(function(){
+    if(looksLikeSinkhole) tampilNegatif(domain); else tampilHome();
+    hideIntro();
+  });
+}
 init();
 </script>
 </body>

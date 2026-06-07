@@ -354,24 +354,28 @@ def putuskan(domain: str, mac_src: str = '') -> dict:
     # putuskan() murni klasifikasi konten domain, sehingga aktivitas perangkat
     # yang dijeda tetap tercatat (untuk audit) tanpa meracuni blocklist global.
 
-    # 2) Whitelist domain (cek exact match DAN subdomain)
-    putih = cfg.get('daftar_putih', [])
-    if any(d == e or d.endswith('.' + e) for e in putih if e):
-        return {'domain': d, 'aksi':'izinkan', 'alasan':'whitelist',
-                'kategori':'edukasi', 'confidence':100}
-
-    # 3) Blacklist domain (cek exact match DAN subdomain)
+    # 1) Blacklist domain — paling tinggi untuk AKSES (keamanan menang).
     hitam = cfg.get('daftar_hitam', [])
     if any(d == e or d.endswith('.' + e) for e in hitam if e):
         return {'domain': d, 'aksi':'blokir', 'alasan':'blacklist',
                 'kategori':'negatif', 'confidence':100}
 
-    # 3b) Koreksi MANUAL orang tua dari dashboard (override tertinggi atas
-    # kategori) — dibaca dari /api/config, tanpa perlu edit kode/retrain.
+    # 2) Koreksi MANUAL orang tua dari dashboard — override TERTINGGI atas
+    # kategori. WAJIB dicek SEBELUM whitelist: domain whitelist diberi label
+    # 'edukasi' bawaan, jadi kalau koreksi dicek belakangan (mis. whatsapp.com
+    # → netral) hasilnya selalu ditimpa balik ke 'edukasi'. Dibaca dari
+    # /api/config; tanpa perlu edit kode/retrain.
     kk = _match_koreksi(d, cfg.get('koreksi_kategori', {}))
     if kk:
         return {'domain': d, 'aksi':('blokir' if kk == 'negatif' else 'izinkan'),
                 'alasan':'koreksi_manual', 'kategori':kk, 'confidence':100}
+
+    # 3) Whitelist domain (cek exact match DAN subdomain) → selalu izinkan,
+    # label default 'edukasi'.
+    putih = cfg.get('daftar_putih', [])
+    if any(d == e or d.endswith('.' + e) for e in putih if e):
+        return {'domain': d, 'aksi':'izinkan', 'alasan':'whitelist',
+                'kategori':'edukasi', 'confidence':100}
 
     # 3c) Domain infrastruktur/CDN/sertifikat → selalu izinkan (safety net).
     if _is_infra(d):

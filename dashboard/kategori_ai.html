@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Edge Guard — Knowledge AI</title>
-<link rel="icon" type="image/png" href="/aset/logo.png">
+<link rel="icon" type="image/avif" href="/aset/logo.avif"><link rel="icon" type="image/png" href="/aset/logo.png">
 <link rel="apple-touch-icon" href="/aset/logo.png">
 <link rel="stylesheet" href="/aset/responsive.css">
 <style>
@@ -29,6 +29,15 @@ a{text-decoration:none;color:inherit}
 .badge-aktif .dot{width:7px;height:7px;background:#22C55E;border-radius:50%}
 .badge-off{background:#F3F4F6;color:#6B7280;display:inline-flex;align-items:center;gap:3px;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;display:flex;align-items:center;gap:5px;border:none;cursor:pointer;font-family:inherit}
 .badge-off .dot{width:7px;height:7px;background:#9CA3AF;border-radius:50%}
+/* Status card (gaya sama dgn Pengaturan Telegram) */
+.status-card{background:#fff;border-radius:14px;padding:13px 15px;margin-bottom:14px;box-shadow:0 1px 3px rgba(0,0,0,.07);display:flex;align-items:center;gap:11px;transition:transform .1s}
+.status-card:active{transform:scale(.99)}
+.st-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.st-dot.green{background:#22C55E;box-shadow:0 0 0 4px rgba(34,197,94,.15)}
+.st-dot.gray{background:#9CA3AF}
+.st-dot.red{background:#EF4444;box-shadow:0 0 0 4px rgba(239,68,68,.15)}
+.st-label{font-size:14px;font-weight:700;color:#111827}
+.st-sub{font-size:11.5px;color:#9CA3AF;margin-top:2px}
 
 /* ── Stat 4 kategori ── */
 .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px}
@@ -142,17 +151,17 @@ a{text-decoration:none;color:inherit}
   {% for cat,msg in msgs %}<div class="flash flash-{{cat}}">{{msg}}</div>{% endfor %}
   {% endwith %}
 
-  <!-- ─── AI Toggle ─── -->
-  <div class="ai-card">
-    <span class="ai-label"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3L9.5 8.5 3 11l6.5 2.5L12 20l2.5-6.5L21 11l-6.5-2.5z"/></svg> Status Klasifikasi AI</span>
-    <form method="POST" action="/kategori/toggle-ai" style="margin:0">
-      {% if ai_aktif %}
-        <button type="submit" class="badge-aktif"><span class="dot"></span> AKTIF</button>
-      {% else %}
-        <button type="submit" class="badge-off"><span class="dot"></span> NONAKTIF</button>
-      {% endif %}
-    </form>
-  </div>
+  <!-- ─── Status Klasifikasi AI (gaya status-card · ketuk untuk aktif/nonaktif) ─── -->
+  <form method="POST" action="/kategori/toggle-ai" style="margin:0">
+    <button type="submit" id="ai-status" class="status-card"
+            style="width:100%;border:none;cursor:pointer;text-align:left;font-family:inherit">
+      <span class="st-dot {{ 'green' if ai_aktif else 'gray' }}"></span>
+      <div style="flex:1">
+        <div class="st-label">{{ 'Aktif & Terhubung' if ai_aktif else 'Klasifikasi Dinonaktifkan' }}</div>
+        <div class="st-sub">{% if ai_aktif %}Klasifikasi berfungsi · terakhir kirim: {{ ai_terakhir }}{% else %}Ketuk untuk mengaktifkan kembali{% endif %}</div>
+      </div>
+    </button>
+  </form>
 
   <!-- ─── 4 Tile Stat (juga jadi filter) ─── -->
   <div class="stat-row">
@@ -335,6 +344,21 @@ a{text-decoration:none;color:inherit}
 
 
 <script>
+/* ─── Badge Status AI: realtime mengikuti kondisi (DB/router) ─── */
+function pollAI(){
+  fetch('/api/status-flags', {cache:'no-store'})
+    .then(function(r){ return r.json(); })
+    .then(function(j){
+      var el = document.getElementById('ai-status');
+      if (!el) return;
+      var dot = el.querySelector('.st-dot'), lbl = el.querySelector('.st-label');
+      if (dot) dot.className = 'st-dot ' + (j.ai_aktif ? 'green' : 'gray');
+      if (lbl) lbl.textContent = j.ai_aktif ? 'Aktif & Terhubung' : 'Klasifikasi Dinonaktifkan';
+    })
+    .catch(function(){});
+}
+setInterval(pollAI, 7000);
+
 /* ─── Search debounced auto-submit ─── */
 (function(){
   var inp = document.getElementById('search-inp');

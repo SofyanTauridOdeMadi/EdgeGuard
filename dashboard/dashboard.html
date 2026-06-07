@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Edge Guard</title>
-<link rel="icon" type="image/png" href="/aset/logo.png">
+<link rel="icon" type="image/avif" href="/aset/logo.avif"><link rel="icon" type="image/png" href="/aset/logo.png">
 <link rel="apple-touch-icon" href="/aset/logo.png">
 <link rel="stylesheet" href="/aset/responsive.css">
 <style>
@@ -150,13 +150,6 @@ a{text-decoration:none;color:inherit}
 .tw-menit-badge{background:#EFF6FF;color:#2563EB;font-size:13px;font-weight:700;padding:4px 12px;border-radius:10px;min-width:60px;text-align:center}
 input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:pointer}
 .tw-ticks{display:flex;justify-content:space-between;font-size:10px;color:#9CA3AF;margin-top:4px}
-/* Manual input */
-.tw-manual{margin-bottom:16px}
-.tw-manual label{font-size:12px;font-weight:600;display:block;margin-bottom:6px;color:#6B7280}
-.tw-manual-row{display:flex;gap:8px;align-items:center}
-.tw-inp{width:100%;border:1.5px solid #E5E7EB;border-radius:10px;padding:10px 13px;font-size:14px;font-family:inherit;color:#111827;outline:none;transition:border-color .15s;text-align:center;font-weight:600}
-.tw-inp:focus{border-color:#2563EB}
-.tw-unit{font-size:13px;color:#9CA3AF;white-space:nowrap}
 /* Preview */
 .tw-preview{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:12px;padding:12px 14px;margin:6px 0 18px;font-size:13px;color:#4B5563;line-height:1.6}
 .tw-preview strong{color:#111827}
@@ -213,29 +206,45 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* Toast — top-center, di atas semua elemen termasuk overlay */
+/* Toast — popup tengah-atas, latar putih + teks biru, auto-tutup 5 dtk */
 .toast{
-  position:fixed; top:20px; left:50%;
-  transform:translate(-50%,-24px);
-  background:#1F2937; color:#fff;
-  padding:12px 22px; border-radius:24px;
-  font-size:13.5px; font-weight:500;
+  position:fixed; top:22px; left:50%;
+  transform:translate(-50%,-28px) scale(.96);
+  background:#fff; color:#2563EB;
+  padding:14px 24px; border-radius:16px;
+  font-size:14px; font-weight:600;
   opacity:0; pointer-events:none;
-  transition:opacity .22s, transform .25s;
-  white-space:nowrap; z-index:9999;
+  transition:opacity .25s ease, transform .28s cubic-bezier(.2,.8,.2,1);
+  white-space:normal; z-index:9999;
   max-width:calc(100vw - 40px);
-  box-shadow:0 8px 28px rgba(0,0,0,.22);
-  text-align:center;
+  border:1px solid #DBEAFE;
+  box-shadow:0 10px 34px rgba(37,99,235,.20);
+  text-align:center; display:inline-flex; align-items:center; gap:8px;
 }
-.toast.show{opacity:1; transform:translate(-50%,0);}
-.toast.err{background:#DC2626;}
-.toast.ok {background:#15803D;}
+.toast.show{opacity:1; transform:translate(-50%,0) scale(1);}
+.toast.err{color:#DC2626; border-color:#FECACA; box-shadow:0 10px 34px rgba(220,38,38,.18);}
+.toast.ok {color:#16A34A; border-color:#BBF7D0; box-shadow:0 10px 34px rgba(22,163,74,.18);}
+
+/* ── Tarik-untuk-segarkan (pull-to-refresh) ── */
+#ptr{position:fixed;top:0;left:0;right:0;height:0;overflow:hidden;z-index:1300;
+     display:flex;align-items:flex-end;justify-content:center;pointer-events:none;
+     background:linear-gradient(180deg,rgba(37,99,235,.06),transparent);}
+#ptr .ptr-spin{width:26px;height:26px;margin-bottom:14px;border-radius:50%;
+     border:3px solid #DBEAFE;border-top-color:#2563EB;opacity:0;
+     transition:opacity .15s ease;}
+#ptr.pulling .ptr-spin{opacity:1;}
+#ptr.refreshing{height:66px !important;transition:height .2s ease;}
+#ptr.refreshing .ptr-spin{opacity:1;animation:ptrspin .7s linear infinite;}
+@keyframes ptrspin{to{transform:rotate(360deg);}}
 </style>
 </head>
 <body data-page="beranda">
 
+<!-- Indikator tarik-untuk-segarkan -->
+<div id="ptr" aria-hidden="true"><div class="ptr-spin"></div></div>
+
 <div class="topbar">
-  <div class="logo"><img src="/aset/logo.png" alt="Edge Guard"></div>
+  <div class="logo"><img src="/aset/logo.avif" alt="Edge Guard"></div>
   <div class="bt"><h2>Edge Guard</h2><p>Parental Dashboard</p></div>
   <a href="/logout" class="logout">Keluar</a>
 </div>
@@ -317,9 +326,7 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
     <div class="d-info">
       <h4>{{dev.label}}</h4>
       <p>
-        {% if jeda %}<span class="s-jeda">● Dijeda</span>&nbsp;• {{dev.model}}
-        {% elif dev.status == 'online' %}<span class="s-online">● Online</span>&nbsp;• {{dev.model}}
-        {% else %}<span class="s-off">● Offline</span>&nbsp;• {{dev.model}}{% endif %}
+        <span id="d-st-{{dev.id}}" class="{{ 's-jeda' if jeda else ('s-online' if dev.status == 'online' else 's-off') }}">● {{ 'Dijeda' if jeda else ('Online' if dev.status == 'online' else 'Offline') }}</span>&nbsp;• {{dev.model}}
       </p>
       <!-- Satu bar gabungan: biru = sisa kuota umum, hijau = sisa bonus belajar -->
       <div class="d-mini-bar" style="display:flex;height:5px">
@@ -424,7 +431,7 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
             {% elif neg %}<span class="tag" style="background:#FEF2F2;color:#EF4444">NEGATIF</span>
             {% elif net %}<span class="tag" style="background:#F3F4F6;color:#6B7280">NETRAL</span>
             {% else %}<span class="tag" style="background:#FFFBEB;color:#D97706">HIBURAN</span>{% endif %}
-            <span class="tag-status">{% if blk %}• Percobaan Diblokir{% else %}• Diizinkan{% endif %}</span>
+            <span class="tag-status">• {{ item.perangkat or item.perangkat_nama or 'Perangkat' }}</span>
           </div>
         </div>
         <span class="a-time">{{item.waktu_str or item.waktu}}</span>
@@ -492,7 +499,7 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
       </div>
     </div>
 
-    <!-- Slider menit -->
+    <!-- Slider menit (maksimum mengikuti kuota perangkat) -->
     <div class="tw-slider-wrap">
       <div class="tw-slider-top">
         <label id="tw-slider-label">Durasi Tambahan</label>
@@ -502,19 +509,9 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
              min="1" max="120" step="1" value="30"
              oninput="onSlider(this.value)">
       <div class="tw-ticks">
-        <span>1m</span><span>30m</span><span>60m</span><span>90m</span><span>2j</span>
+        <span>1m</span><span id="tw-tick-max">maks</span>
       </div>
-    </div>
-
-    <!-- Input manual -->
-    <div class="tw-manual">
-      <label>Atau masukkan manual:</label>
-      <div class="tw-manual-row">
-        <input type="number" class="tw-inp" id="tw-manual-inp"
-               min="1" max="240" value="30"
-               oninput="onManual(this.value)">
-        <span class="tw-unit">menit</span>
-      </div>
+      <div id="tw-max-note" style="font-size:11px;color:#9CA3AF;margin-top:6px"></div>
     </div>
 
     <!-- Preview -->
@@ -549,11 +546,16 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
     <span class="mac-tag" id="sh-mac">—</span>
     <span id="sh-status" style="font-size:12px;font-weight:600;margin-left:4px">—</span>
   </div>
-  <div class="sh-kuota">
+  <div class="sh-kuota" style="flex-direction:column;align-items:stretch;gap:14px">
     <div class="kuota-info" style="flex:1">
-      <h4>Sisa Kuota Hari Ini</h4>
+      <h4>Kuota Hiburan Hari Ini</h4>
       <div class="kbar-bg" style="height:8px"><div class="kbar-fill" id="sh-bar" style="width:100%;background:#2563EB"></div></div>
       <div class="kbar-meta" id="sh-kuota-meta">—</div>
+    </div>
+    <div class="kuota-info" style="flex:1">
+      <h4>Bonus Belajar Hari Ini</h4>
+      <div class="kbar-bg" style="height:8px"><div class="kbar-fill" id="sh-bar-belajar" style="width:100%;background:#16A34A"></div></div>
+      <div class="kbar-meta" id="sh-belajar-meta">—</div>
     </div>
   </div>
   <div class="sh-stats">
@@ -587,14 +589,19 @@ var curPill   = 'all';
 /* ── Toast (top-center) ────────────────────────────────── */
 function toast(msg, dur) {
   var t = document.getElementById('toast');
-  t.textContent = msg;
-  // Auto-warnai: ✅ → hijau, ⚠️/❌ → merah, lainnya → netral
+  msg = String(msg == null ? '' : msg);
   t.classList.remove('ok', 'err');
-  if (/^[✅▶⏸]/.test(msg))            t.classList.add('ok');
-  else if (/^[⚠️❌]/.test(msg))       t.classList.add('err');
+  var isOk  = /^[✅✓▶⏸🎉]/.test(msg);
+  var isErr = /^[⚠❌🔴]/.test(msg) || /gagal|error|tidak dapat|tidak bisa|salah/i.test(msg);
+  if (isOk) t.classList.add('ok');
+  if (isErr) {
+    t.classList.add('err');
+    if (!/^[⚠❌🔴]/.test(msg)) msg = '⚠️ ' + msg;   // error wajib ada emoji
+  }
+  t.textContent = msg;
   t.classList.add('show');
   clearTimeout(t._t);
-  t._t = setTimeout(function(){ t.classList.remove('show'); }, dur || 2400);
+  t._t = setTimeout(function(){ t.classList.remove('show'); }, dur || 5000);  // auto-tutup 5 dtk
 }
 
 /* Helper: toast lalu reload halaman setelah delay agar UI segar */
@@ -608,6 +615,7 @@ function openSheet(id) {
   document.getElementById('ov-'+id).classList.add('show');
   document.getElementById('sh-'+id).classList.add('show');
   document.body.style.overflow = 'hidden';
+  if (id === 'tw') updateSliderMax();   // selaraskan slider dgn kuota perangkat
 }
 function closeSheet(id) {
   document.getElementById('ov-'+id).classList.remove('show');
@@ -620,20 +628,54 @@ function selectTWDev(btn) {
   document.querySelectorAll('.dev-sel-btn').forEach(function(b){ b.classList.remove('active'); });
   btn.classList.add('active');
   twDevId = btn.dataset.id;
-  updateTWPreview();
+  updateSliderMax();
 }
 
 function onSlider(v) {
-  twMenit = parseInt(v);
-  document.getElementById('tw-manual-inp').value = twMenit;
+  twMenit = parseInt(v) || 0;
   updateTWBadge();
   updateTWPreview();
 }
 
-function onManual(v) {
-  var n = Math.max(1, Math.min(240, parseInt(v)||1));
-  twMenit = n;
-  document.getElementById('tw-slider').value = Math.min(n, 120);
+/* Perangkat target saat ini (atau semua) */
+function twTargetDevs(){
+  if (twDevId === 'all') return DEVS;
+  var d = DEVS.find(function(x){ return String(x.id) === String(twDevId); });
+  return d ? [d] : DEVS;
+}
+/* Maksimum menit yang masuk akal: tambah ≤ waktu terpakai; kurang ≤ sisa kuota */
+function twMaxMenit(){
+  var list = twTargetDevs();
+  if (!list.length) return 120;
+  var vals;
+  if (twMode === 'tambah'){
+    vals = list.map(function(d){ return Math.max(0, d.kuota_terpakai || 0); });
+    return twDevId === 'all' ? Math.max.apply(null, vals) : vals[0];
+  } else {
+    vals = list.map(function(d){ return Math.max(0, (d.kuota_harian||120) - (d.kuota_terpakai||0)); });
+    return twDevId === 'all' ? Math.min.apply(null, vals) : vals[0];
+  }
+}
+/* Sesuaikan rentang slider dengan kuota perangkat & mode */
+function updateSliderMax(){
+  var mx = Math.max(0, twMaxMenit());
+  var sl = document.getElementById('tw-slider');
+  sl.max = mx; sl.min = (mx > 0 ? 1 : 0);
+  if (twMenit > mx) twMenit = mx;
+  if (mx > 0 && twMenit < 1) twMenit = Math.min(30, mx);
+  if (mx === 0) twMenit = 0;
+  sl.value = twMenit;
+  var tickMax = document.getElementById('tw-tick-max'); if (tickMax) tickMax.textContent = mx + 'm';
+  var note = document.getElementById('tw-max-note');
+  if (note){
+    note.textContent = (mx === 0)
+      ? (twMode === 'tambah' ? 'Belum ada waktu terpakai yang bisa dikembalikan.'
+                             : 'Kuota sudah habis — tidak ada sisa untuk dikurangi.')
+      : (twMode === 'tambah' ? 'Maksimum ' + mx + 'm (sebanyak waktu yang telah digunakan).'
+                             : 'Maksimum ' + mx + 'm (sebanyak sisa kuota).');
+  }
+  var btn = document.getElementById('btn-tw-confirm');
+  if (btn) btn.disabled = (mx <= 0);
   updateTWBadge();
   updateTWPreview();
 }
@@ -674,8 +716,7 @@ function setTWMode(mode) {
   var btn = document.getElementById('btn-tw-confirm');
   btn.classList.toggle('add', twMode === 'tambah');
   btn.classList.toggle('sub', twMode === 'kurang');
-  updateTWBadge();
-  updateTWPreview();
+  updateSliderMax();
 }
 
 function konfirmasiTW() {
@@ -814,6 +855,14 @@ function openDevSheet(idx) {
   document.getElementById('sh-bar').style.width       = sisaPct+'%';
   document.getElementById('sh-bar').style.background  = pct >= 90 ? '#DC2626' : (pct >= 70 ? '#F97316' : '#2563EB');
   document.getElementById('sh-kuota-meta').textContent = 'Sisa '+kS+'m dari '+kT+'m · digunakan '+kU+'m';
+
+  // ── Bonus Belajar (sisa_hiburan dari batas_harian) ──
+  var bMax = d.batas_harian || 60;          // jatah bonus harian
+  var bSisa = Math.max(0, d.sisa_hiburan || 0);
+  var bUsed = Math.max(0, bMax - bSisa);
+  var bSisaPct = bMax ? Math.max(0, Math.round(bSisa / bMax * 100)) : 0;
+  document.getElementById('sh-bar-belajar').style.width = bSisaPct+'%';
+  document.getElementById('sh-belajar-meta').textContent = 'Sisa '+bSisa+'m dari '+bMax+'m · digunakan '+bUsed+'m';
   document.getElementById('sh-kuota-hari').textContent = kT+'m';
   document.getElementById('sh-total').textContent   = d._log_count   || 0;
   document.getElementById('sh-blokir').textContent  = d._blokir_count || 0;
@@ -865,68 +914,69 @@ function openTWForDev() {
 
 /* (Proporsi kini berupa bar statis — tidak ada interaksi donut.) */
 
-/* ── PARTIKEL CARD KUOTA ───────────────────────────────── */
+/* ── PARTIKEL CARD KUOTA (hemat CPU: ~30fps, jeda saat tak terlihat) ───── */
 (function(){
   var canvas = document.getElementById('particle-canvas');
   if (!canvas || !canvas.getContext) return;
+  var reduce = window.matchMedia &&
+               window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var ctx = canvas.getContext('2d');
-  var W, H, pts = [], RAF;
+  var W, H, pts = [], RAF = null, last = 0, onscreen = true;
   var card = canvas.parentElement;
 
-  // Warna partikel ikut tingkat pemakaian kuota: makin sedikit sisa → makin
-  // "panas" (≥90% terpakai = merah, ≥70% = oren, selebihnya = biru).
   var _kuotaPct = {{ pct_global|default(0) }};
   var PARTICLE_RGB = _kuotaPct >= 90 ? '220,38,38'
                    : _kuotaPct >= 70 ? '249,115,22'
                    : '37,99,235';
 
-  function resize() {
+  function resize(){
     W = card ? card.offsetWidth  : 320;
     H = card ? card.offsetHeight : 200;
-    canvas.width  = W;
-    canvas.height = H;
+    canvas.width = W; canvas.height = H;
   }
-
-  function mkPt() {
-    return {
-      x  : Math.random() * W,
-      y  : H + Math.random() * 10,
-      r  : Math.random() * 2.6 + 1.0,
-      vx : (Math.random() - 0.5) * 0.4,
-      vy : -(Math.random() * 0.55 + 0.22),
-      a  : Math.random() * 0.4 + 0.12
-    };
+  function mkPt(){
+    return { x:Math.random()*W, y:H+Math.random()*10, r:Math.random()*2.6+1.0,
+             vx:(Math.random()-0.5)*0.4, vy:-(Math.random()*0.55+0.22),
+             a:Math.random()*0.4+0.12 };
   }
-
-  function init() {
-    resize();
-    pts = [];
-    var N = Math.max(16, Math.round(W / 16));
-    for (var i = 0; i < N; i++) {
-      var p = mkPt();
-      p.y = Math.random() * H;
-      pts.push(p);
+  function init(){
+    resize(); pts = [];
+    var N = Math.max(12, Math.round(W / 22));   // partikel lebih sedikit
+    for (var i=0;i<N;i++){ var p=mkPt(); p.y=Math.random()*H; pts.push(p); }
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    for (var i=0;i<pts.length;i++){
+      var p=pts[i];
+      ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle='rgba('+PARTICLE_RGB+','+p.a+')'; ctx.fill();
+      p.x+=p.vx; p.y+=p.vy;
+      if (p.y<-6) pts[i]=mkPt();
+      if (p.x<-4) p.x=W+4; if (p.x>W+4) p.x=-4;
     }
   }
-
-  function frame() {
-    ctx.clearRect(0, 0, W, H);
-    for (var i = 0; i < pts.length; i++) {
-      var p = pts[i];
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(' + PARTICLE_RGB + ',' + p.a + ')';
-      ctx.fill();
-      p.x += p.vx; p.y += p.vy;
-      if (p.y < -6) { pts[i] = mkPt(); }
-      if (p.x < -4) p.x = W + 4;
-      if (p.x > W + 4) p.x = -4;
-    }
+  function frame(t){
     RAF = requestAnimationFrame(frame);
+    if (t - last < 33) return;        // batasi ~30fps (separuh beban)
+    last = t; draw();
   }
+  function start(){ if (!RAF && onscreen && !document.hidden && !reduce){ last=0; RAF=requestAnimationFrame(frame); } }
+  function stop(){ if (RAF){ cancelAnimationFrame(RAF); RAF=null; } }
 
-  window.addEventListener('resize', function(){ cancelAnimationFrame(RAF); init(); frame(); });
-  init(); frame();
+  document.addEventListener('visibilitychange', function(){
+    if (document.hidden) stop(); else start();
+  });
+  if ('IntersectionObserver' in window && card){
+    new IntersectionObserver(function(es){
+      onscreen = es[0].isIntersecting;
+      onscreen ? start() : stop();
+    }, {threshold:0.01}).observe(card);
+  }
+  window.addEventListener('resize', function(){ stop(); init(); start(); });
+
+  init();
+  if (reduce) draw();                 // gambar sekali, tanpa animasi
+  else start();
 })();
 
 /* ── RIWAYAT FILTER PILLS ──────────────────────────────── */
@@ -958,6 +1008,93 @@ function cekForm() {
   }
   return true;
 }
+
+/* ── TARIK-UNTUK-SEGARKAN → splash → dashboard ──────────── */
+(function pullToRefresh(){
+  var ptr = document.getElementById('ptr');
+  if (!ptr) return;
+  var spin = ptr.querySelector('.ptr-spin');
+  var startY = 0, pulling = false, dist = 0, fired = false;
+  var THRESH = 75, MAX = 120;   // dist efektif (sudah dikali 0.5)
+
+  function atTop(){ return (window.scrollY || document.documentElement.scrollTop || 0) <= 0; }
+  function busy(){ return !!document.querySelector('.sheet.show, .overlay.show, .modal.show, .modal-edit.show'); }
+  function goRefresh(){
+    if (fired) return; fired = true;
+    ptr.classList.remove('pulling');
+    ptr.classList.add('refreshing');
+    location.href = '/';        // landing → splash 2.5s → /dashboard
+  }
+  function reset(){
+    pulling = false; dist = 0;
+    ptr.style.height = '0px';
+    ptr.classList.remove('pulling');
+  }
+
+  // ── Sentuh (mobile) ──
+  window.addEventListener('touchstart', function(e){
+    if (!atTop() || busy()) { pulling = false; return; }
+    startY = e.touches[0].clientY; pulling = true; dist = 0;
+  }, {passive:true});
+
+  window.addEventListener('touchmove', function(e){
+    if (!pulling) return;
+    var raw = e.touches[0].clientY - startY;
+    if (raw <= 0 || !atTop()) { reset(); return; }
+    e.preventDefault();                       // tahan bounce bawaan
+    dist = Math.min(MAX, raw * 0.5);
+    ptr.style.height = dist + 'px';
+    ptr.classList.add('pulling');
+    spin.style.transform = 'rotate(' + (raw * 1.6) + 'deg)';
+  }, {passive:false});
+
+  window.addEventListener('touchend', function(){
+    if (!pulling) return;
+    if (dist >= THRESH) goRefresh(); else reset();
+    pulling = false;
+  });
+
+  // ── Roda/trackpad (desktop) — gulir ke atas mentok di puncak ──
+  var wAcc = 0, wTmr = null;
+  window.addEventListener('wheel', function(e){
+    if (busy()) { wAcc = 0; return; }
+    if (atTop() && e.deltaY < 0) {
+      wAcc += -e.deltaY;
+      ptr.style.height = Math.min(MAX, wAcc * 0.4) + 'px';
+      ptr.classList.add('pulling');
+      if (wAcc > 260) goRefresh();
+      clearTimeout(wTmr);
+      wTmr = setTimeout(function(){ wAcc = 0; if (!fired) reset(); }, 350);
+    }
+  }, {passive:true});
+})();
+
+/* ── Status online/offline perangkat: perbarui live tiap 15 dtk ── */
+(function pollDevStatus(){
+  function apply(list){
+    (list||[]).forEach(function(d){
+      var st = document.getElementById('d-st-' + d.id);
+      if (st){
+        st.className   = d.jeda ? 's-jeda' : (d.status === 'online' ? 's-online' : 's-off');
+        st.textContent = '● ' + (d.jeda ? 'Dijeda' : (d.status === 'online' ? 'Online' : 'Offline'));
+      }
+      var ic = document.getElementById('d-ic-' + d.id);
+      if (ic){
+        ic.style.background = d.jeda ? '#FEF2F2' : (d.status === 'online' ? '#DCFCE7' : '#F3F4F6');
+        ic.style.color      = d.jeda ? '#EF4444' : '#374151';
+      }
+    });
+  }
+  function poll(){
+    if (document.hidden) return;
+    fetch('/api/perangkat-status', {cache:'no-store'})
+      .then(function(r){ return r.json(); })
+      .then(function(j){ apply(j.perangkat); })
+      .catch(function(){});
+  }
+  setInterval(poll, 15000);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) poll(); });
+})();
 </script>
 </body>
 </html>

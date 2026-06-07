@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Edge Guard — Pengaturan Telegram</title>
-<link rel="icon" type="image/png" href="/aset/logo.png">
+<link rel="icon" type="image/avif" href="/aset/logo.avif"><link rel="icon" type="image/png" href="/aset/logo.png">
 <link rel="apple-touch-icon" href="/aset/logo.png">
 <link rel="stylesheet" href="/aset/responsive.css">
 <style>
@@ -23,9 +23,11 @@ a{text-decoration:none;color:inherit}
 .flash-info   {background:#EFF6FF;color:#1D4ED8}
 
 /* Header Telegram dengan logo */
-.tg-hero{background:linear-gradient(135deg,#0088CC 0%,#229ED9 100%);color:#fff;border-radius:18px;padding:22px 20px;margin-bottom:14px;text-align:center}
-.tg-hero h2{font-size:18px;font-weight:700;margin-bottom:4px}
-.tg-hero p{font-size:12.5px;opacity:.9;line-height:1.55}
+.tg-hero{background:#fff;color:#111827;border-radius:18px;padding:24px 20px 20px;margin-bottom:14px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.07)}
+.tg-hero-icon{margin-bottom:10px;line-height:0;display:flex;justify-content:center}
+.tg-hero-icon svg{width:46px;height:46px}
+.tg-hero h2{font-size:18px;font-weight:700;color:#111827;margin-bottom:4px}
+.tg-hero p{font-size:12.5px;color:#6B7280;line-height:1.55}
 
 /* Status badge */
 .status-card{background:#fff;border-radius:14px;padding:12px 14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.07);display:flex;align-items:center;gap:10px}
@@ -35,6 +37,12 @@ a{text-decoration:none;color:inherit}
 .st-dot.red  {background:#EF4444;box-shadow:0 0 0 4px rgba(239,68,68,.15)}
 .st-label{font-size:13px;font-weight:600;flex:1}
 .st-sub{font-size:11px;color:#9CA3AF;margin-top:1px}
+
+/* Badge toggle aktif/nonaktif (samakan dengan halaman Aturan & Kategori AI) */
+.badge-aktif{background:#DCFCE7;color:#15803D;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;border:1px solid #BBF7D0;cursor:pointer;font-family:inherit}
+.badge-aktif .dot{width:6px;height:6px;background:#22C55E;border-radius:50%}
+.badge-off{background:#F3F4F6;color:#6B7280;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:6px 12px;border-radius:20px;border:1px solid #E5E7EB;cursor:pointer;font-family:inherit}
+.badge-off .dot{width:6px;height:6px;background:#9CA3AF;border-radius:50%}
 
 /* Form card */
 .sec-lbl{font-size:11px;font-weight:600;color:#9CA3AF;text-transform:uppercase;letter-spacing:.06em;margin:18px 2px 8px}
@@ -54,7 +62,7 @@ a{text-decoration:none;color:inherit}
 .tg-toggle .switch input{opacity:0;width:0;height:0}
 .tg-toggle .slider{position:absolute;inset:0;background:#E5E7EB;border-radius:26px;cursor:pointer;transition:background .2s}
 .tg-toggle .slider::before{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:transform .25s;box-shadow:0 2px 4px rgba(0,0,0,.15)}
-.tg-toggle input:checked + .slider{background:#0088CC}
+.tg-toggle input:checked + .slider{background:#2563EB}
 .tg-toggle input:checked + .slider::before{transform:translateX(20px)}
 
 /* Buttons */
@@ -62,7 +70,7 @@ a{text-decoration:none;color:inherit}
 .btn-r{padding:11px;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:6px;transition:opacity .15s}
 .btn-r:hover{opacity:.88}
 .btn-r:disabled{opacity:.5;cursor:not-allowed}
-.btn-r.test{background:#0088CC;color:#fff}
+.btn-r.test{background:#2563EB;color:#fff}
 .btn-r.get {background:#F3F4F6;color:#374151;border:1.5px solid #E5E7EB}
 .btn-save-tg{width:100%;padding:14px;background:#2563EB;color:#fff;border:none;border-radius:14px;font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:6px;transition:opacity .15s}
 .btn-save-tg:hover{opacity:.9}
@@ -70,8 +78,8 @@ a{text-decoration:none;color:inherit}
 /* Chat list result */
 .chat-list{margin-top:10px;display:flex;flex-direction:column;gap:6px}
 .chat-item{background:#F9FAFB;border:1px solid #E5E7EB;border-radius:10px;padding:9px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s}
-.chat-item:hover{border-color:#0088CC;background:#EFF6FF}
-.chat-item .ch-id{font-family:'SF Mono','Menlo',monospace;font-size:12px;color:#0088CC;font-weight:700;flex-shrink:0}
+.chat-item:hover{border-color:#2563EB;background:#EFF6FF}
+.chat-item .ch-id{font-family:'SF Mono','Menlo',monospace;font-size:12px;color:#2563EB;font-weight:700;flex-shrink:0}
 .chat-item .ch-nama{font-size:12.5px;color:#374151;font-weight:500;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .chat-item .ch-tipe{font-size:10px;background:#E5E7EB;color:#6B7280;padding:2px 7px;border-radius:8px;text-transform:uppercase;font-weight:600}
 
@@ -82,10 +90,10 @@ a{text-decoration:none;color:inherit}
 .guide code{background:#fff;padding:1px 6px;border-radius:4px;font-size:11.5px;color:#7C2D12}
 
 /* Toast */
-.toast{position:fixed;top:20px;left:50%;transform:translate(-50%,-24px);background:#1F2937;color:#fff;padding:12px 22px;border-radius:24px;font-size:13.5px;font-weight:500;opacity:0;pointer-events:none;transition:opacity .22s,transform .25s;white-space:nowrap;z-index:9999;max-width:calc(100vw - 40px);box-shadow:0 8px 28px rgba(0,0,0,.22);text-align:center}
-.toast.show{opacity:1;transform:translate(-50%,0)}
-.toast.ok{background:#15803D}
-.toast.err{background:#DC2626}
+.toast{position:fixed;top:22px;left:50%;transform:translate(-50%,-28px) scale(.96);background:#fff;color:#2563EB;padding:14px 24px;border-radius:16px;font-size:14px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .25s ease,transform .28s cubic-bezier(.2,.8,.2,1);white-space:normal;z-index:9999;max-width:calc(100vw - 40px);border:1px solid #DBEAFE;box-shadow:0 10px 34px rgba(37,99,235,.20);text-align:center;display:inline-flex;align-items:center;gap:8px}
+.toast.show{opacity:1;transform:translate(-50%,0) scale(1)}
+.toast.ok{color:#16A34A;border-color:#BBF7D0;box-shadow:0 10px 34px rgba(22,163,74,.18)}
+.toast.err{color:#DC2626;border-color:#FECACA;box-shadow:0 10px 34px rgba(220,38,38,.18)}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(0,0,0,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite;vertical-align:middle}
 .btn-r.test .spin{border-color:rgba(255,255,255,.35);border-top-color:#fff}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -112,23 +120,18 @@ a{text-decoration:none;color:inherit}
 
   <!-- Hero -->
   <div class="tg-hero">
+    <div class="tg-hero-icon"><svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg></div>
     <h2>Telegram Bot Notifikasi</h2>
     <p>Terima alert instan di Telegram saat AI<br>memblokir situs atau anak meminta izin akses.</p>
   </div>
 
   <!-- Status -->
   <div class="status-card">
-    {% if aktif and terhubung %}
+    {% if terhubung %}
       <span class="st-dot green"></span>
       <div style="flex:1">
-        <div class="st-label">Aktif & Terhubung</div>
-        <div class="st-sub">Terakhir berhasil kirim: {{ last_ok_str }}</div>
-      </div>
-    {% elif terhubung %}
-      <span class="st-dot gray"></span>
-      <div style="flex:1">
-        <div class="st-label">Chat ID tersimpan</div>
-        <div class="st-sub">Notifikasi dimatikan — aktifkan toggle di bawah</div>
+        <div class="st-label">Aktif &amp; Terhubung</div>
+        <div class="st-sub">Notifikasi menyala · terakhir kirim: {{ last_ok_str }}</div>
       </div>
     {% else %}
       <span class="st-dot red"></span>
@@ -180,23 +183,6 @@ a{text-decoration:none;color:inherit}
       <div id="chat-results"></div>
     </div>
 
-    <p class="sec-lbl">Aktifkan Notifikasi</p>
-    <div class="card">
-      <div class="tg-toggle">
-        <label for="aktif-sw">
-          {% if aktif %}Notifikasi aktif{% else %}Notifikasi nonaktif{% endif %}
-          <div style="font-size:11.5px;color:#9CA3AF;font-weight:400;margin-top:3px">
-            Notif dikirim untuk: situs blacklist diblokir · web baru terdeteksi
-            negatif oleh AI · anak minta izin saat durasi habis
-          </div>
-        </label>
-        <span class="switch">
-          <input type="checkbox" name="aktif" id="aktif-sw" {% if aktif %}checked{% endif %} onchange="simpanToggle(this)">
-          <span class="slider"></span>
-        </span>
-      </div>
-    </div>
-
     <button type="submit" class="btn-save-tg"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Simpan Pengaturan</button>
   </form>
 
@@ -214,13 +200,19 @@ a{text-decoration:none;color:inherit}
 /* ── Toast helper ─────────────────────────────────── */
 function toast(msg, dur) {
   var t = document.getElementById('toast');
-  t.textContent = msg;
+  msg = String(msg == null ? '' : msg);
   t.classList.remove('ok','err');
-  if (/^\{"ok"/.test(msg) || msg.startsWith('✓')) t.classList.add('ok');
-  else if (msg.includes('gagal') || msg.includes('error')) t.classList.add('err');
+  var isOk  = /^[✅✓🎉]/.test(msg);
+  var isErr = /^[⚠❌🔴]/.test(msg) || /gagal|error|tidak dapat|tidak bisa|salah/i.test(msg);
+  if (isOk) t.classList.add('ok');
+  if (isErr) {
+    t.classList.add('err');
+    if (!/^[⚠❌🔴]/.test(msg)) msg = '⚠️ ' + msg;   // error wajib ada emoji
+  }
+  t.textContent = msg;
   t.classList.add('show');
   clearTimeout(t._t);
-  t._t = setTimeout(function(){ t.classList.remove('show'); }, dur || 3500);
+  t._t = setTimeout(function(){ t.classList.remove('show'); }, dur || 5000);  // auto-tutup 5 dtk
 }
 
 /* ── Test kirim pesan ─────────────────────────────── */
@@ -237,10 +229,7 @@ function testKirim() {
   fetch('/telegram', {
     method:'POST',
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
-    body: new URLSearchParams({
-      chat_id: chat,
-      aktif: document.getElementById('aktif-sw').checked ? 'on' : ''
-    })
+    body: new URLSearchParams({ chat_id: chat, aktif: 'on' })
   })
   .then(function(){
     return fetch('/api/telegram/test', { method:'POST',
@@ -272,7 +261,7 @@ function cariChatId() {
     headers:{'Content-Type':'application/x-www-form-urlencoded'},
     body: new URLSearchParams({
       chat_id: document.getElementById('chat-id').value.trim(),
-      aktif: document.getElementById('aktif-sw').checked ? 'on' : ''
+      aktif: 'on'
     })
   })
   .then(function(){
@@ -309,26 +298,6 @@ function cariChatId() {
   .catch(function(){
     t.disabled = false; t.innerHTML = orig;
     toast('⚠️ Tidak dapat menghubungi server.');
-  });
-}
-
-/* ── Auto-save toggle aktif ───────────────────────── */
-function simpanToggle(el) {
-  fetch('/telegram', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-    body: new URLSearchParams({
-      chat_id: document.getElementById('chat-id').value.trim(),
-      aktif: el.checked ? 'on' : ''
-    })
-  })
-  .then(function(r) { return r.ok ? r : Promise.reject(r); })
-  .then(function() {
-    toast(el.checked ? '✅ Notifikasi diaktifkan' : '🔕 Notifikasi dimatikan', 3000);
-  })
-  .catch(function() {
-    el.checked = !el.checked;
-    toast('⚠️ Gagal menyimpan pengaturan', 4000);
   });
 }
 
