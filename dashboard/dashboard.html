@@ -20,6 +20,10 @@ a{text-decoration:none;color:inherit}
 .bt h2{font-size:16px;font-weight:700;color:#fff;line-height:1.1}
 .bt p{font-size:10px;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.06em;margin-top:1px}
 .logout{margin-left:auto;font-size:13px;color:rgba(255,255,255,.75);display:flex;align-items:center;gap:6px}
+/* ── Brand group: kartu putih ringkas agar logo & teks terlihat (topbar biru tetap) ── */
+.brand{display:flex;align-items:center;gap:7px;background:#fff;padding:3px 11px 3px 4px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,.12)}
+.brand .logo{background:#fff;border:none;width:22px;height:22px;border-radius:7px}
+.brand .bt h2{color:#2563EB;font-size:14px}
 
 /* ── Page ── */
 .page{padding:14px 14px 100px}
@@ -244,8 +248,10 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
 <div id="ptr" aria-hidden="true"><div class="ptr-spin"></div></div>
 
 <div class="topbar">
-  <div class="logo"><img src="/aset/logo.avif" alt="Edge Guard"></div>
-  <div class="bt"><h2>Edge Guard</h2><p>Parental Dashboard</p></div>
+  <div class="brand">
+    <div class="logo"><img src="/aset/logo.avif" alt="Edge Guard"></div>
+    <div class="bt"><h2>Edge Guard</h2></div>
+  </div>
   <a href="/logout" class="logout">Keluar</a>
 </div>
 
