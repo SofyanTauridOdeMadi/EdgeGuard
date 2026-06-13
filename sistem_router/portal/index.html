@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Edge Guard</title>
 <!-- PWA: bisa "Add to Home Screen" seperti aplikasi -->
 <meta name="theme-color" content="#1E3A8A">
@@ -15,6 +15,7 @@
 <link rel="manifest" href="/manifest.webmanifest">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
+html{height:100%;overflow:hidden;background:radial-gradient(125% 125% at 50% 0%,#1E40AF 0%,#1E3A8A 42%,#0B1220 100%)}
 :root{--ac:#93C5FD;--glow:rgba(96,165,250,.5)}
 /* aksen warna per mode (diset via class pada <body>) */
 body.mode-negatif{--ac:#F87171;--glow:rgba(248,113,113,.5)}
@@ -22,8 +23,8 @@ body.mode-kuota  {--ac:#FBBF24;--glow:rgba(251,191,36,.5)}
 body.mode-jadwal {--ac:#A5B4FC;--glow:rgba(165,180,252,.5)}
 body.mode-jeda   {--ac:#FB923C;--glow:rgba(251,146,60,.5)}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
-  color:#fff;min-height:100vh;display:flex;align-items:center;justify-content:center;
-  padding:22px;overflow:hidden;position:relative;
+  color:#fff;min-height:100vh;min-height:100dvh;height:100%;display:flex;align-items:center;justify-content:center;
+  padding:22px max(22px,env(safe-area-inset-right,0px)) max(22px,env(safe-area-inset-bottom,0px)) max(22px,env(safe-area-inset-left,0px));overflow:hidden;overscroll-behavior:none;position:relative;
   background:radial-gradient(125% 125% at 50% 0%,#1E40AF 0%,#1E3A8A 42%,#0B1220 100%)}
 /* halo cahaya berdenyut (warna mengikuti mode) */
 body::before{content:"";position:absolute;width:140vmax;height:140vmax;left:50%;top:36%;
@@ -38,10 +39,10 @@ body::after{content:"";position:absolute;inset:0;opacity:.4;pointer-events:none;
   -webkit-mask-image:radial-gradient(circle at 50% 38%,#000 26%,transparent 72%);
           mask-image:radial-gradient(circle at 50% 38%,#000 26%,transparent 72%)}
 
-.card{position:relative;z-index:2;max-width:430px;width:100%;
+.card{position:relative;z-index:2;max-width:400px;width:100%;
   background:rgba(255,255,255,.06);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
-  border:1px solid rgba(255,255,255,.15);border-radius:26px;
-  padding:34px 26px 28px;text-align:center;
+  border:1px solid rgba(255,255,255,.15);border-radius:24px;
+  padding:28px 22px 24px;text-align:center;
   box-shadow:0 24px 70px rgba(0,0,0,.45);
   animation:cardIn .6s cubic-bezier(.2,.8,.2,1) both}
 
@@ -49,23 +50,27 @@ body::after{content:"";position:absolute;inset:0;opacity:.4;pointer-events:none;
   letter-spacing:.4px;color:#BFDBFE;margin-bottom:22px;opacity:.9}
 .brand svg{width:17px;height:17px}
 
-/* cincin riak memancar di BELAKANG kartu (full-screen) */
-.ripples{position:fixed;inset:0;z-index:1;display:flex;align-items:center;justify-content:center;pointer-events:none}
-/* bentuk mengikuti kartu (rounded-rect potret), bukan lingkaran */
-.ripples .ring{position:absolute;width:min(86vw,400px);height:min(128vw,540px);border-radius:34px;
-  border:1.5px solid var(--ac);opacity:0;animation:ringOut 5.4s cubic-bezier(.2,.7,.3,1) infinite}
-.ripples .ring:nth-child(2){animation-delay:1.8s}
-.ripples .ring:nth-child(3){animation-delay:3.6s}
+/* partikel lembut yang muncul lalu memudar perlahan (BELAKANG kartu, full-screen) */
+.particles{position:fixed;inset:0;z-index:1;pointer-events:none;overflow:hidden}
+.particles .p{position:absolute;width:6px;height:6px;border-radius:50%;
+  background:var(--ac);box-shadow:0 0 12px 2px var(--glow);
+  opacity:0;will-change:transform,opacity;animation:pTwinkle 7s ease-in-out infinite}
+@keyframes pTwinkle{
+  0%   {opacity:0;transform:translateY(12px) scale(.35)}
+  25%  {opacity:.85}
+  55%  {opacity:.55;transform:translateY(-4px) scale(1)}
+  100% {opacity:0;transform:translateY(-24px) scale(1.2)}
+}
 
 /* logo-tile bergaya splash */
-.logo-wrap{position:relative;width:104px;height:104px;margin:0 auto 18px;
+.logo-wrap{position:relative;width:88px;height:88px;margin:0 auto 16px;
   display:flex;align-items:center;justify-content:center}
 .logo-tile{position:relative;z-index:2;width:100%;height:100%;border-radius:30px;color:var(--ac);
   background:linear-gradient(145deg,rgba(255,255,255,.2),rgba(255,255,255,.05));
   border:1px solid rgba(255,255,255,.3);display:flex;align-items:center;justify-content:center;
   box-shadow:0 18px 50px rgba(8,15,40,.5),0 0 58px var(--glow),inset 0 1px 0 rgba(255,255,255,.45);
   animation:tileIn .7s cubic-bezier(.2,.8,.2,1) both,float 4s ease-in-out 1s infinite}
-.logo-tile svg{width:50px;height:50px}
+.logo-tile svg{width:44px;height:44px}
 
 .tag{display:inline-block;font-size:11px;font-weight:800;padding:4px 13px;border-radius:30px;
   text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px;
@@ -129,12 +134,18 @@ h1{font-size:23px;font-weight:800;margin-bottom:9px;letter-spacing:.2px}
 /* ── Beranda / Home Portal (search engine) ── */
 #home{position:relative;z-index:2;width:100%;max-width:560px;text-align:center;
   animation:cardIn .6s cubic-bezier(.2,.8,.2,1) both}
-.home-logo{width:84px;height:84px;margin:0 auto 16px;border-radius:24px;display:flex;align-items:center;justify-content:center;color:#BFDBFE;
+.home-logo{width:84px;height:84px;margin:0 auto 22px;border-radius:24px;display:flex;align-items:center;justify-content:center;color:#BFDBFE;
   background:linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.06));border:1px solid rgba(255,255,255,.35);
   box-shadow:0 18px 50px rgba(8,15,40,.5),0 0 58px rgba(96,165,250,.45);animation:tileIn .7s cubic-bezier(.2,.8,.2,1) both,float 4s ease-in-out 1s infinite}
 .home-logo svg{width:42px;height:42px}
-.home-title{font-size:30px;font-weight:800;color:#fff;letter-spacing:.5px}
-.home-sub{font-size:14px;color:#BFDBFE;margin-top:4px;margin-bottom:24px}
+.home-logo.home-ok{color:#86EFAC;box-shadow:0 18px 50px rgba(8,15,40,.5),0 0 58px rgba(34,197,94,.45)}
+.home-title{font-size:26px;font-weight:800;color:#fff;letter-spacing:.3px;line-height:1.25;margin-bottom:12px}
+.home-sub{font-size:14px;color:#BFDBFE;margin:0 auto 22px;line-height:1.7;max-width:360px}
+.home-chips{display:flex;flex-wrap:wrap;gap:9px;justify-content:center;max-width:360px;margin:0 auto 20px}
+.home-chips .chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;color:#E0EAFF;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:7px 13px}
+.home-chips .cdot{width:7px;height:7px;border-radius:50%;background:#4ADE80;box-shadow:0 0 8px 1px rgba(74,222,128,.7);flex-shrink:0;animation:cpulse 2s ease-in-out infinite}
+@keyframes cpulse{0%,100%{opacity:1}50%{opacity:.4}}
+.home-hint{font-size:12.5px;color:#93A4C8;line-height:1.55;margin:0 auto;max-width:320px}
 .home-search{display:flex;align-items:center;gap:8px;background:#fff;border-radius:30px;padding:7px 7px 7px 18px;
   box-shadow:0 16px 40px rgba(8,15,40,.42);max-width:520px;margin:0 auto}
 .home-search .s-ic{color:#9CA3AF;flex-shrink:0;display:flex}
@@ -145,7 +156,7 @@ h1{font-size:23px;font-weight:800;margin-bottom:9px;letter-spacing:.2px}
 .home-links a{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#E0E7FF;text-decoration:none;
   padding:9px 15px;border-radius:14px;font-size:13px;font-weight:600;transition:background .15s}
 .home-links a:active{background:rgba(255,255,255,.22)}
-.home-foot{margin-top:26px;font-size:11.5px;color:#94A3B8}
+.home-foot{margin-top:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,.1);font-size:11.5px;color:#94A3B8}
 .home-foot b{color:#CBD5E1}
 
 @media (min-width:520px){.card{max-width:460px;padding:42px 34px 32px}h1{font-size:25px}.logo-wrap{width:116px;height:116px}.logo-tile svg{width:56px;height:56px}}
@@ -160,8 +171,25 @@ h1{font-size:23px;font-weight:800;margin-bottom:9px;letter-spacing:.2px}
     <div class="intro-load"><span></span><span></span><span></span></div>
   </div>
 
-  <!-- cincin riak memancar di belakang kartu -->
-  <div class="ripples"><span class="ring"></span><span class="ring"></span><span class="ring"></span></div>
+  <!-- partikel lembut muncul-memudar di belakang kartu -->
+  <div class="particles">
+    <span class="p" style="left:9%;top:20%;animation-delay:0s;animation-duration:6s"></span>
+    <span class="p" style="left:18%;top:68%;animation-delay:1.1s;animation-duration:7.5s;width:4px;height:4px"></span>
+    <span class="p" style="left:27%;top:34%;animation-delay:2.3s;animation-duration:6.5s"></span>
+    <span class="p" style="left:37%;top:82%;animation-delay:.6s;animation-duration:8s"></span>
+    <span class="p" style="left:46%;top:14%;animation-delay:3s;animation-duration:7s;width:8px;height:8px"></span>
+    <span class="p" style="left:54%;top:58%;animation-delay:1.7s;animation-duration:9s"></span>
+    <span class="p" style="left:63%;top:26%;animation-delay:2.6s;animation-duration:6.5s;width:4px;height:4px"></span>
+    <span class="p" style="left:72%;top:74%;animation-delay:.3s;animation-duration:7.5s"></span>
+    <span class="p" style="left:82%;top:40%;animation-delay:3.4s;animation-duration:8s"></span>
+    <span class="p" style="left:90%;top:64%;animation-delay:1.4s;animation-duration:6s;width:4px;height:4px"></span>
+    <span class="p" style="left:13%;top:48%;animation-delay:4s;animation-duration:7s"></span>
+    <span class="p" style="left:33%;top:60%;animation-delay:2s;animation-duration:8.5s;width:8px;height:8px"></span>
+    <span class="p" style="left:68%;top:50%;animation-delay:.9s;animation-duration:7s"></span>
+    <span class="p" style="left:88%;top:18%;animation-delay:3.7s;animation-duration:6.5s"></span>
+    <span class="p" style="left:50%;top:88%;animation-delay:1.9s;animation-duration:8s;width:4px;height:4px"></span>
+    <span class="p" style="left:24%;top:10%;animation-delay:4.4s;animation-duration:7.5s"></span>
+  </div>
 
   <div class="card" id="card">
     <div class="brand">
@@ -183,21 +211,15 @@ h1{font-size:23px;font-weight:800;margin-bottom:9px;letter-spacing:.2px}
 
   <!-- Beranda / Home Portal (default saat perangkat TIDAK diblokir) -->
   <div id="home" style="display:none">
-    <div class="home-logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3.1 7.7-7 9-3.9-1.3-7-4.4-7-9V6l7-3z"/></svg></div>
-    <div class="home-title">Edge Guard</div>
-    <div class="home-sub">Jelajah internet dengan aman</div>
-    <form class="home-search" onsubmit="return doSearch(event)">
-      <span class="s-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg></span>
-      <input id="q" type="text" placeholder="Cari di internet…" autocomplete="off">
-      <button type="submit">Cari</button>
-    </form>
-    <div class="home-links">
-      <a href="https://www.google.com">Google</a>
-      <a href="https://www.youtube.com">YouTube</a>
-      <a href="https://id.wikipedia.org">Wikipedia</a>
-      <a href="https://www.ruangguru.com">Ruangguru</a>
-      <a href="https://www.detik.com">Berita</a>
+    <div class="home-logo home-ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>
+    <div class="home-title">Internet Aman &amp; Terhubung</div>
+    <div class="home-sub">Perangkatmu sudah terhubung dan berada dalam pengawasan Edge Guard. Konten berbahaya disaring otomatis oleh AI langsung di router rumah, jadi kamu bisa menjelajah dengan tenang.</div>
+    <div class="home-chips">
+      <span class="chip"><span class="cdot"></span>Koneksi aktif</span>
+      <span class="chip"><span class="cdot"></span>Filter AI berjalan</span>
+      <span class="chip"><span class="cdot"></span>Pemantauan orang tua</span>
     </div>
+    <div class="home-hint">Halaman ini akan menutup sendiri dalam beberapa saat. Jika belum, ketuk muat ulang.</div>
     <div class="home-foot">Dilindungi oleh <b onclick="location.reload()" style="cursor:pointer" title="Ketuk untuk muat ulang">Edge Guard</b> · Parental Control</div>
   </div>
 

@@ -543,6 +543,13 @@ def notif_telegram(kind: str, **kwargs):
     ok, _ = tg_send_message(text)
     return ok
 
+def notif_telegram_async(kind: str, **kwargs):
+    """Versi fire-and-forget dari notif_telegram: dijalankan di thread daemon
+    agar request handler TIDAK PERNAH terblokir menunggu Telegram API
+    (cegah antrian accept penuh saat Telegram lambat/timeout)."""
+    threading.Thread(target=notif_telegram, args=(kind,), kwargs=kwargs,
+                     daemon=True).start()
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TELEGRAM BOT DUA ARAH — menu interaktif (long-polling getUpdates)
 #   Menu: Riwayat Aktivitas · Konfigurasi Reward · Jadwal Istirahat · Sisa Kuota
@@ -2118,10 +2125,10 @@ def minta_izin():
     device_id = data.get('device_id', '')
     mac       = (data.get('mac', '') or '').upper()
     alasan    = (data.get('alasan', '') or '').lower()   # jeda / jadwal / kuota
-    ok = notif_telegram('minta_izin',
+    notif_telegram_async('minta_izin',
                         perangkat=perangkat or device_id,
                         mac=mac, alasan=alasan)
-    return jsonify({"status": "ok" if ok else "queued"})
+    return jsonify({"status": "queued"})
 
 # ══════════════════════════════════════════════════════════════════════════════
 # API UNTUK ROUTER (push-based, tidak butuh login)
@@ -2360,7 +2367,7 @@ def api_log():
                          or 'Masuk daftar blokir (blacklist)'
         else:
             alasan_txt = 'Dikategorikan negatif oleh AI'
-        notif_telegram('blokir',
+        notif_telegram_async('blokir',
                        domain=domain, perangkat=perangkat,
                        mac=mac, alasan_txt=alasan_txt)
     return jsonify({"status": "ok"})
@@ -2590,5 +2597,5 @@ if __name__ == '__main__':
     print(f"  bcrypt : {'ON' if _BCRYPT else '❌ OFF — WAJIB: pip install bcrypt'}")
     print(f"  Bot TG : {bot_status}")
     print("=" * 60)
-    app.run(debug=False, host='0.0.0.0', port=_port,
+    app.run(debug=False, host='0.0.0.0', port=_port, threaded=True,
             ssl_context=_ssl_ctx, use_reloader=False)
