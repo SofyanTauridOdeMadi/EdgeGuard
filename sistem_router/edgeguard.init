@@ -52,9 +52,11 @@ start_service() {
 }
 
 stop_service() {
-  # P2: JANGAN "killall python3" (membabi buta). procd menghentikan instance
-  # pemantau (beserta thread kuota/reward) dgn bersih; portal_server di-stop TERTARGET.
-  pkill -f 'portal_server\.py' 2>/dev/null || true
+  # Hentikan TERTARGET semua proses EdgeGuard (pemantau+portal) & capture child
+  # (tcpdump/tshark) secara paksa agar 'stop' tuntas cepat — cegah restart
+  # menggantung walau procd dalam keadaan tak konsisten. BUKAN "killall python3".
+  kill -9 $(pgrep -f '/edgeguard/sistem_router/') 2>/dev/null
+  killall -9 tcpdump tshark 2>/dev/null
   sh "$BASE/aturan_firewall.sh" flush >/dev/null 2>&1
 }
 
