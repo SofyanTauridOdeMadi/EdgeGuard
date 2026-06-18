@@ -96,8 +96,9 @@ table $NFT_TABLE {
         # Paksa semua DNS LAN lewat dnsmasq router (override DNS ISP/Kominfo/DoH).
         ip saddr 192.168.1.0/24 ip daddr != 192.168.1.1 udp dport 53 redirect
         ip saddr 192.168.1.0/24 ip daddr != 192.168.1.1 tcp dport 53 redirect
-        # Negatif sinkhole (domain → $PORTAL_IP): HTTP → portal.
+        # Negatif sinkhole (domain → $PORTAL_IP): HTTP → portal, HTTPS → MITM portal.
         ip daddr $PORTAL_IP tcp dport 80 dnat to ${LAN_IP}:${HTTP_PORT}
+        ip daddr $PORTAL_IP tcp dport 443 dnat to ${LAN_IP}:${HTTPS_PORT}
         # ── JADWAL/JEDA (blok total) ──────────────────────────────────────
         # SEMUA HTTP → portal. Termasuk URL cek-konektivitas OS (gstatic/apple/
         # msftconnect) → memicu popup "Masuk ke jaringan" otomatis (gaya wifi.id).
@@ -112,9 +113,9 @@ table $NFT_TABLE {
     }
     chain input {
         type filter hook input priority filter; policy accept;
-        # Negatif via sinkhole: HTTPS ke portal-IP → reject cepat
-        # (browser langsung tahu ditolak, tidak hang menunggu timeout).
-        ip daddr $PORTAL_IP tcp dport 443 reject with tcp reset
+        # Negatif via sinkhole: HTTPS ke portal-IP kini di-DNAT ke MITM portal
+        # (${HTTPS_PORT}) di chain prerouting → halaman peringatan ber-sertifikat
+        # per-domain (EdgeGuard CA). Tidak lagi reject.
     }
     chain measure {
         type filter hook forward priority -10; policy accept;
