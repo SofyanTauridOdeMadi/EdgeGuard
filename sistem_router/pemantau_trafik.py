@@ -58,6 +58,7 @@ def _sinkhole_all_paths() -> list:
 MAX_NEG = int(os.environ.get("EG_MAX_NEGATIF", "5000"))
 _negatif_domains: set = set()
 _negatif_order = deque()
+_last_sinkhole_lines = None   # cache utk reload dnsmasq HANYA saat daftar berubah
 
 def _neg_add(*domains):
     """Tambah domain negatif dengan batas kapasitas (FIFO). Evict tertua bila penuh."""
@@ -291,11 +292,12 @@ PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
 def _tulis_sinkhole():
     """Tulis ulang file dnsmasq sinkhole dari _negatif_domains lalu reload dnsmasq.
     Tulis ke SEMUA path yang mungkin dibaca dnsmasq (statis + dinamis)."""
+    global _last_sinkhole_lines
     paths = _sinkhole_all_paths()
-    conf  = paths[0]  # path utama untuk log
     try:
-        lines = ''.join(f"address=/{d}/{PORTAL_IP}\n" for d in sorted(_negatif_domains))
-        # Tulis ke semua path (statis + dinamis) agar dnsmasq pasti membacanya
+        # Sinkhole A (→portal) DAN AAAA (→ :: ) agar IPv6 tidak bocor ke DNS ISP.
+        lines = ''.join(f"address=/{d}/{PORTAL_IP}\naddress=/{d}/::\n"
+                        for d in sorted(_negatif_domains))
         for p in paths:
             try:
                 os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -303,9 +305,12 @@ def _tulis_sinkhole():
                     f.write(lines)
             except Exception:
                 pass
-        # HUP = reload conf tanpa restart penuh
-        subprocess.run(['killall', '-HUP', 'dnsmasq'], timeout=3, check=False,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # PENTING: SIGHUP TIDAK me-reload address= dari conf-dir → WAJIB restart.
+        # Hanya restart saat daftar BERUBAH (hindari restart tiap siklus 60 dtk).
+        if lines != _last_sinkhole_lines:
+            _last_sinkhole_lines = lines
+            subprocess.run(['/etc/init.d/dnsmasq', 'restart'], timeout=15, check=False,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception as e:
         if DEBUG: print(f"[sinkhole] tulis gagal: {e}")
 
