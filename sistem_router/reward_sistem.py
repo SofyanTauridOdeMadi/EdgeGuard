@@ -165,6 +165,19 @@ def siklus(interval: int):
                 sisa = res.get('sisa_hiburan') if res else '?'
                 log(f"🎁 {mac}: belajar {durasi}m → +{bonus_m}m hiburan (sisa bonus: {sisa}m)")
 
+def jalankan(interval=10):
+    """Loop reward (dipakai sebagai thread dalam pemantau_trafik — konsolidasi proses)."""
+    sync_perangkat()
+    def _sync_loop():
+        while True:
+            time.sleep(60); sync_perangkat()
+    threading.Thread(target=_sync_loop, daemon=True).start()
+    while True:
+        time.sleep(interval)
+        try: siklus(interval)
+        except Exception as e:
+            if DEBUG: log(f"siklus error: {e}")
+
 def main():
     p = argparse.ArgumentParser(description='Edge Guard — Reward Sistem')
     p.add_argument('--interval','-i', type=int, default=30)

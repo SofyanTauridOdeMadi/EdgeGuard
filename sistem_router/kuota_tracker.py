@@ -203,6 +203,18 @@ def siklus(interval: int, kbps_th: float):
             _portal('buka-hiburan', mac)
             log(f"✅ {nama}: hiburan dibuka kembali")
 
+def jalankan(interval=KUOTA_INTERVAL, kbps=KBPS_AKTIF):
+    """Loop kuota (dipakai sebagai thread dalam pemantau_trafik — konsolidasi proses)."""
+    ambil_perangkat()
+    try: siklus(interval, kbps)
+    except Exception as e:
+        if DEBUG: log(f"siklus awal error: {e}")
+    while True:
+        time.sleep(interval)
+        try: siklus(interval, kbps)
+        except Exception as e:
+            if DEBUG: log(f"siklus error: {e}")
+
 def main():
     p = argparse.ArgumentParser(description='Edge Guard — Kuota & Enforcement')
     p.add_argument('--interval','-i', type=int, default=KUOTA_INTERVAL)

@@ -254,6 +254,7 @@ teardown() {
 
 case "${1:-}" in
     init)          pasang_alias; pasang_portal_server; pasang_nft ;;
+    portal)        pasang_portal_server ;;   # P3: dipakai watchdog auto-respawn
     sinkhole)      shift; set_sinkhole "$@" ;;
     add-hiburan)   shift; add_hiburan "$@" ;;
     add-edukasi)   shift; add_edukasi "$@" ;;
