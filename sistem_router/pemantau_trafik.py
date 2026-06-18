@@ -14,7 +14,7 @@
 ║    python3 pemantau_trafik.py --interface br-lan --debug              ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
-import os, sys, re, time, json, subprocess, threading, argparse, shutil
+import os, sys, re, time, json, subprocess, threading, argparse, shutil, signal
 import urllib.request, urllib.error
 from datetime import datetime
 from collections import OrderedDict, deque
@@ -32,6 +32,15 @@ MAX_CACHE = 2000
 CACHE_TTL = 300                                  # 5 menit
 FIREWALL_SH = os.path.join(BASE, 'aturan_firewall.sh')
 LIGHT = bool(int(os.environ.get('EG_LIGHT', '0')))  # P5: hemat RAM
+
+# Child capture (tcpdump/tshark) — dimatikan saat SIGTERM agar procd dapat
+# menuntaskan 'stop' (tanpa ini child tcpdump menggantung → init.d restart hang).
+_capture_procs = []
+def _handle_sigterm(signum, frame):
+    for _p in _capture_procs:
+        try: _p.kill()
+        except Exception: pass
+    os._exit(0)
 
 # ─── Captive portal sinkhole ─────────────────────────────────────────────
 PORTAL_IP = '192.168.1.2'
@@ -428,6 +437,7 @@ def capture_tshark(iface: str):
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True,
                             errors='replace', bufsize=1)
+    _capture_procs.append(proc)
     print(f"[EdgeGuard] Memantau SNI via tshark ({iface})...")
     try:
         for line in iter(proc.stdout.readline, ''):
@@ -459,6 +469,7 @@ def capture_tcpdump(iface: str):
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True,
                             errors='replace', bufsize=1)
+    _capture_procs.append(proc)
     print(f"[EdgeGuard] Memantau via tcpdump fallback ({iface})...")
     ip_curr = ''
     try:
@@ -485,6 +496,7 @@ def capture_dns(iface: str):
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True,
                             errors='replace', bufsize=1)
+    _capture_procs.append(proc)
     try:
         for line in iter(proc.stdout.readline, ''):
             parts = line.strip().split('\t')
@@ -556,6 +568,7 @@ def main():
     args = p.parse_args()
     IFACE = args.interface
     DEBUG = args.debug or DEBUG
+    signal.signal(signal.SIGTERM, _handle_sigterm)  # bersihkan child capture saat stop
 
     print("=" * 60)
     print("  Edge Guard — Pemantau Trafik")
