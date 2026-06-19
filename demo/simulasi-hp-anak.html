@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EdgeGuard — Simulasi Perangkat Anak (Demo Sidang)</title>
+<style>
+  :root{
+    --bg:#0B1220; --panel:#111c30; --panel2:#0e1728; --line:#1f2d45;
+    --blue:#1E3A8A; --blue2:#3B82F6; --txt:#e6edf7; --mut:#8aa0c0;
+    --ok:#22c55e; --neg:#ef4444; --edu:#f59e0b; --hib:#a855f7; --net:#64748b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,Arial,sans-serif;background:
+       radial-gradient(1200px 600px at 80% -10%,#13233f 0%,var(--bg) 55%);
+       color:var(--txt);min-height:100vh;padding:18px}
+  h1{font-size:20px;font-weight:800;letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:13px;margin-top:2px}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+  .shield{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;
+          background:linear-gradient(135deg,var(--blue2),var(--blue));font-size:22px;
+          box-shadow:0 6px 18px #1e3a8a55}
+  .wrap{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start;max-width:1180px;margin:0 auto}
+  @media(max-width:880px){.wrap{grid-template-columns:1fr}}
+
+  /* PHONE */
+  .phone{background:#05080f;border:8px solid #1b2740;border-radius:36px;padding:10px;
+         box-shadow:0 20px 50px #00000080;position:relative}
+  .notch{height:22px;display:flex;justify-content:center}
+  .notch::after{content:"";width:120px;height:18px;background:#1b2740;border-radius:0 0 14px 14px}
+  .screen{background:#0a1322;border-radius:24px;overflow:hidden;height:560px;display:flex;flex-direction:column}
+  .statusbar{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);padding:6px 16px 2px}
+  .urlbar{display:flex;align-items:center;gap:8px;margin:6px 10px;background:#0f1b30;border:1px solid var(--line);
+          border-radius:20px;padding:8px 12px;font-size:12px;color:var(--mut)}
+  .urlbar .lock{color:var(--ok)}
+  .view{flex:1;overflow:auto;padding:12px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .cat-label{grid-column:1/-1;font-size:11px;color:var(--mut);text-transform:uppercase;
+             letter-spacing:1px;margin:8px 2px 0;font-weight:700}
+  .app{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 6px;
+       text-align:center;cursor:pointer;transition:.15s;user-select:none}
+  .app:hover{transform:translateY(-2px);border-color:var(--blue2);background:#16243d}
+  .app .ic{font-size:26px}
+  .app .nm{font-size:10.5px;color:var(--mut);margin-top:5px;line-height:1.2}
+
+  /* RESULT PAGES inside phone */
+  .page{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+        text-align:center;padding:22px;border-radius:18px}
+  .page .big{font-size:54px;margin-bottom:8px}
+  .page h2{font-size:19px;margin-bottom:6px}
+  .page p{font-size:12.5px;opacity:.9;line-height:1.5}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;margin-top:10px}
+  .blk{background:linear-gradient(160deg,#2a0d10,#160a12);border:1px solid #5b1a1f;color:#ffd9dc}
+  .allow{background:linear-gradient(160deg,#0c2418,#0a1626);border:1px solid #1f5b3a}
+  .back{margin-top:16px;font-size:12px;color:var(--blue2);cursor:pointer;text-decoration:underline}
+  .meta{margin-top:12px;font-size:11px;color:var(--mut);background:#00000040;border-radius:10px;padding:8px 10px;max-width:230px}
+
+  /* RIGHT PANELS */
+  .col{display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+  .card h3{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin-bottom:10px;display:flex;gap:8px;align-items:center}
+
+  /* flow */
+  .flow{display:flex;align-items:center;justify-content:space-between;gap:6px}
+  .node{flex:1;text-align:center;background:var(--panel2);border:1px solid var(--line);border-radius:12px;
+        padding:10px 4px;font-size:11px;color:var(--mut);transition:.25s}
+  .node .ic{font-size:20px;display:block;margin-bottom:3px}
+  .node.on{border-color:var(--blue2);color:#fff;background:#16243d;box-shadow:0 0 0 2px #3b82f655;transform:translateY(-2px)}
+  .arrow{color:var(--line);font-size:18px}
+
+  /* meters */
+  .meter{margin:10px 0}
+  .meter .top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px}
+  .meter .top b{font-weight:700}
+  .bar{height:10px;background:#0a1322;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .bar > span{display:block;height:100%;width:0;transition:width .5s ease;border-radius:8px}
+  .fill-hib{background:linear-gradient(90deg,#a855f7,#7c3aed)}
+  .fill-edu{background:linear-gradient(90deg,#f59e0b,#d97706)}
+  .stat-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:4px}
+  .stat{flex:1;min-width:90px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;text-align:center}
+  .stat .v{font-size:20px;font-weight:800}
+  .stat .l{font-size:10.5px;color:var(--mut);margin-top:2px}
+
+  /* telegram */
+  .tg{display:flex;flex-direction:column;gap:8px;max-height:200px;overflow:auto}
+  .tg .msg{background:#0f1b30;border:1px solid var(--line);border-left:3px solid var(--blue2);
+           border-radius:10px;padding:8px 10px;font-size:12px;animation:pop .3s}
+  .tg .msg .t{font-size:10px;color:var(--mut);margin-top:3px}
+  @keyframes pop{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+
+  /* log */
+  .log{font-family:ui-monospace,Menlo,monospace;font-size:11px;max-height:150px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+  .log .li{padding:4px 8px;border-radius:7px;background:var(--panel2);border:1px solid var(--line)}
+  .tag{font-weight:700}.t-neg{color:var(--neg)}.t-edu{color:var(--edu)}.t-hib{color:var(--hib)}.t-net{color:#9fb3d1}
+
+  /* controls */
+  .ctrls{display:flex;gap:8px;flex-wrap:wrap}
+  .btn{flex:1;min-width:120px;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+       padding:9px;border-radius:11px;cursor:pointer;font-size:12px;font-weight:600;transition:.15s}
+  .btn:hover{border-color:var(--blue2)}
+  .btn.on{background:var(--blue);border-color:var(--blue2);color:#fff}
+  .btn.reset{background:#2a1417;border-color:#5b1a1f;color:#ffd9dc}
+  .hint{font-size:11px;color:var(--mut);margin-top:8px;line-height:1.5}
+</style>
+</head>
+<body>
+  <div class="brand">
+    <div class="shield">🛡️</div>
+    <div>
+      <h1>EdgeGuard — Simulasi Perangkat Anak</h1>
+      <div class="sub">Demo interaktif untuk sidang · tanpa router/HP fisik · meniru logika sistem nyata (SNI + AI&nbsp;MNB)</div>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <!-- PHONE -->
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="statusbar"><span>📶 EdgeGuard-WiFi</span><span id="clock">19.04</span><span>🔋 82%</span></div>
+        <div class="urlbar"><span class="lock">🔒</span><span id="url">beranda · ketuk situs untuk membuka</span></div>
+        <div class="view" id="view"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT -->
+    <div class="col">
+      <div class="card">
+        <h3>🔀 Alur Pemrosesan (real-time)</h3>
+        <div class="flow">
+          <div class="node" id="n1"><span class="ic">📱</span>HP Anak</div><span class="arrow">→</span>
+          <div class="node" id="n2"><span class="ic">📡</span>Router<br>SNI</div><span class="arrow">→</span>
+          <div class="node" id="n3"><span class="ic">🧠</span>AI MNB<br>Klasifikasi</div><span class="arrow">→</span>
+          <div class="node" id="n4"><span class="ic">⚖️</span>Keputusan</div><span class="arrow">→</span>
+          <div class="node" id="n5"><span class="ic">☁️</span>Cloud<br>Log/Notif</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>👨‍👩‍👧 Panel Orang Tua (Cloud Dashboard)</h3>
+        <div class="meter">
+          <div class="top"><span>🟣 Sisa Kuota Hiburan</span><b id="hibTxt">90 menit</b></div>
+          <div class="bar"><span class="fill-hib" id="hibBar"></span></div>
+        </div>
+        <div class="meter">
+          <div class="top"><span>🟠 Progres Belajar → Bonus</span><b id="eduTxt">0 / 5 menit</b></div>
+          <div class="bar"><span class="fill-edu" id="eduBar"></span></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><div class="v" id="sBonus">0</div><div class="l">Bonus menit (reward)</div></div>
+          <div class="stat"><div class="v" id="sBlok">0</div><div class="l">Akses diblokir</div></div>
+          <div class="stat"><div class="v" id="sIzin">0</div><div class="l">Akses diizinkan</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>🎛️ Kendali Orang Tua (jarak jauh)</h3>
+        <div class="ctrls">
+          <button class="btn" id="bJeda" onclick="toggleJeda()">⏸️ Jeda Internet: OFF</button>
+          <button class="btn" id="bJadwal" onclick="toggleJadwal()">📅 Mode Belajar: OFF</button>
+          <button class="btn reset" onclick="resetAll()">↺ Reset Demo</button>
+        </div>
+        <div class="hint">Jeda Internet = blokir total (jeda instan). Mode Belajar = jam belajar: hiburan diblokir, edukasi diizinkan (penjadwalan cerdas).</div>
+      </div>
+
+      <div class="card">
+        <h3>📨 Notifikasi Telegram Orang Tua</h3>
+        <div class="tg" id="tg"><div class="msg">Bot EdgeGuard aktif. Menunggu aktivitas…<div class="t">sekarang</div></div></div>
+      </div>
+
+      <div class="card">
+        <h3>🧾 Log Keputusan AI</h3>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const SITES = [
+  {c:'Edukasi', items:[
+    {n:'Khan Academy', d:'khanacademy.org', ic:'📚'},
+    {n:'Wikipedia',    d:'id.wikipedia.org', ic:'📖'},
+    {n:'Ruangguru',    d:'ruangguru.com', ic:'🎓'}]},
+  {c:'Hiburan', items:[
+    {n:'YouTube', d:'youtube.com', ic:'▶️'},
+    {n:'TikTok',  d:'tiktok.com', ic:'🎵'},
+    {n:'Netflix', d:'netflix.com', ic:'🍿'}]},
+  {c:'Negatif', items:[
+    {n:'GacorBet88', d:'gacorbet88.com', ic:'🎰', sub:'judi online'},
+    {n:'XNXX',       d:'xnxx.com', ic:'🔞', sub:'pornografi'}]},
+  {c:'Netral', items:[
+    {n:'Google', d:'google.com', ic:'🔍'},
+    {n:'CDN',    d:'cloudflare.com', ic:'☁️'}]},
+];
+const KAT = {
+  Edukasi:{cls:'t-edu',col:'#f59e0b',aksi:'izinkan'},
+  Hiburan:{cls:'t-hib',col:'#a855f7',aksi:'izinkan'},
+  Negatif:{cls:'t-neg',col:'#ef4444',aksi:'blokir'},
+  Netral:{cls:'t-net',col:'#64748b',aksi:'izinkan'},
+};
+const BATAS=90, BLOK_CHUNK=10, EDU_TARGET=5, BONUS=10;
+let st={sisaHib:90, edu:0, bonus:0, blok:0, izin:0, jeda:false, jadwal:false};
+
+const $=id=>document.getElementById(id);
+function render(){
+  $('hibTxt').textContent=st.sisaHib+' menit';
+  $('hibBar').style.width=Math.max(0,Math.min(100,st.sisaHib/120*100))+'%';
+  $('eduTxt').textContent=st.edu+' / '+EDU_TARGET+' menit';
+  $('eduBar').style.width=(st.edu/EDU_TARGET*100)+'%';
+  $('sBonus').textContent=st.bonus; $('sBlok').textContent=st.blok; $('sIzin').textContent=st.izin;
+}
+function home(){
+  $('url').textContent='beranda · ketuk situs untuk membuka';
+  let h='';
+  for(const g of SITES){
+    h+=`<div class="cat-label" style="color:${KAT[g.c].col}">${g.c}</div>`;
+    for(const s of g.items)
+      h+=`<div class="app" onclick="visit('${g.c}','${s.d}','${s.n.replace(/'/g,"")}','${s.ic}')">
+            <div class="ic">${s.ic}</div><div class="nm">${s.n}</div></div>`;
+  }
+  $('view').innerHTML='<div class="grid">'+h+'</div>';
+}
+function flashFlow(neg){
+  const ids=['n1','n2','n3','n4','n5'];
+  ids.forEach(i=>$(i).classList.remove('on'));
+  ids.forEach((id,k)=>setTimeout(()=>{
+    $(id).classList.add('on');
+    setTimeout(()=>$(id).classList.remove('on'),550);
+  },k*230));
+}
+function addLog(d,kat,conf,aksi){
+  const k=KAT[kat];
+  const li=document.createElement('div');li.className='li';
+  li.innerHTML=`<span class="tag ${k.cls}">${aksi==='blokir'?'🚫':'✅'} ${kat}</span> ${d} · ${conf}% · <b>${aksi.toUpperCase()}</b>`;
+  $('log').prepend(li);
+}
+function tg(msg){
+  const m=document.createElement('div');m.className='msg';
+  const t=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'});
+  m.innerHTML=`${msg}<div class="t">EdgeGuardBot · ${t}</div>`;
+  $('tg').prepend(m);
+}
+function conf(kat){return kat==='Negatif'?98:kat==='Edukasi'?96:kat==='Hiburan'?94:88;}
+
+function visit(kat,dom,nama,ic){
+  $('url').textContent='https://'+dom;
+  flashFlow(kat==='Negatif');
+  setTimeout(()=>decide(kat,dom,nama,ic),1250);
+}
+
+function pageBlock(title,emoji,dom,line1,line2){
+  $('view').innerHTML=`<div class="page blk">
+    <div class="big">${emoji}</div><h2>${title}</h2>
+    <p>${line1}</p>
+    <div class="meta">${line2}</div>
+    <span class="pill blk">EdgeGuard · Perlindungan Aktif</span>
+    <div class="back" onclick="home()">← Kembali</div></div>`;
+}
+function pageAllow(kat,dom,nama,ic,note){
+  $('view').innerHTML=`<div class="page allow">
+    <div class="big">${ic}</div><h2>${nama}</h2>
+    <p style="color:#a7f3d0">Halaman dimuat normal.</p>
+    <span class="pill" style="background:${KAT[kat].col}22;border:1px solid ${KAT[kat].col};color:${KAT[kat].col}">✅ Diizinkan · ${kat}</span>
+    ${note?`<div class="meta">${note}</div>`:''}
+    <div class="back" onclick="home()">← Kembali</div></div>`;
+}
+
+function decide(kat,dom,nama,ic){
+  const c=conf(kat);
+  // Kendali global: Jeda
+  if(st.jeda){
+    addLog(dom,kat,c,'blokir');
+    pageBlock('Internet Dijeda','⏸️',dom,'Orang tua sedang menjeda akses internet.','Mode: Jeda instan (remote). Hubungi orang tua untuk melanjutkan.');
+    tg(`⏸️ Anak mencoba akses <b>${dom}</b> saat internet dijeda.`); st.blok++; render(); return;
+  }
+  // Negatif → selalu blokir
+  if(kat==='Negatif'){
+    addLog(dom,kat,c,'blokir');
+    pageBlock('Akses Diblokir','🛡️',dom,
+      `Konten <b>${dom}</b> terdeteksi <b>Negatif</b> oleh AI EdgeGuard.`,
+      `Kategori AI: Negatif · Keyakinan ${c}% · Terdeteksi via inspeksi SNI pada TLS handshake (tanpa membuka isi data).`);
+    tg(`🚫 <b>Pemblokiran:</b> anak mencoba membuka <b>${dom}</b> (kategori Negatif, ${c}%). Akses diblokir otomatis.`);
+    st.blok++; render(); return;
+  }
+  // Mode Belajar (jadwal): hiburan diblokir
+  if(st.jadwal && kat==='Hiburan'){
+    addLog(dom,kat,c,'blokir');
+    pageBlock('Jam Belajar','📅',dom,'Sedang jam belajar — akses hiburan dijadwalkan nonaktif.','Penjadwalan cerdas aktif. Situs edukasi tetap dapat diakses.');
+    tg(`📅 Hiburan <b>${dom}</b> diblokir (jam belajar).`); st.blok++; render(); return;
+  }
+  // Hiburan → cek kuota
+  if(kat==='Hiburan'){
+    if(st.sisaHib<BLOK_CHUNK){
+      addLog(dom,kat,c,'blokir');
+      pageBlock('Kuota Hiburan Habis','⏳',dom,'Kuota hiburan harian sudah habis.','Buka konten edukasi untuk mendapatkan bonus waktu, atau tunggu reset harian.');
+      tg(`⏳ Kuota hiburan habis — <b>${dom}</b> diblokir.`); st.blok++; render(); return;
+    }
+    st.sisaHib-=BLOK_CHUNK; st.izin++;
+    addLog(dom,kat,c,'izinkan');
+    pageAllow(kat,dom,nama,ic,`Kuota hiburan terpakai 10 menit · sisa ${st.sisaHib} menit.`);
+    render(); return;
+  }
+  // Edukasi → izinkan + akumulasi reward
+  if(kat==='Edukasi'){
+    st.izin++; st.edu++;
+    let note=`Belajar +1 menit (total ${st.edu}/${EDU_TARGET} menuju bonus).`;
+    if(st.edu>=EDU_TARGET){
+      st.edu=0; st.bonus+=BONUS; st.sisaHib+=BONUS;
+      note=`🎁 Belajar ${EDU_TARGET} menit tercapai → +${BONUS} menit kuota hiburan!`;
+      tg(`🎁 <b>Reward:</b> anak belajar ${EDU_TARGET} menit → <b>+${BONUS} menit</b> hiburan ditambahkan.`);
+    }
+    addLog(dom,kat,c,'izinkan');
+    pageAllow(kat,dom,nama,ic,note);
+    render(); return;
+  }
+  // Netral
+  st.izin++; addLog(dom,kat,c,'izinkan');
+  pageAllow(kat,dom,nama,ic,'Domain teknis/netral (CDN, layanan sistem) — diizinkan.');
+  render();
+}
+
+function toggleJeda(){st.jeda=!st.jeda;const b=$('bJeda');b.textContent='⏸️ Jeda Internet: '+(st.jeda?'ON':'OFF');b.classList.toggle('on',st.jeda);if(st.jeda)tg('⏸️ Orang tua mengaktifkan <b>Jeda Internet</b>.');}
+function toggleJadwal(){st.jadwal=!st.jadwal;const b=$('bJadwal');b.textContent='📅 Mode Belajar: '+(st.jadwal?'ON':'OFF');b.classList.toggle('on',st.jadwal);if(st.jadwal)tg('📅 <b>Mode Belajar</b> aktif — hiburan dijadwalkan nonaktif.');}
+function resetAll(){st={sisaHib:90,edu:0,bonus:0,blok:0,izin:0,jeda:false,jadwal:false};
+  $('bJeda').textContent='⏸️ Jeda Internet: OFF';$('bJeda').classList.remove('on');
+  $('bJadwal').textContent='📅 Mode Belajar: OFF';$('bJadwal').classList.remove('on');
+  $('log').innerHTML='';$('tg').innerHTML='<div class="msg">Bot EdgeGuard aktif. Menunggu aktivitas…<div class="t">sekarang</div></div>';
+  render();home();}
+
+function tick(){$('clock').textContent=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}).replace(':','.');}
+setInterval(tick,10000);tick();
+render();home();
+</script>
+</body>
+</html>

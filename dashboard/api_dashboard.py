@@ -101,6 +101,14 @@ def favicon():
     """Serve logo.png sebagai favicon agar ikon muncul di tab browser."""
     return send_from_directory(app.static_folder, 'logo.png',
                                mimetype='image/png')
+
+@app.route('/demo')
+def demo_anak():
+    """Simulasi HP Anak (live) — same-origin ke API ini, untuk demonstrasi
+    sidang tanpa router/HP fisik. Menulis aktivitas ke API nyata."""
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)),
+                               'demo.html', mimetype='text/html')
+
 app.config.update(
     SESSION_COOKIE_HTTPONLY = True,
     SESSION_COOKIE_SAMESITE = 'Lax',

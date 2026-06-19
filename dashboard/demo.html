@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EdgeGuard — Simulasi HP Anak (Live)</title>
+<style>
+  :root{--bg:#0B1220;--panel:#111c30;--panel2:#0e1728;--line:#1f2d45;--blue:#1E3A8A;--blue2:#3B82F6;
+        --txt:#e6edf7;--mut:#8aa0c0;--ok:#22c55e;--neg:#ef4444;--edu:#f59e0b;--hib:#a855f7;--net:#64748b;}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:"Segoe UI",system-ui,Arial,sans-serif;background:radial-gradient(1200px 600px at 80% -10%,#13233f,var(--bg) 55%);
+       color:var(--txt);min-height:100vh;padding:18px}
+  h1{font-size:19px;font-weight:800}.sub{color:var(--mut);font-size:12.5px;margin-top:2px}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .shield{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(135deg,var(--blue2),var(--blue));font-size:22px}
+  .conn{margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .dot{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mut)}
+  .dot i{width:9px;height:9px;border-radius:50%;background:var(--neg);display:inline-block}
+  .dot.ok i{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  select,.lnk{background:var(--panel);border:1px solid var(--line);color:var(--txt);padding:8px 12px;border-radius:10px;font-size:13px;cursor:pointer}
+  .lnk{text-decoration:none;color:var(--blue2);font-weight:600}
+  .wrap{display:grid;grid-template-columns:340px 1fr;gap:18px;align-items:start;max-width:1180px;margin:0 auto}
+  @media(max-width:880px){.wrap{grid-template-columns:1fr}}
+  .phone{background:#05080f;border:8px solid #1b2740;border-radius:36px;padding:10px;box-shadow:0 20px 50px #00000080}
+  .notch{height:22px;display:flex;justify-content:center}.notch::after{content:"";width:120px;height:18px;background:#1b2740;border-radius:0 0 14px 14px}
+  .screen{background:#0a1322;border-radius:24px;overflow:hidden;height:560px;display:flex;flex-direction:column}
+  .statusbar{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);padding:6px 16px 2px}
+  .urlbar{display:flex;align-items:center;gap:8px;margin:6px 10px;background:#0f1b30;border:1px solid var(--line);border-radius:20px;padding:8px 12px;font-size:12px;color:var(--mut)}
+  .view{flex:1;overflow:auto;padding:12px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .cat-label{grid-column:1/-1;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin:8px 2px 0;font-weight:700}
+  .app{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center;cursor:pointer;transition:.15s;user-select:none}
+  .app:hover{transform:translateY(-2px);border-color:var(--blue2);background:#16243d}.app .ic{font-size:26px}.app .nm{font-size:10.5px;color:var(--mut);margin-top:5px}
+  .page{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;border-radius:18px}
+  .page .big{font-size:54px;margin-bottom:8px}.page h2{font-size:19px;margin-bottom:6px}.page p{font-size:12.5px;opacity:.9;line-height:1.5}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;margin-top:10px}
+  .blk{background:linear-gradient(160deg,#2a0d10,#160a12);border:1px solid #5b1a1f;color:#ffd9dc}
+  .allow{background:linear-gradient(160deg,#0c2418,#0a1626);border:1px solid #1f5b3a}
+  .back{margin-top:16px;font-size:12px;color:var(--blue2);cursor:pointer;text-decoration:underline}
+  .meta{margin-top:12px;font-size:11px;color:var(--mut);background:#00000040;border-radius:10px;padding:8px 10px;max-width:240px}
+  .col{display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px}
+  .card h3{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:var(--mut);margin-bottom:10px}
+  .flow{display:flex;align-items:center;justify-content:space-between;gap:6px}
+  .node{flex:1;text-align:center;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px 4px;font-size:11px;color:var(--mut);transition:.25s}
+  .node .ic{font-size:20px;display:block;margin-bottom:3px}.node.on{border-color:var(--blue2);color:#fff;background:#16243d;box-shadow:0 0 0 2px #3b82f655;transform:translateY(-2px)}
+  .arrow{color:var(--line);font-size:18px}
+  .meter{margin:10px 0}.meter .top{display:flex;justify-content:space-between;font-size:12px;margin-bottom:5px}
+  .bar{height:11px;background:#0a1322;border:1px solid var(--line);border-radius:8px;overflow:hidden}.bar>span{display:block;height:100%;width:0;transition:width .5s;border-radius:8px;background:linear-gradient(90deg,#a855f7,#7c3aed)}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .badge{font-size:11px;padding:5px 10px;border-radius:20px;border:1px solid var(--line);background:var(--panel2);color:var(--mut)}
+  .badge.act{color:#fff;font-weight:700}.badge.jeda.act{background:#3a1414;border-color:#7f1d1d;color:#fecaca}.badge.jadwal.act{background:#3a2a08;border-color:#92660a;color:#fde68a}
+  .stat-row{display:flex;gap:10px;margin-top:6px}.stat{flex:1;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:9px;text-align:center}.stat .v{font-size:18px;font-weight:800}.stat .l{font-size:10px;color:var(--mut)}
+  .log{font-family:ui-monospace,Menlo,monospace;font-size:11px;max-height:170px;overflow:auto;display:flex;flex-direction:column;gap:4px}
+  .log .li{padding:4px 8px;border-radius:7px;background:var(--panel2);border:1px solid var(--line)}
+  .t-neg{color:var(--neg)}.t-edu{color:var(--edu)}.t-hib{color:var(--hib)}.t-net{color:#9fb3d1}
+  .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#16243d;border:1px solid var(--blue2);color:#fff;padding:10px 18px;border-radius:12px;font-size:13px;opacity:0;transition:.3s;pointer-events:none;z-index:50}
+  .toast.show{opacity:1}
+  .note{font-size:11px;color:var(--mut);line-height:1.5;margin-top:8px}
+</style>
+</head>
+<body>
+  <div class="brand">
+    <div class="shield">🛡️</div>
+    <div><h1>EdgeGuard — Simulasi HP Anak <span style="color:var(--ok);font-size:12px">● LIVE</span></h1>
+      <div class="sub">Terhubung langsung ke server <b>edgeguard.my.id</b> · aktivitas tercatat real-time di Dashboard</div></div>
+    <div class="conn">
+      <span class="dot" id="conn"><i></i><span id="connTxt">menghubungkan…</span></span>
+      <select id="devSel" onchange="pickDevice()"></select>
+      <a class="lnk" href="/dashboard" target="_blank">Buka Dashboard ↗</a>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen">
+        <div class="statusbar"><span>📶 EdgeGuard-WiFi</span><span id="clock">19.04</span><span>🔋 82%</span></div>
+        <div class="urlbar"><span style="color:var(--ok)">🔒</span><span id="url">beranda · ketuk situs untuk membuka</span></div>
+        <div class="view" id="view"></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="card">
+        <h3>📟 Status Perangkat (dari server)</h3>
+        <div style="font-size:14px;font-weight:700" id="devNama">—</div>
+        <div class="sub" id="devMac">MAC: —</div>
+        <div class="meter">
+          <div class="top"><span>🟣 Kuota Hiburan</span><b id="kuotaTxt">— / —</b></div>
+          <div class="bar"><span id="kuotaBar"></span></div>
+        </div>
+        <div class="badges">
+          <span class="badge jeda" id="bgJeda">⏸️ Jeda: —</span>
+          <span class="badge jadwal" id="bgJadwal">📅 Jam Belajar: —</span>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><div class="v" id="sBonus">0</div><div class="l">Bonus menit</div></div>
+          <div class="stat"><div class="v" id="sBelajar">0/0</div><div class="l">Progres belajar</div></div>
+        </div>
+        <div class="note">Kuota, jeda, & jam belajar diatur dari <b>Dashboard orang tua</b> → otomatis tercermin di sini.</div>
+      </div>
+
+      <div class="card">
+        <h3>🔀 Alur Pemrosesan</h3>
+        <div class="flow">
+          <div class="node" id="n1"><span class="ic">📱</span>HP Anak</div><span class="arrow">→</span>
+          <div class="node" id="n2"><span class="ic">📡</span>Router SNI</div><span class="arrow">→</span>
+          <div class="node" id="n3"><span class="ic">🧠</span>AI MNB</div><span class="arrow">→</span>
+          <div class="node" id="n4"><span class="ic">⚖️</span>Keputusan</div><span class="arrow">→</span>
+          <div class="node" id="n5"><span class="ic">☁️</span>Cloud Log</div>
+        </div>
+      </div>
+
+      <div class="card"><h3>🧾 Log Keputusan (terkirim ke server)</h3><div class="log" id="log"></div></div>
+    </div>
+  </div>
+  <div class="toast" id="toast"></div>
+
+<script>
+const SITES=[
+ {c:'Edukasi',k:'edukasi',col:'#f59e0b',items:[{n:'Khan Academy',d:'khanacademy.org',ic:'📚'},{n:'Wikipedia',d:'id.wikipedia.org',ic:'📖'},{n:'Ruangguru',d:'ruangguru.com',ic:'🎓'}]},
+ {c:'Hiburan',k:'hiburan',col:'#a855f7',items:[{n:'YouTube',d:'youtube.com',ic:'▶️'},{n:'TikTok',d:'tiktok.com',ic:'🎵'},{n:'Netflix',d:'netflix.com',ic:'🍿'}]},
+ {c:'Negatif',k:'negatif',col:'#ef4444',items:[{n:'GacorBet88',d:'gacorbet88.com',ic:'🎰'},{n:'XNXX',d:'xnxx.com',ic:'🔞'}]},
+ {c:'Netral',k:'netral',col:'#64748b',items:[{n:'Google',d:'google.com',ic:'🔍'},{n:'CDN',d:'cloudflare.com',ic:'☁️'}]},
+];
+const HIB_CHUNK=10;           // tiap kunjungan hiburan ≈ 10 menit kuota
+let DEV=null, CFG={daftar_hitam:[],daftar_putih:[],durasi_belajar_menit:5,waktu_bonus_menit:10};
+let belajar=0, lastNeg={};
+const $=id=>document.getElementById(id);
+
+async function api(path,opt){const r=await fetch(path,opt);if(!r.ok)throw new Error(r.status);return r.json();}
+function setConn(ok){$('conn').classList.toggle('ok',ok);$('connTxt').textContent=ok?'terhubung':'gagal terhubung';}
+function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._);t._=setTimeout(()=>t.classList.remove('show'),2200);}
+
+async function loadDevices(){
+  try{
+    const j=await api('/api/perangkat');setConn(true);
+    const sel=$('devSel');sel.innerHTML='';
+    (j.perangkat||[]).forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.nama+' ('+(p.mac||'—')+')';o.dataset.mac=p.mac||'';sel.appendChild(o);});
+    if((j.perangkat||[]).length){pickDevice();}
+    else{$('devNama').textContent='(belum ada perangkat terdaftar)';}
+  }catch(e){setConn(false);}
+}
+function pickDevice(){const sel=$('devSel');DEV={id:parseInt(sel.value),mac:sel.selectedOptions[0].dataset.mac};belajar=0;syncState();}
+
+async function syncState(){
+  if(!DEV)return;
+  try{
+    const [pj,cj]=await Promise.all([api('/api/perangkat'),api('/api/config')]);
+    setConn(true);
+    CFG=cj;
+    const d=(pj.perangkat||[]).find(x=>x.id===DEV.id);
+    if(!d)return;
+    DEV=Object.assign(DEV,d);
+    const harian=+d.kuota_harian||0, pakai=+d.kuota_terpakai||0, bonus=+d.sisa_hiburan||0;
+    const total=harian+bonus, sisa=Math.max(0,total-pakai);
+    $('devNama').textContent=d.nama; $('devMac').textContent='MAC: '+(d.mac||'—');
+    $('kuotaTxt').textContent=`sisa ${sisa} / ${total} menit`;
+    $('kuotaBar').style.width=(total?Math.min(100,pakai/total*100):0)+'%';
+    $('sBonus').textContent=bonus;
+    $('sBelajar').textContent=belajar+'/'+(+CFG.durasi_belajar_menit||5);
+    const jeda=!!d.jeda, jad=!!d.blokir_jadwal;
+    $('bgJeda').textContent='⏸️ Jeda: '+(jeda?'AKTIF':'off');$('bgJeda').classList.toggle('act',jeda);
+    $('bgJadwal').textContent='📅 Jam Belajar: '+(jad?'AKTIF':'off');$('bgJadwal').classList.toggle('act',jad);
+  }catch(e){setConn(false);}
+}
+
+function flow(){['n1','n2','n3','n4','n5'].forEach((id,k)=>setTimeout(()=>{$(id).classList.add('on');setTimeout(()=>$(id).classList.remove('on'),550);},k*220));}
+function addLog(d,kat,conf,aksi){const k={edukasi:'t-edu',hiburan:'t-hib',negatif:'t-neg',netral:'t-net'}[kat];const li=document.createElement('div');li.className='li';li.innerHTML=`<span class="${k}" style="font-weight:700">${aksi==='diblokir'?'🚫':'✅'} ${kat}</span> ${d} · ${conf}% · <b>${aksi}</b>`;$('log').prepend(li);}
+function pageBlock(t,e,l1,l2){$('view').innerHTML=`<div class="page blk"><div class="big">${e}</div><h2>${t}</h2><p>${l1}</p><div class="meta">${l2}</div><span class="pill blk">EdgeGuard · Perlindungan Aktif</span><div class="back" onclick="home()">← Kembali</div></div>`;}
+function pageAllow(kat,nama,ic,col,note){$('view').innerHTML=`<div class="page allow"><div class="big">${ic}</div><h2>${nama}</h2><p style="color:#a7f3d0">Halaman dimuat normal.</p><span class="pill" style="background:${col}22;border:1px solid ${col};color:${col}">✅ Diizinkan · ${kat}</span>${note?`<div class="meta">${note}</div>`:''}<div class="back" onclick="home()">← Kembali</div></div>`;}
+
+function home(){$('url').textContent='beranda · ketuk situs untuk membuka';let h='';for(const g of SITES){h+=`<div class="cat-label" style="color:${g.col}">${g.c}</div>`;for(const s of g.items)h+=`<div class="app" onclick="visit('${g.k}','${s.d}','${s.n}','${s.ic}','${g.col}')"><div class="ic">${s.ic}</div><div class="nm">${s.n}</div></div>`;}$('view').innerHTML='<div class="grid">'+h+'</div>';}
+
+async function logAkses(domain,kat,status,conf,alasan){
+  try{await api('/api/log',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({domain,kategori:kat,status,confidence:conf,alasan,perangkat:DEV.nama||'',mac:DEV.mac||''})});setConn(true);}catch(e){setConn(false);}
+}
+
+async function visit(kat,dom,nama,ic,col){
+  if(!DEV){toast('Pilih perangkat dulu');return;}
+  $('url').textContent='https://'+dom;flow();
+  await new Promise(r=>setTimeout(r,1150));
+  const conf=kat==='negatif'?98:kat==='edukasi'?96:kat==='hiburan'?94:88;
+  const inHitam=(CFG.daftar_hitam||[]).some(x=>dom===x||dom.endsWith('.'+x));
+  let katEff=inHitam?'negatif':kat;
+
+  // 1) Jeda (diatur dari dashboard)
+  if(DEV.jeda){await logAkses(dom,katEff,'diblokir',conf,'dijeda orang tua');addLog(dom,katEff,conf,'diblokir');
+    pageBlock('Internet Dijeda','⏸️','Orang tua sedang menjeda akses internet.','Diatur dari Dashboard (jeda instan). Hubungi orang tua untuk melanjutkan.');toast('Tercatat di server: percobaan saat dijeda');return syncState();}
+  // 2) Jam belajar → hiburan diblokir
+  if(DEV.blokir_jadwal && katEff==='hiburan'){await logAkses(dom,katEff,'diblokir',conf,'jadwal belajar');addLog(dom,katEff,conf,'diblokir');
+    pageBlock('Jam Belajar','📅','Sedang jam belajar — hiburan dijadwalkan nonaktif.','Penjadwalan cerdas (diatur di Dashboard). Situs edukasi tetap bisa diakses.');toast('Tercatat di server');return syncState();}
+  // 3) Negatif
+  if(katEff==='negatif'){await logAkses(dom,'negatif','diblokir',conf,inHitam?'blacklist':'AI');addLog(dom,'negatif',conf,'diblokir');
+    pageBlock('Akses Diblokir','🛡️',`Konten <b>${dom}</b> terdeteksi <b>Negatif</b> oleh AI EdgeGuard.`,`Kategori AI: Negatif · Keyakinan ${conf}% · via inspeksi SNI di TLS handshake. Tercatat di Riwayat Dashboard.`);
+    toast('🚫 Blokir tercatat di Dashboard');return syncState();}
+  // 4) Hiburan → cek kuota dari server
+  if(katEff==='hiburan'){
+    const harian=+DEV.kuota_harian||0,pakai=+DEV.kuota_terpakai||0,bonus=+DEV.sisa_hiburan||0;
+    const sisa=harian+bonus-pakai;
+    if(sisa<HIB_CHUNK){await logAkses(dom,'hiburan','diblokir',conf,'kuota habis');addLog(dom,'hiburan',conf,'diblokir');
+      pageBlock('Kuota Hiburan Habis','⏳','Kuota hiburan harian sudah habis.','Buka konten edukasi untuk bonus, atau tunggu reset harian.');toast('Tercatat: kuota habis');return syncState();}
+    await logAkses(dom,'hiburan','diizinkan',conf,'');
+    try{await api('/api/kuota-update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dev_id:DEV.id,kuota_terpakai:pakai+HIB_CHUNK})});}catch(e){}
+    addLog(dom,'hiburan',conf,'diizinkan');pageAllow('Hiburan',nama,ic,col,`Kuota terpakai +${HIB_CHUNK} menit. Tercatat di Dashboard.`);toast('🟣 Kuota diperbarui di server');return syncState();}
+  // 5) Edukasi → reward
+  if(katEff==='edukasi'){
+    await logAkses(dom,'edukasi','diizinkan',conf,'');
+    belajar++;const durasi=+CFG.durasi_belajar_menit||5,bonusM=+CFG.waktu_bonus_menit||10;
+    let note=`Belajar +1 menit (${belajar}/${durasi} menuju bonus).`;
+    if(belajar>=durasi){belajar=0;
+      try{const r=await api('/api/edu-bonus',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dev_id:DEV.id,edu_menit:durasi,bonus_menit:bonusM})});note=`🎁 Belajar ${durasi} menit → +${bonusM} menit hiburan! (sisa bonus: ${r.sisa_hiburan}m)`;toast('🎁 Bonus +'+bonusM+'m masuk ke server');}catch(e){}}
+    addLog(dom,'edukasi',conf,'diizinkan');pageAllow('Edukasi',nama,ic,col,note);return syncState();}
+  // 6) Netral
+  await logAkses(dom,'netral','diizinkan',conf,'');addLog(dom,'netral',conf,'diizinkan');pageAllow('Netral',nama,ic,col,'Domain teknis/netral — diizinkan.');syncState();
+}
+
+function tick(){$('clock').textContent=new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}).replace(':','.');}
+setInterval(tick,10000);tick();
+home();loadDevices();
+setInterval(syncState,4000);   // poll status dari server (mencerminkan perubahan di Dashboard)
+</script>
+</body>
+</html>
