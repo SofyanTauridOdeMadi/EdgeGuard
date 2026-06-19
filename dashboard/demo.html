@@ -23,14 +23,14 @@
   @media(max-width:880px){.wrap{grid-template-columns:1fr}}
   .phone{background:#05080f;border:8px solid #1b2740;border-radius:36px;padding:10px;box-shadow:0 20px 50px #00000080}
   .notch{height:22px;display:flex;justify-content:center}.notch::after{content:"";width:120px;height:18px;background:#1b2740;border-radius:0 0 14px 14px}
-  .screen{background:#0a1322;border-radius:24px;overflow:hidden;height:560px;display:flex;flex-direction:column}
-  .statusbar{display:flex;justify-content:space-between;font-size:11px;color:var(--mut);padding:6px 16px 2px}
-  .urlbar{display:flex;align-items:center;gap:8px;margin:6px 10px;background:#0f1b30;border:1px solid var(--line);border-radius:20px;padding:8px 12px;font-size:12px;color:var(--mut)}
+  .screen{background:#ffffff;border-radius:24px;overflow:hidden;height:560px;display:flex;flex-direction:column}
+  .statusbar{display:flex;justify-content:space-between;font-size:11px;color:#64748b;padding:6px 16px 2px}
+  .urlbar{display:flex;align-items:center;gap:8px;margin:6px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:20px;padding:8px 12px;font-size:12px;color:#64748b}
   .view{flex:1;overflow:auto;padding:12px}
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-  .cat-label{grid-column:1/-1;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:1px;margin:8px 2px 0;font-weight:700}
-  .app{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px 6px;text-align:center;cursor:pointer;transition:.15s;user-select:none}
-  .app:hover{transform:translateY(-2px);border-color:var(--blue2);background:#16243d}.app .ic{font-size:26px}.app .nm{font-size:10.5px;color:var(--mut);margin-top:5px}
+  .cat-label{grid-column:1/-1;font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:1px;margin:8px 2px 0;font-weight:700}
+  .app{background:#f8fafc;border:1px solid #e5e9f0;border-radius:14px;padding:10px 6px;text-align:center;cursor:pointer;transition:.15s;user-select:none}
+  .app:hover{transform:translateY(-2px);border-color:var(--blue2);background:#eaf2ff;box-shadow:0 4px 12px #2563eb18}.app .ic{font-size:26px}.app .nm{font-size:10.5px;color:#475569;margin-top:5px;font-weight:600}
   .page{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:22px;border-radius:18px}
   .page .big{font-size:54px;margin-bottom:8px}.page h2{font-size:19px;margin-bottom:6px}.page p{font-size:12.5px;opacity:.9;line-height:1.5}
   .pill{display:inline-block;font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;margin-top:10px}
@@ -58,6 +58,8 @@
   .toast.show{opacity:1}
   .note{font-size:11px;color:var(--mut);line-height:1.5;margin-top:8px}
 
+  .req-btn{margin-top:14px;background:linear-gradient(145deg,#2563EB,#1E3A8A);color:#fff;border:none;padding:10px 18px;border-radius:12px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 6px 16px #1e3a8a55}
+  .req-btn:hover{filter:brightness(1.12)}.req-btn:disabled{background:#1f5b3a;cursor:default;filter:none}
   /* ── Splash & logo (tema EdgeGuard, samakan dgn landing) ── */
   #splash{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:24px;overflow:hidden;background:radial-gradient(125% 125% at 50% 0%,#1E40AF 0%,#1E3A8A 40%,#0B1220 100%);transition:opacity .6s,visibility .6s}
   #splash.hide{opacity:0;visibility:hidden}
@@ -200,7 +202,7 @@ async function syncState(){
 
 function flow(){['n1','n2','n3','n4','n5'].forEach((id,k)=>setTimeout(()=>{$(id).classList.add('on');setTimeout(()=>$(id).classList.remove('on'),550);},k*220));}
 function addLog(d,kat,conf,aksi){const k={edukasi:'t-edu',hiburan:'t-hib',negatif:'t-neg',netral:'t-net'}[kat];const li=document.createElement('div');li.className='li';li.innerHTML=`<span class="${k}" style="font-weight:700">${aksi==='diblokir'?'🚫':'✅'} ${kat}</span> ${d} · ${conf}% · <b>${aksi}</b>`;$('log').prepend(li);}
-function pageBlock(t,e,l1,l2){$('view').innerHTML=`<div class="page blk"><div class="big">${e}</div><h2>${t}</h2><p>${l1}</p><div class="meta">${l2}</div><span class="pill blk">EdgeGuard · Perlindungan Aktif</span><div class="back" onclick="home()">← Kembali</div></div>`;}
+function pageBlock(t,e,l1,l2,izin){const btn=izin?`<button class="req-btn" id="reqBtn" onclick="mintaIzin('${izin}')">📩 Minta Izin ke Orang Tua</button>`:'';$('view').innerHTML=`<div class="page blk"><div class="big">${e}</div><h2>${t}</h2><p>${l1}</p><div class="meta">${l2}</div>${btn}<span class="pill blk">EdgeGuard · Perlindungan Aktif</span><div class="back" onclick="home()">← Kembali</div></div>`;}
 function pageAllow(kat,nama,ic,col,note){$('view').innerHTML=`<div class="page allow"><div class="big">${ic}</div><h2>${nama}</h2><p style="color:#a7f3d0">Halaman dimuat normal.</p><span class="pill" style="background:${col}22;border:1px solid ${col};color:${col}">✅ Diizinkan · ${kat}</span>${note?`<div class="meta">${note}</div>`:''}<div class="back" onclick="home()">← Kembali</div></div>`;}
 
 function home(){$('url').textContent='beranda · ketuk situs untuk membuka';let h='';for(const g of SITES){h+=`<div class="cat-label" style="color:${g.col}">${g.c}</div>`;for(const s of g.items)h+=`<div class="app" onclick="visit('${g.k}','${s.d}','${s.n}','${s.ic}','${g.col}')"><div class="ic">${s.ic}</div><div class="nm">${s.n}</div></div>`;}$('view').innerHTML='<div class="grid">'+h+'</div>';}
@@ -210,6 +212,13 @@ async function logAkses(domain,kat,status,conf,alasan){
     body:JSON.stringify({domain,kategori:kat,status,confidence:conf,alasan,perangkat:DEV.nama||'',mac:DEV.mac||''})});setConn(true);}catch(e){setConn(false);}
 }
 
+async function mintaIzin(alasan){
+  if(!DEV)return;
+  try{await api('/minta-izin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({perangkat:DEV.nama||'',device_id:DEV.id,mac:DEV.mac||'',alasan})});
+    toast('📩 Permintaan izin terkirim ke orang tua');
+    const b=document.getElementById('reqBtn');if(b){b.textContent='✓ Permintaan terkirim';b.disabled=true;}
+  }catch(e){toast('Gagal mengirim permintaan');}
+}
 async function visit(kat,dom,nama,ic,col){
   if(!DEV){toast('Pilih perangkat dulu');return;}
   $('url').textContent='https://'+dom;flow();
@@ -220,10 +229,10 @@ async function visit(kat,dom,nama,ic,col){
 
   // 1) Jeda (diatur dari dashboard)
   if(DEV.jeda){await logAkses(dom,katEff,'diblokir',conf,'dijeda orang tua');addLog(dom,katEff,conf,'diblokir');
-    pageBlock('Internet Dijeda','⏸️','Orang tua sedang menjeda akses internet.','Diatur dari Dashboard (jeda instan). Hubungi orang tua untuk melanjutkan.');toast('Tercatat di server: percobaan saat dijeda');return syncState();}
+    pageBlock('Internet Dijeda','⏸️','Orang tua sedang menjeda akses internet.','Diatur dari Dashboard (jeda instan). Minta izin bila perlu mengakses.','jeda');toast('Tercatat di server: percobaan saat dijeda');return syncState();}
   // 2) Jam belajar → hiburan diblokir
   if(DEV.blokir_jadwal && katEff==='hiburan'){await logAkses(dom,katEff,'diblokir',conf,'jadwal belajar');addLog(dom,katEff,conf,'diblokir');
-    pageBlock('Jam Belajar','📅','Sedang jam belajar — hiburan dijadwalkan nonaktif.','Penjadwalan cerdas (diatur di Dashboard). Situs edukasi tetap bisa diakses.');toast('Tercatat di server');return syncState();}
+    pageBlock('Jadwal Istirahat / Belajar','📅','Sedang dalam jadwal yang dibatasi orang tua (belajar/istirahat).','Penjadwalan cerdas (diatur di Dashboard). Situs edukasi tetap bisa diakses.','jadwal');toast('Tercatat di server');return syncState();}
   // 3) Negatif
   if(katEff==='negatif'){await logAkses(dom,'negatif','diblokir',conf,inHitam?'blacklist':'AI');addLog(dom,'negatif',conf,'diblokir');
     pageBlock('Akses Diblokir','<img src="/aset/logo.avif" style="width:64px;height:64px;object-fit:contain;filter:brightness(0) invert(1) opacity(.92)">',`Konten <b>${dom}</b> terdeteksi <b>Negatif</b> oleh AI EdgeGuard.`,`Kategori AI: Negatif · Keyakinan ${conf}% · via inspeksi SNI di TLS handshake. Tercatat di Riwayat Dashboard.`);
@@ -233,7 +242,7 @@ async function visit(kat,dom,nama,ic,col){
     const harian=+DEV.kuota_harian||0,pakai=+DEV.kuota_terpakai||0,bonus=+DEV.sisa_hiburan||0;
     const sisa=harian+bonus-pakai;
     if(sisa<HIB_CHUNK){await logAkses(dom,'hiburan','diblokir',conf,'kuota habis');addLog(dom,'hiburan',conf,'diblokir');
-      pageBlock('Kuota Hiburan Habis','⏳','Kuota hiburan harian sudah habis.','Buka konten edukasi untuk bonus, atau tunggu reset harian.');toast('Tercatat: kuota habis');return syncState();}
+      pageBlock('Kuota Hiburan Habis','⏳','Kuota hiburan harian sudah habis.','Buka konten edukasi untuk bonus, tunggu reset harian, atau minta izin tambahan.','kuota');toast('Tercatat: kuota habis');return syncState();}
     await logAkses(dom,'hiburan','diizinkan',conf,'');
     try{await api('/api/kuota-update',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({dev_id:DEV.id,kuota_terpakai:pakai+HIB_CHUNK})});}catch(e){}
     addLog(dom,'hiburan',conf,'diizinkan');pageAllow('Hiburan',nama,ic,col,`Kuota terpakai +${HIB_CHUNK} menit. Tercatat di Dashboard.`);toast('🟣 Kuota diperbarui di server');return syncState();}
