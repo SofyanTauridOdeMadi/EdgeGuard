@@ -1063,6 +1063,7 @@ def beranda():
         d['model']  = d.get('device_name') or 'Tidak diketahui' # jenis perangkat (sub)
         d['ikon']   = device_icon(d.get('device_name'))          # emoji sesuai jenis
         d['status'] = 'online' if d.get('status_aktif') else 'offline'
+        d['blokir_jadwal'] = _jadwal_blokir_aktif(d['user_id'])  # mode istirahat (beranda)
 
     total_harian   = sum(int(d.get('kuota_harian',  120)) for d in devs)
     total_terpakai = sum(int(d.get('kuota_terpakai', 0))  for d in devs)
@@ -2006,6 +2007,7 @@ def kelola_perangkat():
         d['model']  = d.get('device_name') or 'Tidak diketahui' # jenis perangkat (sub)
         d['ikon']   = device_icon(d.get('device_name'))          # emoji sesuai jenis
         d['status'] = 'online' if d.get('status_aktif') else 'offline'
+        d['blokir_jadwal'] = _jadwal_blokir_aktif(d['user_id'])  # mode istirahat (beranda)
     return render_template('kelola_perangkat.html', perangkat_list=list(devs))
 
 @app.route('/perangkat/tambah', methods=['GET','POST'])
