@@ -2524,6 +2524,52 @@ def api_telegram_getchatid():
                               "bot Anda dari Telegram, lalu klik tombol ini lagi."}), 200
     return jsonify({"status":"ok","chats":chats})
 
+@app.route('/api/laporan')
+@login_required
+def api_laporan():
+    """Data laporan utk rentang tanggal: kuota anak, aktivitas harian/jam,
+    proporsi kategori, top domain diblokir. Discope ke admin yang login."""
+    aid = current_admin_id()
+    d_to   = (request.args.get('to')   or now_lokal().date().isoformat())[:10]
+    d_from = (request.args.get('from') or d_to)[:10]
+    if d_from > d_to: d_from, d_to = d_to, d_from
+    anak = query(
+        "SELECT p.nama, p.kuota_harian, p.kuota_terpakai, "
+        "  COALESCE(d.sisa_hiburan,0) AS sisa_hiburan, COALESCE(d.total_edukasi,0) AS total_edukasi "
+        "FROM pengguna_anak p LEFT JOIN dompet_kuota d ON d.user_id=p.user_id "
+        "WHERE p.admin_id=%s ORDER BY p.nama", (aid,)) or []
+    single = (d_from == d_to)
+    if single:
+        rows = query(
+            "SELECT HOUR(l.waktu_akses) AS k, SUM(l.aksi='izinkan') AS izin, SUM(l.aksi='blokir') AS blokir "
+            "FROM log_akses l JOIN pengguna_anak p ON p.user_id=l.user_id "
+            "WHERE p.admin_id=%s AND DATE(l.waktu_akses)=%s GROUP BY k ORDER BY k", (aid, d_from)) or []
+        seri=[{"label":"%02d.00"%int(r['k']),"izin":int(r['izin'] or 0),"blokir":int(r['blokir'] or 0)} for r in rows]
+    else:
+        rows = query(
+            "SELECT DATE(l.waktu_akses) AS k, SUM(l.aksi='izinkan') AS izin, SUM(l.aksi='blokir') AS blokir "
+            "FROM log_akses l JOIN pengguna_anak p ON p.user_id=l.user_id "
+            "WHERE p.admin_id=%s AND DATE(l.waktu_akses) BETWEEN %s AND %s GROUP BY k ORDER BY k",
+            (aid, d_from, d_to)) or []
+        seri=[{"label":str(r['k'])[5:],"izin":int(r['izin'] or 0),"blokir":int(r['blokir'] or 0)} for r in rows]
+    kat = query(
+        "SELECT l.kategori AS kat, COUNT(*) AS n FROM log_akses l JOIN pengguna_anak p ON p.user_id=l.user_id "
+        "WHERE p.admin_id=%s AND DATE(l.waktu_akses) BETWEEN %s AND %s GROUP BY l.kategori", (aid, d_from, d_to)) or []
+    kategori={r['kat']:int(r['n']) for r in kat}
+    top = query(
+        "SELECT l.domain_url AS dom, COUNT(*) AS n FROM log_akses l JOIN pengguna_anak p ON p.user_id=l.user_id "
+        "WHERE p.admin_id=%s AND l.aksi='blokir' AND DATE(l.waktu_akses) BETWEEN %s AND %s "
+        "GROUP BY l.domain_url ORDER BY n DESC LIMIT 6", (aid, d_from, d_to)) or []
+    ti=sum(s['izin'] for s in seri); tb=sum(s['blokir'] for s in seri)
+    return jsonify({"from":d_from,"to":d_to,"single":single,"anak":anak,"seri":seri,
+        "kategori":kategori,"top_blokir":[{"domain":r['dom'],"n":int(r['n'])} for r in top],
+        "ringkasan":{"total_izin":ti,"total_blokir":tb,"total":ti+tb,"jml_anak":len(anak)}})
+
+@app.route('/laporan')
+@login_required
+def laporan_page():
+    return render_template('laporan.html')
+
 @app.route('/api/status')
 def api_status():
     return jsonify({"status":"online","ts":datetime.now().isoformat()})

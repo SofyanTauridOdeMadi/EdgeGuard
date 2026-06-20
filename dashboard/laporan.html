@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laporan Aktivitas — EdgeGuard</title>
+<link rel="icon" type="image/avif" href="/aset/logo.avif">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Segoe UI',sans-serif;background:#eef2f7;color:#0f172a;padding:18px}
+  .toolbar{max-width:820px;margin:0 auto 16px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap;box-shadow:0 2px 10px rgba(0,0,0,.05)}
+  .toolbar b{font-size:13px;color:#475569;margin-right:2px}
+  .tb-btn{background:#f1f5f9;border:1px solid #e2e8f0;color:#334155;padding:8px 12px;border-radius:9px;font-size:13px;cursor:pointer;font-weight:600}
+  .tb-btn:hover{border-color:#2563EB}.tb-btn.on{background:#2563EB;color:#fff;border-color:#2563EB}
+  .tb-btn.prim{background:#16A34A;color:#fff;border-color:#16A34A}.tb-btn.png{background:#1E3A8A;color:#fff;border-color:#1E3A8A}
+  input[type=date]{border:1px solid #e2e8f0;border-radius:8px;padding:7px 9px;font-size:13px;font-family:inherit}
+  .sp{margin-left:auto}
+
+  #report{max-width:820px;margin:0 auto;background:#fff;border-radius:16px;padding:28px 30px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+  .rhead{display:flex;align-items:center;gap:14px;border-bottom:2px solid #1E3A8A;padding-bottom:16px;margin-bottom:18px}
+  .rlogo{width:48px;height:48px;border-radius:12px;background:linear-gradient(145deg,#2563EB,#1E3A8A);display:grid;place-items:center;flex-shrink:0}
+  .rlogo img{width:62%;height:62%;object-fit:contain;filter:brightness(0) invert(1)}
+  .rhead h1{font-size:19px;color:#1E3A8A}.rhead .meta{font-size:12px;color:#64748b;margin-top:3px}
+  h2.sec{font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:#1E3A8A;margin:22px 0 10px;border-left:3px solid #2563EB;padding-left:8px}
+  .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .cd{background:#f8fafc;border:1px solid #e9eef5;border-radius:12px;padding:12px;text-align:center}
+  .cd .v{font-size:24px;font-weight:800}.cd .l{font-size:11px;color:#64748b;margin-top:2px}
+  .v.izin{color:#16A34A}.v.blok{color:#DC2626}.v.akses{color:#2563EB}.v.anak{color:#7c3aed}
+  table{width:100%;border-collapse:collapse;font-size:12.5px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid #eef2f7}
+  th{background:#f8fafc;color:#475569;font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+  td.r,th.r{text-align:right}
+  .chartwrap{border:1px solid #eef2f7;border-radius:12px;padding:12px}
+  canvas{width:100%;height:230px;display:block}
+  .legend{display:flex;gap:16px;font-size:12px;color:#475569;margin-top:6px;justify-content:center}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .katbar{display:flex;flex-direction:column;gap:8px}
+  .katrow{display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .katrow .nm{width:80px;font-weight:600}.katrow .tr{flex:1;height:14px;background:#f1f5f9;border-radius:7px;overflow:hidden}
+  .katrow .tr > span{display:block;height:100%;border-radius:7px}
+  .katrow .n{width:42px;text-align:right;color:#64748b}
+  .toplist{list-style:none;font-size:12.5px}.toplist li{display:flex;justify-content:space-between;padding:7px 4px;border-bottom:1px dashed #eef2f7}
+  .toplist .d{color:#0f172a}.toplist .c{color:#DC2626;font-weight:700}
+  .empty{color:#94a3b8;font-size:12.5px;padding:10px 2px}
+  .rfoot{margin-top:24px;border-top:1px solid #eef2f7;padding-top:12px;font-size:11px;color:#94a3b8;text-align:center}
+  @media print{
+    body{background:#fff;padding:0}.toolbar{display:none}
+    #report{box-shadow:none;border-radius:0;max-width:none;padding:18px 22px}
+    @page{margin:14mm}
+  }
+</style>
+</head>
+<body>
+  <div class="toolbar">
+    <b>Periode:</b>
+    <button class="tb-btn" data-p="hari" onclick="setP('hari')">Hari ini</button>
+    <button class="tb-btn" data-p="7" onclick="setP('7')">7 Hari</button>
+    <button class="tb-btn" data-p="30" onclick="setP('30')">30 Hari</button>
+    <input type="date" id="f"> – <input type="date" id="t">
+    <button class="tb-btn" onclick="terapkan()">Terapkan</button>
+    <span class="sp"></span>
+    <button class="tb-btn prim" onclick="window.print()">🖨️ Cetak / PDF</button>
+    <button class="tb-btn png" onclick="unduhPNG()">🖼️ Unduh PNG</button>
+  </div>
+
+  <div id="report">
+    <div class="rhead">
+      <div class="rlogo"><img src="/aset/logo.avif" alt="EdgeGuard"></div>
+      <div>
+        <h1>Laporan Aktivitas Internet</h1>
+        <div class="meta">EdgeGuard — Smart Parental Control · <span id="periodeTxt">—</span> · dicetak <span id="cetakTxt"></span></div>
+      </div>
+    </div>
+
+    <h2 class="sec">Ringkasan</h2>
+    <div class="cards">
+      <div class="cd"><div class="v akses" id="cTotal">0</div><div class="l">Total akses</div></div>
+      <div class="cd"><div class="v izin" id="cIzin">0</div><div class="l">Diizinkan</div></div>
+      <div class="cd"><div class="v blok" id="cBlok">0</div><div class="l">Diblokir</div></div>
+      <div class="cd"><div class="v anak" id="cAnak">0</div><div class="l">Jumlah anak</div></div>
+    </div>
+
+    <h2 class="sec">Kuota Harian Anak</h2>
+    <table id="tblAnak"><thead><tr><th>Nama</th><th class="r">Kuota Harian</th><th class="r">Terpakai</th><th class="r">Sisa</th><th class="r">Bonus</th><th class="r">Total Belajar</th></tr></thead><tbody></tbody></table>
+
+    <h2 class="sec">Grafik Aktivitas Internet</h2>
+    <div class="chartwrap">
+      <canvas id="chart"></canvas>
+      <div class="legend"><span><i style="background:#16A34A"></i>Diizinkan</span><span><i style="background:#DC2626"></i>Diblokir</span></div>
+    </div>
+
+    <h2 class="sec">Proporsi Kategori</h2>
+    <div class="katbar" id="katBar"></div>
+
+    <h2 class="sec">Domain Paling Sering Diblokir</h2>
+    <ul class="toplist" id="topList"></ul>
+
+    <div class="rfoot">Dihasilkan otomatis oleh EdgeGuard Smart Parental Control · edgeguard.my.id</div>
+  </div>
+
+<script>
+const KAT={edukasi:'#16A34A',hiburan:'#a855f7',negatif:'#DC2626',netral:'#64748b'};
+const qs=new URLSearchParams(location.search);
+function iso(d){return d.toISOString().slice(0,10);}
+function setP(p){
+  const to=new Date();let from=new Date();
+  if(p==='7')from.setDate(to.getDate()-6);else if(p==='30')from.setDate(to.getDate()-29);
+  document.getElementById('f').value=iso(from);document.getElementById('t').value=iso(to);
+  document.querySelectorAll('.tb-btn[data-p]').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  location.href='/laporan?from='+iso(from)+'&to='+iso(to);
+}
+function terapkan(){const f=document.getElementById('f').value,t=document.getElementById('t').value;if(f&&t)location.href='/laporan?from='+f+'&to='+t;}
+
+function drawChart(seri){
+  const c=document.getElementById('chart');const dpr=window.devicePixelRatio||1;
+  const W=c.clientWidth,H=230;c.width=W*dpr;c.height=H*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);
+  x.clearRect(0,0,W,H);
+  if(!seri.length){x.fillStyle='#94a3b8';x.font='13px sans-serif';x.fillText('Belum ada data aktivitas pada periode ini.',12,30);return;}
+  const padL=34,padB=34,padT=10,padR=8;const cw=W-padL-padR,ch=H-padB-padT;
+  let mx=Math.max(1,...seri.map(s=>Math.max(s.izin,s.blokir)));
+  // gridlines
+  x.strokeStyle='#eef2f7';x.fillStyle='#94a3b8';x.font='10px sans-serif';
+  for(let i=0;i<=4;i++){const gy=padT+ch-ch*i/4;x.beginPath();x.moveTo(padL,gy);x.lineTo(W-padR,gy);x.stroke();x.fillText(Math.round(mx*i/4),6,gy+3);}
+  const n=seri.length,slot=cw/n,bw=Math.min(16,slot/3);
+  seri.forEach((s,i)=>{
+    const cx=padL+slot*i+slot/2;
+    const hi=ch*s.izin/mx, hb=ch*s.blokir/mx;
+    x.fillStyle='#16A34A';x.fillRect(cx-bw-1,padT+ch-hi,bw,hi);
+    x.fillStyle='#DC2626';x.fillRect(cx+1,padT+ch-hb,bw,hb);
+    if(n<=16||i%Math.ceil(n/12)===0){x.save();x.fillStyle='#64748b';x.font='9px sans-serif';x.textAlign='center';x.fillText(s.label,cx,H-padB+14);x.restore();}
+  });
+}
+
+function render(j){
+  document.getElementById('periodeTxt').textContent = j.single? ('Tanggal '+j.from) : (j.from+' s/d '+j.to);
+  document.getElementById('cetakTxt').textContent=new Date().toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});
+  document.getElementById('cTotal').textContent=j.ringkasan.total;
+  document.getElementById('cIzin').textContent=j.ringkasan.total_izin;
+  document.getElementById('cBlok').textContent=j.ringkasan.total_blokir;
+  document.getElementById('cAnak').textContent=j.ringkasan.jml_anak;
+  // tabel anak
+  const tb=document.querySelector('#tblAnak tbody');tb.innerHTML='';
+  if(!j.anak.length)tb.innerHTML='<tr><td colspan="6" class="empty">Belum ada perangkat anak.</td></tr>';
+  j.anak.forEach(a=>{const sisa=Math.max(0,(+a.kuota_harian)-(+a.kuota_terpakai));
+    tb.insertAdjacentHTML('beforeend',`<tr><td>${a.nama}</td><td class="r">${a.kuota_harian}m</td><td class="r">${a.kuota_terpakai}m</td><td class="r">${sisa}m</td><td class="r">${a.sisa_hiburan}m</td><td class="r">${a.total_edukasi}m</td></tr>`);});
+  drawChart(j.seri);
+  // kategori
+  const kb=document.getElementById('katBar');kb.innerHTML='';
+  const totalK=Object.values(j.kategori).reduce((a,b)=>a+b,0)||1;
+  ['edukasi','hiburan','negatif','netral'].forEach(k=>{const v=j.kategori[k]||0;const pct=Math.round(v/totalK*100);
+    kb.insertAdjacentHTML('beforeend',`<div class="katrow"><span class="nm" style="color:${KAT[k]};text-transform:capitalize">${k}</span><span class="tr"><span style="width:${pct}%;background:${KAT[k]}"></span></span><span class="n">${v} (${pct}%)</span></div>`);});
+  // top blokir
+  const tl=document.getElementById('topList');tl.innerHTML='';
+  if(!j.top_blokir.length)tl.innerHTML='<li class="empty">Tidak ada pemblokiran pada periode ini. 🎉</li>';
+  j.top_blokir.forEach(t=>tl.insertAdjacentHTML('beforeend',`<li><span class="d">🚫 ${t.domain}</span><span class="c">${t.n}×</span></li>`));
+}
+
+function unduhPNG(){
+  const go=()=>html2canvas(document.getElementById('report'),{scale:2,backgroundColor:'#ffffff'}).then(cv=>{
+    const a=document.createElement('a');a.download='Laporan-EdgeGuard-'+(qs.get('from')||'')+'.png';a.href=cv.toDataURL('image/png');a.click();});
+  if(window.html2canvas)return go();
+  const s=document.createElement('script');s.src='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+  s.onbeforeload;s.onload=go;s.onerror=()=>alert('Gagal memuat pustaka PNG (perlu internet). Gunakan Cetak/PDF.');document.body.appendChild(s);
+}
+
+// init periode dari URL / default hari ini
+(function(){
+  const to=qs.get('to')||iso(new Date()), from=qs.get('from')||to;
+  document.getElementById('f').value=from;document.getElementById('t').value=to;
+  fetch('/api/laporan?from='+from+'&to='+to).then(r=>r.json()).then(render).catch(()=>{
+    document.getElementById('periodeTxt').textContent='gagal memuat data';});
+})();
+</script>
+</body>
+</html>
