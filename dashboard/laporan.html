@@ -23,16 +23,16 @@
   .rlogo img{width:62%;height:62%;object-fit:contain;filter:brightness(0) invert(1)}
   .rhead h1{font-size:18px;color:#1E3A8A}.rhead .who{font-size:13px;font-weight:700;color:#0f172a;margin-top:2px}
   .rhead .meta{font-size:11px;color:#64748b;margin-top:1px}
-  h2.sec{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#1E3A8A;margin:13px 0 7px;border-left:3px solid #2563EB;padding-left:8px}
+  h2.sec{font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#1E3A8A;margin:11px 0 6px;border-left:3px solid #2563EB;padding-left:8px}
   .cards{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
-  .cd{background:#f8fafc;border:1px solid #e9eef5;border-radius:11px;padding:10px;text-align:center}
+  .cd{background:#f8fafc;border:1px solid #e9eef5;border-radius:11px;padding:8px;text-align:center}
   .cd .v{font-size:21px;font-weight:800}.cd .l{font-size:10.5px;color:#64748b;margin-top:1px}
   .v.akses{color:#2563EB}.v.blok{color:#DC2626}.v.kuota{color:#a855f7}.v.belajar{color:#16A34A}
   .kuota-line{font-size:12px;color:#475569;margin-top:8px;background:#f8fafc;border:1px solid #e9eef5;border-radius:10px;padding:9px 12px}
   .kuota-line b{color:#0f172a}
   .chartwrap{border:1px solid #eef2f7;border-radius:11px;padding:10px 12px}
   .chartwrap .cap{font-size:11px;color:#64748b;margin-bottom:6px}
-  canvas{width:100%;height:150px;display:block}
+  canvas{width:100%;height:128px;display:block}
   /* proporsi 1 bar */
   .propbar{display:flex;height:30px;border-radius:9px;overflow:hidden;border:1px solid #e2e8f0;background:#f1f5f9}
   .propbar > span{display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;font-weight:700;min-width:0;white-space:nowrap;overflow:hidden}
@@ -44,8 +44,10 @@
   th{background:#f8fafc;color:#475569;font-size:10.5px;text-transform:uppercase;letter-spacing:.3px}
   td.r,th.r{text-align:right}
   .kp{font-size:10px;font-weight:700;padding:2px 7px;border-radius:7px}
-  .neglist{list-style:none;font-size:12px}.neglist li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 4px;border-bottom:1px dashed #eef2f7}
-  .neglist .d{color:#7f1d1d;font-weight:600}.neglist .x{color:#94a3b8;font-size:11px}.neglist .c{color:#DC2626;font-weight:800;white-space:nowrap}
+  .neggrid{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}
+  .negitem{border:1px solid #e7c4c4;border-left:3px solid #DC2626;border-radius:9px;padding:6px 9px;min-width:0}
+  .negitem .d{color:#7f1d1d;font-weight:700;font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .negitem .m{display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;margin-top:2px}.negitem .c{color:#DC2626;font-weight:800}
   .empty{color:#94a3b8;font-size:12px;padding:9px 2px}
   .rfoot{margin-top:18px;border-top:1px solid #eef2f7;padding-top:10px;font-size:10.5px;color:#94a3b8;text-align:center}
   @media print{
@@ -98,20 +100,20 @@
     </div>
 
     <h2 class="sec">Proporsi Kategori</h2>
-    <div class="propbar" id="propBar"></div>
+    <div id="propWrap"></div>
     <div class="proplegend" id="propLeg"></div>
 
     <h2 class="sec">Situs Paling Sering Diakses</h2>
     <table id="tblSering"><thead><tr><th>Domain</th><th>Kategori</th><th class="r">Akses</th></tr></thead><tbody></tbody></table>
 
     <h2 class="sec">Domain Negatif yang Terbuka / Dicoba</h2>
-    <ul class="neglist" id="negList"></ul>
+    <div class="neggrid" id="negList"></div>
 
     <div class="rfoot">Dihasilkan otomatis oleh EdgeGuard Smart Parental Control · edgeguard.my.id</div>
   </div>
 
 <script>
-const KAT={edukasi:'#16A34A',hiburan:'#a855f7',negatif:'#DC2626',netral:'#64748b'};
+const KAT={edukasi:'#16A34A',hiburan:'#F97316',negatif:'#DC2626',netral:'#64748b'};
 const qs=new URLSearchParams(location.search);
 function iso(d){return d.toISOString().slice(0,10);}
 function curDev(){return document.getElementById('devSel').value;}
@@ -123,7 +125,7 @@ function gotoDev(){location.href='/laporan?dev='+curDev()+'&from='+(qs.get('from
 
 function drawChart(seri){
   const c=document.getElementById('chart');const dpr=window.devicePixelRatio||1;
-  const W=c.clientWidth,H=150;c.width=W*dpr;c.height=H*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,W,H);
+  const W=c.clientWidth,H=128;c.width=W*dpr;c.height=H*dpr;const x=c.getContext('2d');x.scale(dpr,dpr);x.clearRect(0,0,W,H);
   if(!seri.length){x.fillStyle='#94a3b8';x.font='13px sans-serif';x.fillText('Belum ada aktivitas pada periode ini.',12,28);return;}
   const padL=30,padB=26,padT=8,padR=6,cw=W-padL-padR,ch=H-padB-padT;
   let mx=Math.max(1,...seri.map(s=>s.n));
@@ -153,20 +155,22 @@ function render(j){
   drawChart(j.seri);
   // proporsi 1 bar
   const tot=Object.values(j.kategori).reduce((a,b)=>a+b,0)||1;
-  const pb=document.getElementById('propBar'),pl=document.getElementById('propLeg');pb.innerHTML='';pl.innerHTML='';
-  ['edukasi','hiburan','negatif','netral'].forEach(k=>{const v=j.kategori[k]||0;const pct=Math.round(v/tot*100);
-    if(v>0)pb.insertAdjacentHTML('beforeend',`<span style="width:${v/tot*100}%;background:${KAT[k]}">${pct>=9?pct+'%':''}</span>`);
+  const pl=document.getElementById('propLeg');pl.innerHTML='';
+  let cum=0,svg='<svg viewBox="0 0 100 10" preserveAspectRatio="none" style="width:100%;height:28px;border:1px solid #e2e8f0;border-radius:9px;overflow:hidden;display:block">';
+  ['edukasi','hiburan','negatif','netral'].forEach(k=>{const v=j.kategori[k]||0;const pct=Math.round(v/tot*100);const w=v/tot*100;
+    if(w>0){svg+=`<rect x="${cum}" y="0" width="${w}" height="10" fill="${KAT[k]}"></rect>`;cum+=w;}
     pl.insertAdjacentHTML('beforeend',`<span class="it"><i style="background:${KAT[k]}"></i><span style="text-transform:capitalize">${k}</span> <b>${pct}%</b> <span style="color:#94a3b8">(${v})</span></span>`);});
-  if(tot===0)pb.innerHTML='<span style="width:100%;background:#cbd5e1;color:#64748b">Belum ada data</span>';
+  if(tot===0)svg+='<rect x="0" y="0" width="100" height="10" fill="#cbd5e1"></rect>';
+  document.getElementById('propWrap').innerHTML=svg+'</svg>';
   // sering diakses
   const tb=document.querySelector('#tblSering tbody');tb.innerHTML='';
   if(!j.sering.length)tb.innerHTML='<tr><td colspan="3" class="empty">Belum ada akses.</td></tr>';
-  j.sering.forEach(s=>{const c=KAT[s.kat]||'#64748b';
+  j.sering.slice(0,6).forEach(s=>{const c=KAT[s.kat]||'#64748b';
     tb.insertAdjacentHTML('beforeend',`<tr><td>${s.domain}</td><td><span class="kp" style="background:${c}22;color:${c};text-transform:capitalize">${s.kat||'-'}</span></td><td class="r">${s.n}×</td></tr>`);});
   // negatif dibuka
   const nl=document.getElementById('negList');nl.innerHTML='';
-  if(!j.negatif.length)nl.innerHTML='<li class="empty">Tidak ada domain negatif yang terbuka pada periode ini. 🎉</li>';
-  j.negatif.forEach(t=>nl.insertAdjacentHTML('beforeend',`<li><span><span class="d">🚫 ${t.domain}</span> <span class="x">· terakhir ${String(t.terakhir).slice(5,16).replace('T',' ')}</span></span><span class="c">${t.n}×</span></li>`));
+  if(!j.negatif.length)nl.innerHTML='<div class="empty" style="grid-column:1/-1">Tidak ada domain negatif yang terbuka pada periode ini. 🎉</div>';
+  j.negatif.slice(0,9).forEach(t=>nl.insertAdjacentHTML('beforeend',`<div class="negitem"><span class="d" title="${t.domain}">🚫 ${t.domain}</span><span class="m"><span>${String(t.terakhir).slice(5,16).replace('T',' ')}</span><span class="c">${t.n}×</span></span></div>`));
 }
 
 (function(){
