@@ -14,10 +14,10 @@
 ║    python3 pemantau_trafik.py --interface br-lan --debug              ║
 ╚══════════════════════════════════════════════════════════════════════╝
 """
-import os, sys, re, time, json, subprocess, threading, argparse, shutil
+import os, sys, re, time, json, subprocess, threading, argparse, shutil, signal
 import urllib.request, urllib.error
 from datetime import datetime
-from collections import OrderedDict
+from collections import OrderedDict, deque
 
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
@@ -31,6 +31,16 @@ DEBUG     = DEBUG_DEFAULT
 MAX_CACHE = 2000
 CACHE_TTL = 300                                  # 5 menit
 FIREWALL_SH = os.path.join(BASE, 'aturan_firewall.sh')
+LIGHT = bool(int(os.environ.get('EG_LIGHT', '0')))  # P5: hemat RAM
+
+# Child capture (tcpdump/tshark) — dimatikan saat SIGTERM agar procd dapat
+# menuntaskan 'stop' (tanpa ini child tcpdump menggantung → init.d restart hang).
+_capture_procs = []
+def _handle_sigterm(signum, frame):
+    for _p in _capture_procs:
+        try: _p.kill()
+        except Exception: pass
+    os._exit(0)
 
 # ─── Captive portal sinkhole ─────────────────────────────────────────────
 PORTAL_IP = '192.168.1.2'
@@ -53,8 +63,19 @@ def _sinkhole_all_paths() -> list:
         paths.add(os.path.join(d, 'eg_sinkhole.conf'))
     return list(paths)
 
-# Set domain negatif yang terdeteksi oleh AI (in-memory, persisten selama proses hidup)
+# Set domain negatif (in-memory). DIBATASI agar tidak tumbuh tak terbatas (P1: anti memory-leak).
+MAX_NEG = int(os.environ.get("EG_MAX_NEGATIF", "5000"))
 _negatif_domains: set = set()
+_negatif_order = deque()
+_last_sinkhole_lines = None   # cache utk reload dnsmasq HANYA saat daftar berubah
+
+def _neg_add(*domains):
+    """Tambah domain negatif dengan batas kapasitas (FIFO). Evict tertua bila penuh."""
+    for d in domains:
+        if not d or d in _negatif_domains: continue
+        _negatif_domains.add(d); _negatif_order.append(d)
+    while len(_negatif_domains) > MAX_NEG:
+        _negatif_domains.discard(_negatif_order.popleft())
 
 def _muat_sinkhole_awal():
     """Baca file sinkhole yang sudah ada ke _negatif_domains saat startup.
@@ -68,7 +89,7 @@ def _muat_sinkhole_awal():
                 if line.startswith('address=/'):
                     parts = line.split('/')
                     if len(parts) >= 2 and parts[1]:
-                        _negatif_domains.add(parts[1])
+                        _neg_add(parts[1])
         if _negatif_domains and DEBUG:
             print(f"[sinkhole] dimuat dari file: {len(_negatif_domains)} domain")
     except FileNotFoundError:
@@ -220,6 +241,18 @@ cache = DomainCache()
 # ═══════════════════════════════════════════════════════════════════════════
 # PUSH LOG ke VPS  (/api/log)
 # ═══════════════════════════════════════════════════════════════════════════
+_log_queue = deque(maxlen=500)   # P6: antrian log saat VPS down (bounded)
+
+def _post_log(payload: bytes):
+    req = urllib.request.Request(CLOUD_URL + '/api/log', data=payload,
+        headers={'Content-Type':'application/json'}, method='POST')
+    urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx())
+
+def _flush_log_queue():
+    while _log_queue:
+        try: _post_log(_log_queue[0]); _log_queue.popleft()
+        except Exception: break
+
 def kirim_log(keputusan: dict, perangkat: str, mac: str):
     try:
         payload = json.dumps({
@@ -231,14 +264,34 @@ def kirim_log(keputusan: dict, perangkat: str, mac: str):
             'perangkat':  perangkat,
             'mac':        mac,
         }).encode()
-        req = urllib.request.Request(
-            CLOUD_URL + '/api/log',
-            data=payload,
-            headers={'Content-Type':'application/json'},
-            method='POST')
-        urllib.request.urlopen(req, timeout=HTTP_TIMEOUT, context=mk_ssl_ctx())
+    except Exception:
+        return
+    try:
+        _flush_log_queue()
+        _post_log(payload)
     except Exception as e:
-        if DEBUG: print(f"[push] gagal: {e}")
+        if len(_log_queue) < _log_queue.maxlen:
+            _log_queue.append(payload)
+        if DEBUG: print(f"[push] gagal, diantri ({len(_log_queue)}): {e}")
+
+def _log_retry_loop():
+    while True:
+        time.sleep(60)
+        if _log_queue: _flush_log_queue()
+
+def _portal_watchdog_loop():
+    portal_sh = os.path.join(BASE, 'captive_portal.sh')
+    while True:
+        time.sleep(60)
+        try:
+            alive = subprocess.run(['pgrep','-f','portal_server.py'],
+                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+            if not alive and os.path.exists(portal_sh):
+                subprocess.run(['sh', portal_sh, 'portal'], timeout=20,
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if DEBUG: print('[watchdog] portal_server mati → di-restart')
+        except Exception:
+            pass
 
 # ═══════════════════════════════════════════════════════════════════════════
 # EKSEKUSI FIREWALL
@@ -248,11 +301,12 @@ PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
 def _tulis_sinkhole():
     """Tulis ulang file dnsmasq sinkhole dari _negatif_domains lalu reload dnsmasq.
     Tulis ke SEMUA path yang mungkin dibaca dnsmasq (statis + dinamis)."""
+    global _last_sinkhole_lines
     paths = _sinkhole_all_paths()
-    conf  = paths[0]  # path utama untuk log
     try:
-        lines = ''.join(f"address=/{d}/{PORTAL_IP}\n" for d in sorted(_negatif_domains))
-        # Tulis ke semua path (statis + dinamis) agar dnsmasq pasti membacanya
+        # Sinkhole A (→portal) DAN AAAA (→ :: ) agar IPv6 tidak bocor ke DNS ISP.
+        lines = ''.join(f"address=/{d}/{PORTAL_IP}\naddress=/{d}/::\n"
+                        for d in sorted(_negatif_domains))
         for p in paths:
             try:
                 os.makedirs(os.path.dirname(p), exist_ok=True)
@@ -260,9 +314,12 @@ def _tulis_sinkhole():
                     f.write(lines)
             except Exception:
                 pass
-        # HUP = reload conf tanpa restart penuh
-        subprocess.run(['killall', '-HUP', 'dnsmasq'], timeout=3, check=False,
-                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        # PENTING: SIGHUP TIDAK me-reload address= dari conf-dir → WAJIB restart.
+        # Hanya restart saat daftar BERUBAH (hindari restart tiap siklus 60 dtk).
+        if lines != _last_sinkhole_lines:
+            _last_sinkhole_lines = lines
+            subprocess.run(['/etc/init.d/dnsmasq', 'restart'], timeout=15, check=False,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except Exception as e:
         if DEBUG: print(f"[sinkhole] tulis gagal: {e}")
 
@@ -276,7 +333,7 @@ def fw_blokir(domain: str):
     menampilkan halaman portal."""
     if domain in _negatif_domains:
         return
-    _negatif_domains.add(domain)
+    _neg_add(domain)
     _tulis_sinkhole()
     if DEBUG: print(f"[sinkhole] +{domain} ({len(_negatif_domains)} total)")
 
@@ -380,6 +437,7 @@ def capture_tshark(iface: str):
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True,
                             errors='replace', bufsize=1)
+    _capture_procs.append(proc)
     print(f"[EdgeGuard] Memantau SNI via tshark ({iface})...")
     try:
         for line in iter(proc.stdout.readline, ''):
@@ -411,6 +469,7 @@ def capture_tcpdump(iface: str):
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True,
                             errors='replace', bufsize=1)
+    _capture_procs.append(proc)
     print(f"[EdgeGuard] Memantau via tcpdump fallback ({iface})...")
     ip_curr = ''
     try:
@@ -437,6 +496,7 @@ def capture_dns(iface: str):
     proc = subprocess.Popen(cmd, stdout=subprocess.PIPE,
                             stderr=subprocess.DEVNULL, text=True,
                             errors='replace', bufsize=1)
+    _capture_procs.append(proc)
     try:
         for line in iter(proc.stdout.readline, ''):
             parts = line.strip().split('\t')
@@ -468,7 +528,7 @@ def sinkhole_sync_loop():
                 for d in cfg.get('daftar_hitam', []) if d.strip()
             )
             _sinkhole_vps_terakhir = vps_hitam
-            _negatif_domains |= vps_hitam   # merge, jangan hapus deteksi AI
+            _neg_add(*vps_hitam)   # merge (dibatasi MAX_NEG), jangan hapus deteksi AI
         except Exception as e:
             if DEBUG: print(f"[sinkhole] VPS sync gagal (pakai data lokal): {e}")
         # Tulis ulang file setiap siklus untuk konsistensi
@@ -508,6 +568,7 @@ def main():
     args = p.parse_args()
     IFACE = args.interface
     DEBUG = args.debug or DEBUG
+    signal.signal(signal.SIGTERM, _handle_sigterm)  # bersihkan child capture saat stop
 
     print("=" * 60)
     print("  Edge Guard — Pemantau Trafik")
@@ -535,7 +596,7 @@ def main():
         vps_hitam = set(d.strip().lower()
                         for d in cfg.get('daftar_hitam', []) if d.strip())
         if vps_hitam:
-            _negatif_domains.update(vps_hitam)
+            _neg_add(*vps_hitam)
             _tulis_sinkhole()
             print(f"[EdgeGuard] Sinkhole init: {len(_negatif_domains)} domain")
     except Exception as e:
@@ -543,6 +604,15 @@ def main():
 
     # Thread statistik
     threading.Thread(target=stats_loop, daemon=True).start()
+    threading.Thread(target=_log_retry_loop, daemon=True, name='logretry').start()
+    threading.Thread(target=_portal_watchdog_loop, daemon=True, name='portalwd').start()
+    try:
+        import kuota_tracker, reward_sistem
+        threading.Thread(target=kuota_tracker.jalankan, daemon=True, name='kuota').start()
+        threading.Thread(target=lambda: reward_sistem.jalankan(10), daemon=True, name='reward').start()
+        print("[EdgeGuard] kuota & reward berjalan sebagai thread (mode konsolidasi)")
+    except Exception as e:
+        print(f"[EdgeGuard] gagal start thread kuota/reward: {e}")
 
     # Thread heartbeat (push status MAC ke VPS)
     try:
@@ -553,7 +623,7 @@ def main():
         print(f"[EdgeGuard] Heartbeat tidak aktif: {e}")
 
     # Thread DNS (opsional)
-    if args.with_dns and tool_ada('tshark'):
+    if args.with_dns and not LIGHT and tool_ada('tshark'):
         threading.Thread(target=capture_dns, args=(IFACE,),
                          daemon=True, name='dns').start()
         print("[EdgeGuard] DNS capture thread aktif.")
@@ -567,7 +637,10 @@ def main():
     refresh_perangkat()
 
     print()
-    if tool_ada('tshark'):
+    if LIGHT and tool_ada('tcpdump'):
+        print("[EdgeGuard] EG_LIGHT=1 → capture via tcpdump (hemat RAM)")
+        capture_tcpdump(IFACE)
+    elif tool_ada('tshark'):
         capture_tshark(IFACE)
     elif tool_ada('tcpdump'):
         print("⚠️  tshark tidak ada → pakai tcpdump (kurang akurat)")

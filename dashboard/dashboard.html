@@ -118,6 +118,8 @@ a{text-decoration:none;color:inherit}
 .ni-ic{display:flex;align-items:center;justify-content:center}.ni-lbl{font-size:11px;font-weight:500}
 
 /* ── Overlay + Sheet ── */
+.lap-q{background:#F1F5F9;border:1px solid #E5E7EB;color:#334155;padding:11px 6px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+.lap-q:hover{border-color:#2563EB;background:#EFF6FF}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:50;opacity:0;pointer-events:none;transition:opacity .22s}
 .overlay.show{opacity:1;pointer-events:all}
 .sheet{position:fixed;bottom:0;left:50%;transform:translateX(-50%) translateY(100%);width:100%;max-width:430px;background:#fff;border-radius:22px 22px 0 0;z-index:51;transition:transform .28s cubic-bezier(.25,.46,.45,.94);max-height:92vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -248,7 +250,7 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
 <div id="ptr" aria-hidden="true"><div class="ptr-spin"></div></div>
 
 <div class="topbar">
-  <div class="brand">
+  <div class="brand" onclick="openLaporan()" style="cursor:pointer" title="Klik untuk cetak laporan aktivitas">
     <div class="logo"><img src="/aset/logo.avif" alt="Edge Guard"></div>
     <div class="bt"><h2>Edge Guard</h2></div>
   </div>
@@ -326,13 +328,13 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
   {% set pct_used = (kU_d / kT_d * 100)|int if kT_d else 0 %}
   <button class="dev-card" onclick="openDevSheet({{loop.index0}})">
     <div class="d-ic" id="d-ic-{{dev.id}}"
-      style="background:{{ '#FEF2F2' if jeda else ('#DCFCE7' if dev.status == 'online' else '#F3F4F6') }};color:{{ '#EF4444' if jeda else '#374151' }}">
+      style="background:{{ '#DCFCE7' if dev.status == 'online' else '#F3F4F6' }};color:#374151">
       {{ dev.ikon | safe }}
     </div>
     <div class="d-info">
       <h4>{{dev.label}}</h4>
       <p>
-        <span id="d-st-{{dev.id}}" class="{{ 's-jeda' if jeda else ('s-online' if dev.status == 'online' else 's-off') }}">● {{ 'Dijeda' if jeda else ('Online' if dev.status == 'online' else 'Offline') }}</span>&nbsp;• {{dev.model}}
+        <span id="d-st-{{dev.id}}" class="{{ 's-online' if dev.status == 'online' else 's-off' }}">● {{ 'Online' if dev.status == 'online' else 'Offline' }}</span>&nbsp;• {{dev.model}}
       </p>
       <!-- Satu bar gabungan: biru = sisa kuota umum, hijau = sisa bonus belajar -->
       <div class="d-mini-bar" style="display:flex;height:5px">
@@ -340,8 +342,16 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
         <div style="width:{{w_bonus}}%;height:100%;background:#16A34A"></div>
       </div>
       <div style="font-size:10px;font-weight:600;margin-top:4px;display:flex;gap:10px;flex-wrap:wrap">
-        <span style="color:{{ '#DC2626' if sisa_umum == 0 else '#6B7280' }}">{{sisa_umum}}m sisa kuota umum</span>
-        <span style="color:#16A34A">{{sisa_bonus}}m sisa bonus belajar</span>
+        {% if jeda %}
+          <span style="color:#EF4444">&#9208; Internet dijedakan</span>
+        {% elif dev.get('blokir_jadwal') %}
+          <span style="color:#D97706">&#127769; Mode Istirahat</span>
+        {% elif sisa_umum == 0 and sisa_bonus == 0 %}
+          <span style="color:#DC2626">Sisa kuota habis</span>
+        {% else %}
+          <span style="color:{{ '#DC2626' if sisa_umum == 0 else '#6B7280' }}">{{sisa_umum}}m sisa kuota umum</span>
+          <span style="color:#16A34A">{{sisa_bonus}}m sisa bonus belajar</span>
+        {% endif %}
       </div>
     </div>
     <span class="d-arr">›</span>
@@ -583,6 +593,37 @@ input[type=range].tw-range{width:100%;accent-color:#2563EB;height:4px;cursor:poi
 <!-- ═══════════════════════════════════
      SCRIPT
 ═══════════════════════════════════ -->
+<div class="overlay" id="lap-ov" onclick="closeLap()"></div>
+<div class="sheet" id="lap-sheet">
+  <div style="padding:18px 18px 24px">
+    <div style="width:38px;height:4px;background:#E5E7EB;border-radius:3px;margin:0 auto 14px"></div>
+    <h3 style="font-size:16px;font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:8px">
+      <span style="width:26px;height:26px;border-radius:8px;background:linear-gradient(145deg,#2563EB,#1E3A8A);display:grid;place-items:center;overflow:hidden"><img src="/aset/logo.avif" style="width:60%;filter:brightness(0) invert(1)"></span>
+      Cetak Laporan Aktivitas</h3>
+    <p style="font-size:12.5px;color:#6B7280;margin-bottom:14px">Pilih periode — laporan berisi kuota anak, grafik aktivitas, kategori &amp; domain diblokir (bisa dicetak PDF / unduh PNG).</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      <button class="lap-q" onclick="bukaLaporan('hari')">Hari ini</button>
+      <button class="lap-q" onclick="bukaLaporan('7')">7 Hari</button>
+      <button class="lap-q" onclick="bukaLaporan('30')">30 Hari</button>
+    </div>
+    <div style="font-size:12px;color:#6B7280;margin-bottom:6px">Atau rentang khusus:</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px">
+      <input type="date" id="lap-f" style="flex:1;border:1px solid #E5E7EB;border-radius:9px;padding:9px;font-family:inherit">
+      <span style="color:#9CA3AF">–</span>
+      <input type="date" id="lap-t" style="flex:1;border:1px solid #E5E7EB;border-radius:9px;padding:9px;font-family:inherit">
+    </div>
+    <button onclick="bukaLaporan('custom')" style="width:100%;background:#2563EB;color:#fff;border:none;padding:13px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">Buka Laporan &#8599;</button>
+  </div>
+</div>
+<script>
+function openLaporan(){var t=new Date().toISOString().slice(0,10);var f=document.getElementById('lap-f'),tt=document.getElementById('lap-t');if(f)f.value=t;if(tt)tt.value=t;document.getElementById('lap-ov').classList.add('show');document.getElementById('lap-sheet').classList.add('show');}
+function closeLap(){document.getElementById('lap-ov').classList.remove('show');document.getElementById('lap-sheet').classList.remove('show');}
+function bukaLaporan(pp){var to=new Date(),from=new Date(),f,t;
+  if(pp==='7')from.setDate(to.getDate()-6);else if(pp==='30')from.setDate(to.getDate()-29);
+  if(pp==='custom'){f=document.getElementById('lap-f').value;t=document.getElementById('lap-t').value;if(!f||!t){alert('Pilih tanggal mulai & akhir');return;}}
+  else{f=from.toISOString().slice(0,10);t=to.toISOString().slice(0,10);}
+  window.open('/laporan?from='+f+'&to='+t,'_blank');closeLap();}
+</script>
 <script>
 var DEVS     = {{ perangkat_list | tojson }};
 var activeDev = 0;        // index device yang sedang dibuka di sheet
@@ -947,7 +988,7 @@ function openTWForDev() {
   }
   function init(){
     resize(); pts = [];
-    var N = Math.max(12, Math.round(W / 22));   // partikel lebih sedikit
+    var N = Math.max(7, Math.round(W / 34));    // partikel lebih sedikit (hemat CPU/baterai)
     for (var i=0;i<N;i++){ var p=mkPt(); p.y=Math.random()*H; pts.push(p); }
   }
   function draw(){
@@ -963,7 +1004,7 @@ function openTWForDev() {
   }
   function frame(t){
     RAF = requestAnimationFrame(frame);
-    if (t - last < 33) return;        // batasi ~30fps (separuh beban)
+    if (t - last < 50) return;        // batasi ~20fps (lebih hemat)
     last = t; draw();
   }
   function start(){ if (!RAF && onscreen && !document.hidden && !reduce){ last=0; RAF=requestAnimationFrame(frame); } }
@@ -1081,13 +1122,13 @@ function cekForm() {
     (list||[]).forEach(function(d){
       var st = document.getElementById('d-st-' + d.id);
       if (st){
-        st.className   = d.jeda ? 's-jeda' : (d.status === 'online' ? 's-online' : 's-off');
-        st.textContent = '● ' + (d.jeda ? 'Dijeda' : (d.status === 'online' ? 'Online' : 'Offline'));
+        st.className   = (d.status === 'online' ? 's-online' : 's-off');
+        st.textContent = '● ' + (d.status === 'online' ? 'Online' : 'Offline');
       }
       var ic = document.getElementById('d-ic-' + d.id);
       if (ic){
-        ic.style.background = d.jeda ? '#FEF2F2' : (d.status === 'online' ? '#DCFCE7' : '#F3F4F6');
-        ic.style.color      = d.jeda ? '#EF4444' : '#374151';
+        ic.style.background = (d.status === 'online' ? '#DCFCE7' : '#F3F4F6');
+        ic.style.color      = '#374151';
       }
     });
   }

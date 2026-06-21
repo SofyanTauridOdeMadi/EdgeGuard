@@ -11,7 +11,7 @@
 ╚══════════════════════════════════════════════════════════════════════╝
 """
 from flask import (Flask, render_template, request, redirect, url_for,
-                   session, jsonify, flash, send_from_directory)
+                   session, jsonify, flash, send_from_directory, g, has_app_context)
 import pymysql, pymysql.cursors
 import os, sys, json, time, math, secrets, re, threading
 from datetime import datetime, date, timedelta
@@ -101,6 +101,14 @@ def favicon():
     """Serve logo.png sebagai favicon agar ikon muncul di tab browser."""
     return send_from_directory(app.static_folder, 'logo.png',
                                mimetype='image/png')
+
+@app.route('/demo')
+def demo_anak():
+    """Simulasi HP Anak (live) — same-origin ke API ini, untuk demonstrasi
+    sidang tanpa router/HP fisik. Menulis aktivitas ke API nyata."""
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)),
+                               'demo.html', mimetype='text/html')
+
 app.config.update(
     SESSION_COOKIE_HTTPONLY = True,
     SESSION_COOKIE_SAMESITE = 'Lax',
@@ -171,9 +179,23 @@ def now_lokal_naive():
 # DB HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 def get_db():
+    """Dalam request → 1 koneksi MySQL dipakai-ulang via flask.g (ditutup saat
+    teardown). Di luar request (thread bot/notif) → koneksi sekali pakai."""
+    if has_app_context():
+        if 'db' not in g:
+            g.db = pymysql.connect(**DB)
+        return g.db
     return pymysql.connect(**DB)
 
+@app.teardown_appcontext
+def _close_db(_exc=None):
+    db = g.pop('db', None)
+    if db is not None:
+        try: db.close()
+        except Exception: pass
+
 def query(sql, args=None, one=False):
+    in_ctx = has_app_context()
     conn = get_db()
     try:
         with conn.cursor() as cur:
@@ -183,8 +205,15 @@ def query(sql, args=None, one=False):
                 conn.commit()
                 return cur.lastrowid if up.startswith('INSERT') else cur.rowcount
             return cur.fetchone() if one else cur.fetchall()
+    except Exception:
+        try: conn.close()
+        except Exception: pass
+        if in_ctx: g.pop('db', None)
+        raise
     finally:
-        conn.close()
+        if not in_ctx:
+            try: conn.close()
+            except Exception: pass
 
 def get_cfg(key, default=None):
     row = query("SELECT v FROM konfigurasi WHERE k=%s", (key,), one=True)
@@ -253,8 +282,13 @@ def ensure_admin_password(default_username: str = 'stom',
 # ══════════════════════════════════════════════════════════════════════════════
 # RESET KUOTA HARIAN + STATUS ONLINE
 # ══════════════════════════════════════════════════════════════════════════════
+_last_reset_date = ''
 def reset_kuota_jika_hari_baru():
+    global _last_reset_date
     today = now_lokal().date().isoformat()
+    if _last_reset_date == today:
+        return                      # sudah direset utk hari ini di proses ini
+    _last_reset_date = today
     # Reset pemakaian hiburan harian per perangkat.
     query("UPDATE pengguna_anak SET kuota_terpakai=0, last_reset=%s "
           "WHERE last_reset IS NULL OR last_reset <> %s", (today, today))
@@ -263,7 +297,12 @@ def reset_kuota_jika_hari_baru():
           "terakhir_reset=%s WHERE terakhir_reset IS NULL OR terakhir_reset <> %s",
           (today, today))
 
+_last_refresh_online = 0.0
 def refresh_status_online():
+    global _last_refresh_online
+    if (time.time() - _last_refresh_online) < 25:
+        return                      # throttle: cukup ~25 dtk sekali
+    _last_refresh_online = time.time()
     th = int(get_cfg('heartbeat_offline_detik', '120'))
     query("UPDATE pengguna_anak SET status_aktif=0 "
           "WHERE last_seen IS NULL "
@@ -1055,6 +1094,7 @@ def beranda():
         d['model']  = d.get('device_name') or 'Tidak diketahui' # jenis perangkat (sub)
         d['ikon']   = device_icon(d.get('device_name'))          # emoji sesuai jenis
         d['status'] = 'online' if d.get('status_aktif') else 'offline'
+        d['blokir_jadwal'] = _jadwal_blokir_aktif(d['user_id'])  # mode istirahat (beranda)
 
     total_harian   = sum(int(d.get('kuota_harian',  120)) for d in devs)
     total_terpakai = sum(int(d.get('kuota_terpakai', 0))  for d in devs)
@@ -1998,6 +2038,7 @@ def kelola_perangkat():
         d['model']  = d.get('device_name') or 'Tidak diketahui' # jenis perangkat (sub)
         d['ikon']   = device_icon(d.get('device_name'))          # emoji sesuai jenis
         d['status'] = 'online' if d.get('status_aktif') else 'offline'
+        d['blokir_jadwal'] = _jadwal_blokir_aktif(d['user_id'])  # mode istirahat (beranda)
     return render_template('kelola_perangkat.html', perangkat_list=list(devs))
 
 @app.route('/perangkat/tambah', methods=['GET','POST'])
@@ -2168,15 +2209,25 @@ def _jadwal_blokir_aktif(user_id, now=None):
     now = now or now_lokal()
     hari = HARI_LIST[now.weekday()]          # weekday(): Senin=0
     jam  = now.strftime('%H:%M:%S')
-    rows = query("SELECT jam_mulai, jam_selesai FROM jadwal_blokir "
-                 "WHERE user_id=%s AND hari=%s AND mode='blokir'",
-                 (user_id, hari)) or []
-    for r in rows:
-        m = str(r['jam_mulai']); s = str(r['jam_selesai'])
-        if m <= s:
-            if m <= jam < s: return True      # window normal (mis. 08:00-15:00)
+    if has_app_context():
+        cache = getattr(g, '_jblk', None)
+        if cache is None or cache[0] != hari:
+            allrows = query("SELECT user_id, jam_mulai, jam_selesai FROM jadwal_blokir "
+                            "WHERE hari=%s AND mode='blokir'", (hari,)) or []
+            byu = {}
+            for r in allrows:
+                byu.setdefault(r['user_id'], []).append((str(r['jam_mulai']), str(r['jam_selesai'])))
+            g._jblk = (hari, byu); cache = g._jblk
+        windows = cache[1].get(user_id, [])
+    else:
+        rows = query("SELECT jam_mulai, jam_selesai FROM jadwal_blokir "
+                     "WHERE user_id=%s AND hari=%s AND mode='blokir'", (user_id, hari)) or []
+        windows = [(str(r['jam_mulai']), str(r['jam_selesai'])) for r in rows]
+    for m, sx in windows:
+        if m <= sx:
+            if m <= jam < sx: return True
         else:
-            if jam >= m or jam < s: return True  # lewat tengah malam (22:00-05:00)
+            if jam >= m or jam < sx: return True
     return False
 
 # ── Cache DHCP clients dari router (di-update via POST /api/dhcp-clients) ──
@@ -2513,6 +2564,55 @@ def api_telegram_getchatid():
                         "msg":"Belum ada chat yang terdeteksi. Kirim /start ke "
                               "bot Anda dari Telegram, lalu klik tombol ini lagi."}), 200
     return jsonify({"status":"ok","chats":chats})
+
+@app.route('/api/laporan')
+@login_required
+def api_laporan():
+    """Laporan PER-1-PERANGKAT: kuota, aktivitas/durasi, proporsi kategori,
+    domain sering diakses, domain negatif yang dibuka. Discope ke admin login."""
+    aid = current_admin_id()
+    d_to   = (request.args.get('to')   or now_lokal().date().isoformat())[:10]
+    d_from = (request.args.get('from') or d_to)[:10]
+    if d_from > d_to: d_from, d_to = d_to, d_from
+    devices = query("SELECT user_id AS id, nama FROM pengguna_anak WHERE admin_id=%s ORDER BY nama",(aid,)) or []
+    try: dev_id = int(request.args.get('dev') or 0)
+    except (TypeError, ValueError): dev_id = 0
+    if not any(d['id'] == dev_id for d in devices):
+        dev_id = devices[0]['id'] if devices else 0
+    anak = query("SELECT p.nama, p.kuota_harian, p.kuota_terpakai, "
+        "COALESCE(d.sisa_hiburan,0) AS sisa_hiburan, COALESCE(d.total_edukasi,0) AS total_edukasi "
+        "FROM pengguna_anak p LEFT JOIN dompet_kuota d ON d.user_id=p.user_id "
+        "WHERE p.user_id=%s", (dev_id,), one=True) or {}
+    single = (d_from == d_to)
+    if single:
+        rows = query("SELECT HOUR(waktu_akses) AS k, COUNT(*) AS n FROM log_akses "
+            "WHERE user_id=%s AND DATE(waktu_akses)=%s GROUP BY k ORDER BY k",(dev_id,d_from)) or []
+        seri=[{"label":"%02d.00"%int(r['k']),"n":int(r['n'])} for r in rows]
+    else:
+        rows = query("SELECT DATE(waktu_akses) AS k, COUNT(*) AS n FROM log_akses "
+            "WHERE user_id=%s AND DATE(waktu_akses) BETWEEN %s AND %s GROUP BY k ORDER BY k",(dev_id,d_from,d_to)) or []
+        seri=[{"label":str(r['k'])[5:],"n":int(r['n'])} for r in rows]
+    kat = query("SELECT kategori AS kat, COUNT(*) AS n FROM log_akses "
+        "WHERE user_id=%s AND DATE(waktu_akses) BETWEEN %s AND %s GROUP BY kategori",(dev_id,d_from,d_to)) or []
+    kategori={r['kat']:int(r['n']) for r in kat}
+    sering = query("SELECT domain_url AS dom, COUNT(*) AS n, MAX(kategori) AS kat FROM log_akses "
+        "WHERE user_id=%s AND DATE(waktu_akses) BETWEEN %s AND %s GROUP BY domain_url ORDER BY n DESC LIMIT 8",(dev_id,d_from,d_to)) or []
+    negatif = query("SELECT domain_url AS dom, COUNT(*) AS n, MAX(waktu_akses) AS tr FROM log_akses "
+        "WHERE user_id=%s AND kategori='negatif' AND DATE(waktu_akses) BETWEEN %s AND %s GROUP BY domain_url ORDER BY n DESC LIMIT 12",(dev_id,d_from,d_to)) or []
+    bl = query("SELECT COUNT(*) AS n FROM log_akses WHERE user_id=%s AND aksi='blokir' AND DATE(waktu_akses) BETWEEN %s AND %s",(dev_id,d_from,d_to),one=True) or {}
+    total=sum(kategori.values())
+    return jsonify({"from":d_from,"to":d_to,"single":single,"devices":devices,"dev_id":dev_id,
+        "anak":anak,"seri":seri,"kategori":kategori,
+        "sering":[{"domain":r['dom'],"n":int(r['n']),"kat":r['kat']} for r in sering],
+        "negatif":[{"domain":r['dom'],"n":int(r['n']),"terakhir":str(r['tr'])} for r in negatif],
+        "ringkasan":{"total":total,"blokir":int(bl.get('n',0)),
+            "menit_kuota":int(anak.get('kuota_terpakai',0) or 0),
+            "menit_belajar":int(anak.get('total_edukasi',0) or 0)}})
+
+@app.route('/laporan')
+@login_required
+def laporan_page():
+    return render_template('laporan.html')
 
 @app.route('/api/status')
 def api_status():
