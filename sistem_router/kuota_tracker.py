@@ -23,6 +23,7 @@ from collections import defaultdict
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 from config import CLOUD_URL, HTTP_TIMEOUT, KUOTA_INTERVAL, KBPS_AKTIF, DEBUG, mk_ssl_ctx
+from eg_nft import read_measure, ensure_measure
 
 PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
 
@@ -78,7 +79,7 @@ def baca_byte_hiburan() -> dict:
     """Return {mac_upper: total_byte_hiburan} dari chain measure (nft -j).
     Rule diberi comment 'hib_<MAC>' agar mudah dipetakan."""
     out = {}
-    raw = _portal('read-measure')
+    raw = read_measure()
     if not raw: return out
     try:
         data = json.loads(raw)
@@ -93,7 +94,7 @@ def baca_byte_hiburan() -> dict:
         # cari counter bytes di expr
         for e in rule.get('expr', []):
             if 'counter' in e:
-                out[mac] = int(e['counter'].get('bytes', 0))
+                out[mac] = out.get(mac, 0) + int(e['counter'].get('bytes', 0))  # jumlahkan 2 arah
     return out
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -125,7 +126,7 @@ def siklus(interval: int, kbps_th: float):
     # Pastikan counter hiburan terpasang utk tiap MAC.
     for d in devs:
         mac = (d.get('mac') or '').upper()
-        if mac: _portal('measure-mac', mac)
+        if mac: ensure_measure(mac)
 
     hib_now = baca_byte_hiburan()
 

@@ -163,10 +163,16 @@ measure_mac() {
     mac="$1"; [ -z "$mac" ] && return 1
     nft list table $NFT_TABLE >/dev/null 2>&1 || pasang_nft
     cur="$(nft list chain $NFT_TABLE measure 2>/dev/null)"
+    # HIBURAN — hitung 2 ARAH: upload (anak->server) + download (server->anak)
     echo "$cur" | grep -qi "ether saddr $mac ip daddr @hiburan_ip" \
         || nft add rule $NFT_TABLE measure ether saddr "$mac" ip daddr @hiburan_ip counter comment "\"hib_$mac\"" 2>/dev/null
+    echo "$cur" | grep -qi "ether daddr $mac ip saddr @hiburan_ip" \
+        || nft add rule $NFT_TABLE measure ether daddr "$mac" ip saddr @hiburan_ip counter comment "\"hib_$mac\"" 2>/dev/null
+    # EDUKASI — hitung 2 ARAH (penting: konten belajar mayoritas DOWNLOAD)
     echo "$cur" | grep -qi "ether saddr $mac ip daddr @edukasi_ip" \
         || nft add rule $NFT_TABLE measure ether saddr "$mac" ip daddr @edukasi_ip counter comment "\"edu_$mac\"" 2>/dev/null
+    echo "$cur" | grep -qi "ether daddr $mac ip saddr @edukasi_ip" \
+        || nft add rule $NFT_TABLE measure ether daddr "$mac" ip saddr @edukasi_ip counter comment "\"edu_$mac\"" 2>/dev/null
 }
 
 # ─── BACA COUNTER (JSON) → dipakai kuota_tracker & reward ───────────────────

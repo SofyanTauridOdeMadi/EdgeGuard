@@ -21,6 +21,7 @@ from collections import defaultdict
 BASE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, BASE)
 from config import CLOUD_URL, HTTP_TIMEOUT, CONFIG_TTL, DEBUG, mk_ssl_ctx
+from eg_nft import read_measure, ensure_measure
 
 PORTAL_SH = os.path.join(BASE, 'captive_portal.sh')
 
@@ -83,14 +84,14 @@ def sync_perangkat():
             mac = (d.get('mac') or '').upper()
             if mac:
                 _mac_dev[mac] = d.get('id')
-                _portal('measure-mac', mac)
+                ensure_measure(mac)
     except Exception:
         pass
 
 def baca_byte_edukasi() -> dict:
     """{mac_upper: total_byte_edukasi} dari chain measure (comment 'edu_<MAC>')."""
     out = {}
-    raw = _portal('read-measure')
+    raw = read_measure()
     if not raw: return out
     try:
         data = json.loads(raw)
@@ -104,7 +105,7 @@ def baca_byte_edukasi() -> dict:
         mac = cmt[4:].upper()
         for e in rule.get('expr', []):
             if 'counter' in e:
-                out[mac] = int(e['counter'].get('bytes', 0))
+                out[mac] = out.get(mac, 0) + int(e['counter'].get('bytes', 0))  # jumlahkan 2 arah
     return out
 
 def beri_bonus(dev_id, edu_menit: int, bonus_menit: int):
