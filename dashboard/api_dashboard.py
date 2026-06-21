@@ -11,7 +11,7 @@
 ╚══════════════════════════════════════════════════════════════════════╝
 """
 from flask import (Flask, render_template, request, redirect, url_for,
-                   session, jsonify, flash, send_from_directory)
+                   session, jsonify, flash, send_from_directory, g, has_app_context)
 import pymysql, pymysql.cursors
 import os, sys, json, time, math, secrets, re, threading
 from datetime import datetime, date, timedelta
@@ -179,9 +179,23 @@ def now_lokal_naive():
 # DB HELPERS
 # ══════════════════════════════════════════════════════════════════════════════
 def get_db():
+    """Dalam request → 1 koneksi MySQL dipakai-ulang via flask.g (ditutup saat
+    teardown). Di luar request (thread bot/notif) → koneksi sekali pakai."""
+    if has_app_context():
+        if 'db' not in g:
+            g.db = pymysql.connect(**DB)
+        return g.db
     return pymysql.connect(**DB)
 
+@app.teardown_appcontext
+def _close_db(_exc=None):
+    db = g.pop('db', None)
+    if db is not None:
+        try: db.close()
+        except Exception: pass
+
 def query(sql, args=None, one=False):
+    in_ctx = has_app_context()
     conn = get_db()
     try:
         with conn.cursor() as cur:
@@ -191,8 +205,15 @@ def query(sql, args=None, one=False):
                 conn.commit()
                 return cur.lastrowid if up.startswith('INSERT') else cur.rowcount
             return cur.fetchone() if one else cur.fetchall()
+    except Exception:
+        try: conn.close()
+        except Exception: pass
+        if in_ctx: g.pop('db', None)
+        raise
     finally:
-        conn.close()
+        if not in_ctx:
+            try: conn.close()
+            except Exception: pass
 
 def get_cfg(key, default=None):
     row = query("SELECT v FROM konfigurasi WHERE k=%s", (key,), one=True)
@@ -261,8 +282,13 @@ def ensure_admin_password(default_username: str = 'stom',
 # ══════════════════════════════════════════════════════════════════════════════
 # RESET KUOTA HARIAN + STATUS ONLINE
 # ══════════════════════════════════════════════════════════════════════════════
+_last_reset_date = ''
 def reset_kuota_jika_hari_baru():
+    global _last_reset_date
     today = now_lokal().date().isoformat()
+    if _last_reset_date == today:
+        return                      # sudah direset utk hari ini di proses ini
+    _last_reset_date = today
     # Reset pemakaian hiburan harian per perangkat.
     query("UPDATE pengguna_anak SET kuota_terpakai=0, last_reset=%s "
           "WHERE last_reset IS NULL OR last_reset <> %s", (today, today))
@@ -271,7 +297,12 @@ def reset_kuota_jika_hari_baru():
           "terakhir_reset=%s WHERE terakhir_reset IS NULL OR terakhir_reset <> %s",
           (today, today))
 
+_last_refresh_online = 0.0
 def refresh_status_online():
+    global _last_refresh_online
+    if (time.time() - _last_refresh_online) < 25:
+        return                      # throttle: cukup ~25 dtk sekali
+    _last_refresh_online = time.time()
     th = int(get_cfg('heartbeat_offline_detik', '120'))
     query("UPDATE pengguna_anak SET status_aktif=0 "
           "WHERE last_seen IS NULL "
@@ -2178,15 +2209,25 @@ def _jadwal_blokir_aktif(user_id, now=None):
     now = now or now_lokal()
     hari = HARI_LIST[now.weekday()]          # weekday(): Senin=0
     jam  = now.strftime('%H:%M:%S')
-    rows = query("SELECT jam_mulai, jam_selesai FROM jadwal_blokir "
-                 "WHERE user_id=%s AND hari=%s AND mode='blokir'",
-                 (user_id, hari)) or []
-    for r in rows:
-        m = str(r['jam_mulai']); s = str(r['jam_selesai'])
-        if m <= s:
-            if m <= jam < s: return True      # window normal (mis. 08:00-15:00)
+    if has_app_context():
+        cache = getattr(g, '_jblk', None)
+        if cache is None or cache[0] != hari:
+            allrows = query("SELECT user_id, jam_mulai, jam_selesai FROM jadwal_blokir "
+                            "WHERE hari=%s AND mode='blokir'", (hari,)) or []
+            byu = {}
+            for r in allrows:
+                byu.setdefault(r['user_id'], []).append((str(r['jam_mulai']), str(r['jam_selesai'])))
+            g._jblk = (hari, byu); cache = g._jblk
+        windows = cache[1].get(user_id, [])
+    else:
+        rows = query("SELECT jam_mulai, jam_selesai FROM jadwal_blokir "
+                     "WHERE user_id=%s AND hari=%s AND mode='blokir'", (user_id, hari)) or []
+        windows = [(str(r['jam_mulai']), str(r['jam_selesai'])) for r in rows]
+    for m, sx in windows:
+        if m <= sx:
+            if m <= jam < sx: return True
         else:
-            if jam >= m or jam < s: return True  # lewat tengah malam (22:00-05:00)
+            if jam >= m or jam < sx: return True
     return False
 
 # ── Cache DHCP clients dari router (di-update via POST /api/dhcp-clients) ──

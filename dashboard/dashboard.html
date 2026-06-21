@@ -988,7 +988,7 @@ function openTWForDev() {
   }
   function init(){
     resize(); pts = [];
-    var N = Math.max(12, Math.round(W / 22));   // partikel lebih sedikit
+    var N = Math.max(7, Math.round(W / 34));    // partikel lebih sedikit (hemat CPU/baterai)
     for (var i=0;i<N;i++){ var p=mkPt(); p.y=Math.random()*H; pts.push(p); }
   }
   function draw(){
@@ -1004,7 +1004,7 @@ function openTWForDev() {
   }
   function frame(t){
     RAF = requestAnimationFrame(frame);
-    if (t - last < 33) return;        // batasi ~30fps (separuh beban)
+    if (t - last < 50) return;        // batasi ~20fps (lebih hemat)
     last = t; draw();
   }
   function start(){ if (!RAF && onscreen && !document.hidden && !reduce){ last=0; RAF=requestAnimationFrame(frame); } }
